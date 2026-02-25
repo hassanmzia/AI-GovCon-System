@@ -2,11 +2,11 @@ import api from "@/lib/api";
 
 export interface ExecutiveSummary {
   active_deals: number;
-  pipeline_value: number;
+  pipeline_value: number | string;
   proposals_in_progress: number;
   active_contracts: number;
   pending_approvals: number;
-  upcoming_deadlines: number;
+  upcoming_deadlines: number | unknown[];
   win_rate: number | null;
   closed_won: number;
   closed_lost: number;
@@ -20,8 +20,8 @@ export interface PipelineFunnel {
 
 export interface QuarterForecast {
   quarter: string;
-  pipeline_value: number;
-  weighted_value: number;
+  pipeline_value: number | string;
+  weighted_value: number | string;
   deal_count: number;
 }
 
@@ -30,7 +30,7 @@ export interface WinRateTrend {
   total: number;
   won: number;
   lost: number;
-  win_rate: number;
+  win_rate: number | null;
   moving_avg: number | null;
 }
 
@@ -41,12 +41,18 @@ export interface ExecutiveDashboardData {
   win_rate_trend: WinRateTrend[];
 }
 
+// Pipeline load can come from full service or basic fallback
 export interface PipelineLoad {
-  active_deal_count: number;
-  proposal_stage_count: number;
-  total_pipeline_value: number;
-  weighted_pipeline_value: number;
-  stage_distribution: Record<string, number>;
+  // Full service fields
+  active_deal_count?: number;
+  proposal_stage_count?: number;
+  total_pipeline_value?: number | string;
+  weighted_pipeline_value?: number | string;
+  stage_distribution?: Record<string, number>;
+  // Fallback fields
+  total_active_deals?: number;
+  by_stage?: Record<string, number>;
+  avg_per_stage?: number;
 }
 
 export async function getExecutiveDashboard(): Promise<ExecutiveDashboardData> {
