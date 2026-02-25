@@ -92,3 +92,46 @@ class AgentPerformanceMetric(BaseModel):
 
     def __str__(self):
         return f"{self.agent_name} metrics — {self.date}"
+
+
+class RecommendationMetric(BaseModel):
+    """Tracks recommendation quality (Precision@K) over time."""
+    date = models.DateField()
+    metric_type = models.CharField(max_length=50, choices=[
+        ('precision_at_10', 'Precision@10'),
+        ('precision_at_win', 'Precision@Win'),
+        ('recall_at_10', 'Recall@10'),
+    ])
+    recommended_count = models.IntegerField(default=0)
+    pursued_count = models.IntegerField(default=0)
+    won_count = models.IntegerField(default=0)
+    precision_score = models.FloatField(default=0.0)
+    recommended_ids = models.JSONField(default=list)
+    pursued_ids = models.JSONField(default=list)
+    won_ids = models.JSONField(default=list)
+
+    class Meta:
+        ordering = ["-date"]
+        unique_together = [["date", "metric_type"]]
+
+    def __str__(self):
+        return f"{self.metric_type}: {self.precision_score:.2f} on {self.date}"
+
+
+class RevenueForecast(BaseModel):
+    """Revenue forecast snapshot by quarter."""
+    forecast_date = models.DateField()
+    quarter = models.CharField(max_length=10)
+    pipeline_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    weighted_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    expected_wins = models.IntegerField(default=0)
+    confidence_low = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    confidence_high = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    deal_details = models.JSONField(default=list)
+
+    class Meta:
+        ordering = ["-forecast_date", "quarter"]
+        unique_together = [["forecast_date", "quarter"]]
+
+    def __str__(self):
+        return f"Forecast {self.quarter}: ${self.weighted_value:,.0f}"

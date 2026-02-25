@@ -4,10 +4,15 @@ from rest_framework import serializers
 
 from apps.deals.models import (
     Activity,
+    AgencyContact,
+    AgencyInteraction,
     Approval,
+    CapturePlan,
     Comment,
     Deal,
     DealStageHistory,
+    GateReviewCriteria,
+    Stakeholder,
     Task,
     TaskTemplate,
 )
@@ -415,3 +420,148 @@ class ActivitySerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = fields
+
+
+# ── Capture Plan ────────────────────────────────────────
+
+
+class CapturePlanSerializer(serializers.ModelSerializer):
+    approved_by_detail = UserMinimalSerializer(source="approved_by", read_only=True)
+
+    class Meta:
+        model = CapturePlan
+        fields = [
+            "id",
+            "deal",
+            "status",
+            "win_strategy",
+            "competitive_landscape",
+            "teaming_strategy",
+            "pricing_approach",
+            "technical_approach_summary",
+            "key_differentiators",
+            "action_items",
+            "risk_assessment",
+            "timeline",
+            "is_ai_generated",
+            "ai_confidence",
+            "approved_by",
+            "approved_by_detail",
+            "approved_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "is_ai_generated",
+            "approved_at",
+            "created_at",
+            "updated_at",
+        ]
+
+
+# ── Agency Contact ──────────────────────────────────────
+
+
+class AgencyInteractionSerializer(serializers.ModelSerializer):
+    logged_by_detail = UserMinimalSerializer(source="logged_by", read_only=True)
+
+    class Meta:
+        model = AgencyInteraction
+        fields = [
+            "id",
+            "contact",
+            "deal",
+            "interaction_type",
+            "date",
+            "summary",
+            "attendees",
+            "follow_up_actions",
+            "logged_by",
+            "logged_by_detail",
+            "created_at",
+        ]
+        read_only_fields = ["id", "logged_by", "created_at"]
+
+
+class AgencyContactSerializer(serializers.ModelSerializer):
+    interactions = AgencyInteractionSerializer(many=True, read_only=True)
+    interaction_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AgencyContact
+        fields = [
+            "id",
+            "deal",
+            "name",
+            "title",
+            "agency",
+            "office",
+            "contact_type",
+            "email",
+            "phone",
+            "notes",
+            "relationship_strength",
+            "interactions",
+            "interaction_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_interaction_count(self, obj):
+        return obj.interactions.count()
+
+
+# ── Stakeholder ─────────────────────────────────────────
+
+
+class StakeholderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stakeholder
+        fields = [
+            "id",
+            "deal",
+            "name",
+            "title",
+            "organization",
+            "role_in_decision",
+            "influence_level",
+            "disposition",
+            "priorities",
+            "concerns",
+            "engagement_strategy",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+# ── Gate Review ─────────────────────────────────────────
+
+
+class GateReviewCriteriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GateReviewCriteria
+        fields = [
+            "id",
+            "stage",
+            "name",
+            "description",
+            "is_critical",
+            "evaluation_query",
+            "order",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class GateEvaluationSerializer(serializers.Serializer):
+    """Read-only serializer for gate evaluation results."""
+    stage = serializers.CharField()
+    overall_status = serializers.CharField()
+    can_proceed = serializers.BooleanField()
+    summary = serializers.CharField()
+    criteria = serializers.ListField(child=serializers.DictField())

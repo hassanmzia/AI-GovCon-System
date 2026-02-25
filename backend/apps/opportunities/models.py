@@ -183,3 +183,35 @@ class DailyDigest(BaseModel):
 
     def __str__(self):
         return f"Digest {self.date}"
+
+
+class OpportunityAmendment(BaseModel):
+    """Tracks amendments and changes to tracked opportunities."""
+    opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, related_name='amendments')
+    amendment_number = models.IntegerField(default=1)
+    change_type = models.CharField(max_length=50, choices=[
+        ('deadline_extended', 'Deadline Extended'),
+        ('deadline_shortened', 'Deadline Shortened'),
+        ('scope_modified', 'Scope Modified'),
+        ('set_aside_changed', 'Set-Aside Changed'),
+        ('evaluation_criteria_changed', 'Evaluation Criteria Changed'),
+        ('cancelled', 'Cancelled'),
+        ('reissued', 'Reissued'),
+        ('qa_posted', 'Q&A Posted'),
+        ('attachment_added', 'Attachment Added'),
+        ('other', 'Other'),
+    ])
+    summary = models.TextField(blank=True)
+    old_value = models.JSONField(default=dict, blank=True)
+    new_value = models.JSONField(default=dict, blank=True)
+    detected_at = models.DateTimeField(auto_now_add=True)
+    is_material = models.BooleanField(default=True)
+    impact_assessment = models.TextField(blank=True)
+    requires_rescore = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-detected_at']
+        unique_together = ['opportunity', 'amendment_number']
+
+    def __str__(self):
+        return f"Amendment #{self.amendment_number} ({self.change_type}) for {self.opportunity.notice_id}"

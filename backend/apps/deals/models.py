@@ -222,3 +222,156 @@ class Activity(BaseModel):
 
     def __str__(self):
         return f"{self.action} on {self.deal} by {self.actor}"
+
+
+class CapturePlan(BaseModel):
+    """AI-generated capture plan for a deal in the capture_plan stage."""
+    deal = models.OneToOneField(Deal, on_delete=models.CASCADE, related_name='capture_plan')
+    status = models.CharField(max_length=20, choices=[
+        ('draft', 'Draft'),
+        ('in_review', 'In Review'),
+        ('approved', 'Approved'),
+    ], default='draft')
+
+    # Core capture elements
+    win_strategy = models.TextField(blank=True)
+    competitive_landscape = models.TextField(blank=True)
+    teaming_strategy = models.TextField(blank=True)
+    pricing_approach = models.TextField(blank=True)
+    technical_approach_summary = models.TextField(blank=True)
+    key_differentiators = models.JSONField(default=list)
+    action_items = models.JSONField(default=list)
+    risk_assessment = models.JSONField(default=list)
+    timeline = models.JSONField(default=dict)
+
+    # AI generation metadata
+    is_ai_generated = models.BooleanField(default=False)
+    ai_confidence = models.FloatField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='approved_capture_plans'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Capture Plan [{self.status}] for {self.deal}"
+
+
+class AgencyContact(BaseModel):
+    """Track contacts at government agencies related to deals."""
+    CONTACT_TYPES = [
+        ('cor', 'Contracting Officer Representative'),
+        ('co', 'Contracting Officer'),
+        ('tpoc', 'Technical Point of Contact'),
+        ('pm', 'Program Manager'),
+        ('end_user', 'End User'),
+        ('other', 'Other'),
+    ]
+
+    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name='agency_contacts')
+    name = models.CharField(max_length=300)
+    title = models.CharField(max_length=300, blank=True)
+    agency = models.CharField(max_length=500, blank=True)
+    office = models.CharField(max_length=500, blank=True)
+    contact_type = models.CharField(max_length=20, choices=CONTACT_TYPES, default='other')
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    notes = models.TextField(blank=True)
+    relationship_strength = models.IntegerField(
+        default=1,
+        help_text="1-5 scale: 1=cold, 5=strong relationship"
+    )
+
+    class Meta:
+        ordering = ['-relationship_strength', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_contact_type_display()}) — {self.deal}"
+
+
+class AgencyInteraction(BaseModel):
+    """Log interactions with agency contacts."""
+    INTERACTION_TYPES = [
+        ('meeting', 'Meeting'),
+        ('email', 'Email'),
+        ('phone', 'Phone Call'),
+        ('conference', 'Conference'),
+        ('industry_day', 'Industry Day'),
+        ('site_visit', 'Site Visit'),
+        ('other', 'Other'),
+    ]
+
+    contact = models.ForeignKey(AgencyContact, on_delete=models.CASCADE, related_name='interactions')
+    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name='agency_interactions')
+    interaction_type = models.CharField(max_length=20, choices=INTERACTION_TYPES)
+    date = models.DateTimeField()
+    summary = models.TextField()
+    attendees = models.JSONField(default=list)
+    follow_up_actions = models.JSONField(default=list)
+    logged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
+
+    class Meta:
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.get_interaction_type_display()} with {self.contact.name} on {self.date.date()}"
+
+
+class Stakeholder(BaseModel):
+    """Map decision-makers and influencers for a deal."""
+    INFLUENCE_LEVELS = [
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
+    ]
+    DISPOSITION_CHOICES = [
+        ('champion', 'Champion'),
+        ('supporter', 'Supporter'),
+        ('neutral', 'Neutral'),
+        ('skeptic', 'Skeptic'),
+        ('blocker', 'Blocker'),
+        ('unknown', 'Unknown'),
+    ]
+
+    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name='stakeholders')
+    name = models.CharField(max_length=300)
+    title = models.CharField(max_length=300, blank=True)
+    organization = models.CharField(max_length=500, blank=True)
+    role_in_decision = models.CharField(max_length=200, blank=True)
+    influence_level = models.CharField(max_length=10, choices=INFLUENCE_LEVELS, default='medium')
+    disposition = models.CharField(max_length=20, choices=DISPOSITION_CHOICES, default='unknown')
+    priorities = models.JSONField(default=list)
+    concerns = models.JSONField(default=list)
+    engagement_strategy = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-influence_level', 'name']
+
+    def __str__(self):
+        return f"{self.name} [{self.influence_level}] — {self.deal}"
+
+
+class GateReviewCriteria(BaseModel):
+    """Configurable gate review criteria per stage."""
+    stage = models.CharField(max_length=30)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    is_critical = models.BooleanField(default=True)
+    evaluation_query = models.TextField(
+        blank=True,
+        help_text="Python expression or model query for auto-evaluation"
+    )
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['stage', 'order']
+        verbose_name_plural = "Gate Review Criteria"
+
+    def __str__(self):
+        return f"[{self.stage}] {self.name}"

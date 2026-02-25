@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from apps.analytics.models import AgentPerformanceMetric, DealVelocityMetric, KPISnapshot, WinLossAnalysis
+from apps.analytics.models import (
+    AgentPerformanceMetric,
+    DealVelocityMetric,
+    KPISnapshot,
+    RecommendationMetric,
+    RevenueForecast,
+    WinLossAnalysis,
+)
 
 
 class KPISnapshotSerializer(serializers.ModelSerializer):
@@ -40,3 +47,17 @@ class AgentPerformanceMetricSerializer(serializers.ModelSerializer):
         if obj.total_runs == 0:
             return None
         return round((obj.successful_runs / obj.total_runs) * 100, 1)
+
+
+class RecommendationMetricSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RecommendationMetric
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class RevenueForecastSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RevenueForecast
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at"]
