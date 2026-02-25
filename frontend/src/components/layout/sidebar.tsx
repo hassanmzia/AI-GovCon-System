@@ -26,10 +26,13 @@ import {
   Award,
   Cpu,
   X,
+  Gauge,
+  UserCog,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Executive", href: "/executive", icon: Gauge },
   { name: "Opportunities", href: "/opportunities", icon: Search },
   { name: "Deals", href: "/deals", icon: Handshake },
   { name: "Solutions", href: "/solutions", icon: Cpu },
@@ -37,6 +40,7 @@ const navigation = [
   { name: "Proposals", href: "/proposals", icon: FileEdit },
   { name: "Pricing", href: "/pricing", icon: DollarSign },
   { name: "Contracts", href: "/contracts", icon: ClipboardCheck },
+  { name: "Workforce", href: "/workforce", icon: UserCog },
   { name: "Strategy", href: "/strategy", icon: Lightbulb },
   { name: "Marketing", href: "/marketing", icon: Megaphone },
   { name: "Research", href: "/research", icon: BookOpen },
@@ -86,7 +90,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         <div className="flex h-16 items-center justify-between border-b border-border px-4 md:px-6">
           <div className="flex items-center gap-2">
             <Handshake className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold text-foreground">Deal Manager</span>
+            <span className="text-lg font-bold text-foreground">GovCon OS</span>
           </div>
           {/* Close button — mobile only */}
           <button
@@ -161,7 +165,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
         <div className="border-t border-border px-3 py-4">
           <p className="px-3 text-xs text-muted-foreground">
-            AI Deal Manager v0.1.0
+            GovCon OS v1.0.0
           </p>
         </div>
       </aside>
