@@ -266,3 +266,270 @@ class PolicyException(models.Model):
         if self.expires_at and timezone.now() > self.expires_at:
             return False
         return True
+
+
+# ---------------------------------------------------------------------------
+# AI Autonomy Governance models
+# ---------------------------------------------------------------------------
+
+
+class AIAutonomyPolicy(models.Model):
+    """
+    Versioned JSON policy bundle that controls AI autonomy levels and HITL gates.
+
+    Each record represents one version of the autonomy policy document. Only one
+    policy should carry status='active' at any point in time; the classmethod
+    get_latest_active() enforces this convention.
+    """
+
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("active", "Active"),
+        ("retired", "Retired"),
+        ("superseded", "Superseded"),
+    ]
+
+    AUTONOMY_LEVEL_CHOICES = [
+        (0, "L0 — Assist only"),
+        (1, "L1 — Guided automation"),
+        (2, "L2 — Conditional autonomy"),
+        (3, "L3 — Strategic autonomy"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    version = models.PositiveIntegerField(default=1)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft",
+        db_index=True,
+    )
+    # Full policy document (autonomy_levels, hitl thresholds, etc.)
+    policy_json = models.JSONField(
+        default=dict,
+        help_text=(
+            "Full policy document, e.g. {current_autonomy_level, kill_switch_active, "
+            "hitl_risk_threshold, autonomy_levels: {0: {allowed_actions: [...]}, ...}}"
+        ),
+    )
+    autonomy_level = models.IntegerField(
+        choices=AUTONOMY_LEVEL_CHOICES,
+        default=1,
+        help_text="Top-level autonomy level for quick reference (mirrors policy_json).",
+    )
+    kill_switch_active = models.BooleanField(
+        default=False,
+        help_text="If True, all AI actions require HITL regardless of level or risk score.",
+    )
+    effective_from = models.DateField(null=True, blank=True)
+    effective_to = models.DateField(null=True, blank=True)
+    # Agency allowlist/blocklist, deal value range, etc.
+    scope_json = models.JSONField(
+        default=dict,
+        help_text=(
+            "Scope constraints, e.g. {'agency_allowlist': ['DoD'], "
+            "'max_deal_value': 5000000}"
+        ),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_autonomy_policies",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_autonomy_policies",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "AI Autonomy Policy"
+        verbose_name_plural = "AI Autonomy Policies"
+        ordering = ["-version"]
+
+    def __str__(self) -> str:
+        return f"{self.name} v{self.version} ({self.status})"
+
+    @classmethod
+    def get_latest_active(cls) -> "AIAutonomyPolicy | None":
+        """Return the most recently versioned active policy, or None."""
+        return cls.objects.filter(status="active").order_by("-version").first()
+
+
+class PolicyApproval(models.Model):
+    """Approval workflow record for a proposed AIAutonomyPolicy change."""
+
+    DECISION_CHOICES = [
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("needs_revision", "Needs Revision"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    policy = models.ForeignKey(
+        AIAutonomyPolicy,
+        on_delete=models.CASCADE,
+        related_name="approvals",
+    )
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="policy_approvals",
+    )
+    decision = models.CharField(max_length=20, choices=DECISION_CHOICES)
+    comments = models.TextField(blank=True, default="")
+    decided_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Policy Approval"
+        verbose_name_plural = "Policy Approvals"
+        ordering = ["-decided_at"]
+
+    def __str__(self) -> str:
+        approver_display = (
+            self.approver.get_full_name() or self.approver.username
+            if self.approver
+            else "unknown"
+        )
+        return f"{self.policy} — {self.decision} by {approver_display}"
+
+
+class PolicyEnforcementLog(models.Model):
+    """
+    Immutable audit record of every AI action blocked or allowed by the active policy.
+
+    Written at the moment the autonomy controller makes a decision; never mutated
+    after creation.
+    """
+
+    DECISION_CHOICES = [
+        ("allowed", "Allowed"),
+        ("blocked", "Blocked"),
+        ("hitl_required", "HITL Required"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    policy = models.ForeignKey(
+        AIAutonomyPolicy,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enforcement_logs",
+    )
+    action_name = models.CharField(max_length=255, db_index=True)
+    deal_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
+    decision = models.CharField(
+        max_length=20,
+        choices=DECISION_CHOICES,
+        db_index=True,
+    )
+    autonomy_level = models.IntegerField(default=1)
+    risk_score = models.FloatField(null=True, blank=True)
+    reason = models.TextField(blank=True, default="")
+    agent_name = models.CharField(max_length=255, blank=True, default="")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enforcement_log_entries",
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "Policy Enforcement Log"
+        verbose_name_plural = "Policy Enforcement Logs"
+        ordering = ["-timestamp"]
+
+    def __str__(self) -> str:
+        return f"[{self.decision}] {self.action_name} @ {self.timestamp:%Y-%m-%d %H:%M}"
+
+
+class AIIncident(models.Model):
+    """
+    Incident tracking record for cases where an AI system causes an issue.
+
+    When freeze_autonomy=True the associated AIAutonomyPolicy kill switch should
+    also be activated (this is enforced in the view layer).
+    """
+
+    INCIDENT_TYPE_CHOICES = [
+        ("hallucination", "Hallucination"),
+        ("incorrect_submission", "Incorrect Submission"),
+        ("clause_missed", "Clause Missed"),
+        ("data_breach", "Data Breach"),
+        ("pricing_error", "Pricing Error"),
+        ("other", "Other"),
+    ]
+
+    SEVERITY_CHOICES = [
+        ("low", "Low"),
+        ("medium", "Medium"),
+        ("high", "High"),
+        ("critical", "Critical"),
+    ]
+
+    STATUS_CHOICES = [
+        ("open", "Open"),
+        ("investigating", "Investigating"),
+        ("resolved", "Resolved"),
+        ("closed", "Closed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    incident_type = models.CharField(
+        max_length=30,
+        choices=INCIDENT_TYPE_CHOICES,
+        default="other",
+        db_index=True,
+    )
+    severity = models.CharField(
+        max_length=10,
+        choices=SEVERITY_CHOICES,
+        default="medium",
+        db_index=True,
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=STATUS_CHOICES,
+        default="open",
+        db_index=True,
+    )
+    deal_id = models.CharField(max_length=255, blank=True, default="")
+    agent_name = models.CharField(max_length=255, blank=True, default="")
+    freeze_autonomy = models.BooleanField(
+        default=False,
+        help_text="If True, the kill switch was (or should be) activated in response to this incident.",
+    )
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reported_ai_incidents",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution_notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "AI Incident"
+        verbose_name_plural = "AI Incidents"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"[{self.severity.upper()}] {self.title} ({self.status})"
