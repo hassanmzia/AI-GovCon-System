@@ -3,18 +3,19 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-# Default weights (Phase 1 rule-based)
+# Default weights (Phase 1 rule-based, now with capacity factor)
 DEFAULT_WEIGHTS = {
-    "naics_match": 0.15,
-    "psc_match": 0.10,
-    "keyword_overlap": 0.15,
-    "capability_similarity": 0.20,
-    "past_performance_relevance": 0.10,
-    "value_fit": 0.08,
-    "deadline_feasibility": 0.07,
-    "set_aside_match": 0.10,
+    "naics_match": 0.14,
+    "psc_match": 0.09,
+    "keyword_overlap": 0.14,
+    "capability_similarity": 0.18,
+    "past_performance_relevance": 0.09,
+    "value_fit": 0.07,
+    "deadline_feasibility": 0.06,
+    "set_aside_match": 0.09,
     "competition_intensity": -0.03,
     "risk_factors": -0.02,
+    "capacity": 0.10,  # New: penalize when pipeline is at capacity
 }
 
 
@@ -41,9 +42,10 @@ class OpportunityScorer:
             "set_aside_match": self._score_set_aside(opportunity),
             "competition_intensity": self._score_competition(opportunity),
             "risk_factors": self._score_risk(opportunity),
+            "capacity": self._score_capacity(),
         }
 
-        total = sum(factors[k] * self.weights[k] for k in factors) * 100
+        total = sum(factors[k] * self.weights.get(k, 0) for k in factors) * 100
         total = max(0.0, min(100.0, total))
 
         recommendation = self._get_recommendation(total)
@@ -119,6 +121,14 @@ class OpportunityScorer:
 
     def _score_risk(self, opp) -> float:
         return 0.3  # Phase 2: NLP-based risk extraction from description
+
+    def _score_capacity(self) -> float:
+        """Score based on current pipeline capacity (0=overloaded, 1=available)."""
+        try:
+            from apps.deals.services.pipeline_analytics import get_capacity_score
+            return get_capacity_score()
+        except Exception:
+            return 0.7  # Default: assume moderate capacity
 
     def _get_recommendation(self, score: float) -> str:
         if score >= 75:

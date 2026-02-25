@@ -9,23 +9,34 @@ from rest_framework.response import Response
 
 from apps.deals.models import (
     Activity,
+    AgencyContact,
+    AgencyInteraction,
     Approval,
+    CapturePlan,
     Comment,
     Deal,
     DealStageHistory,
+    GateReviewCriteria,
+    Stakeholder,
     Task,
     TaskTemplate,
 )
 from apps.deals.serializers import (
     ActivitySerializer,
+    AgencyContactSerializer,
+    AgencyInteractionSerializer,
     ApprovalDecisionSerializer,
     ApprovalSerializer,
+    CapturePlanSerializer,
     CommentSerializer,
     DealCreateSerializer,
     DealDetailSerializer,
     DealListSerializer,
     DealStageHistorySerializer,
     DealTransitionSerializer,
+    GateEvaluationSerializer,
+    GateReviewCriteriaSerializer,
+    StakeholderSerializer,
     TaskSerializer,
     TaskTemplateSerializer,
 )
@@ -166,6 +177,45 @@ class DealViewSet(viewsets.ModelViewSet):
                 "composite_score": deal.composite_score,
             }
         )
+
+    @action(detail=True, methods=["get"], url_path="evaluate-gate")
+    def evaluate_gate(self, request, pk=None):
+        """Evaluate gate readiness criteria for the deal's next stage transition."""
+        deal = self.get_object()
+        target_stage = request.query_params.get("target_stage", "")
+
+        if not target_stage:
+            # Infer next stage from current stage
+            from apps.deals.workflow import VALID_TRANSITIONS
+            targets = VALID_TRANSITIONS.get(deal.stage, [])
+            target_stage = targets[0] if targets else deal.stage
+
+        engine = WorkflowEngine()
+        evaluation = engine.evaluate_gate(deal, target_stage)
+        return Response(evaluation)
+
+    @action(detail=True, methods=["get"], url_path="capture-plan")
+    def get_capture_plan(self, request, pk=None):
+        """Get the capture plan for this deal."""
+        deal = self.get_object()
+        try:
+            plan = CapturePlan.objects.get(deal=deal)
+            return Response(CapturePlanSerializer(plan).data)
+        except CapturePlan.DoesNotExist:
+            return Response(
+                {"detail": "No capture plan exists for this deal."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    @action(detail=True, methods=["patch"], url_path="capture-plan")
+    def update_capture_plan(self, request, pk=None):
+        """Update the capture plan for this deal."""
+        deal = self.get_object()
+        plan, _ = CapturePlan.objects.get_or_create(deal=deal)
+        serializer = CapturePlanSerializer(plan, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="run-solution-architect")
     def run_solution_architect(self, request, pk=None):
@@ -474,3 +524,82 @@ class ActivityViewSet(
     }
     ordering_fields = ["created_at"]
     ordering = ["-created_at"]
+
+
+# ── Agency Contact ViewSet ──────────────────────────────
+
+
+class AgencyContactViewSet(viewsets.ModelViewSet):
+    """CRUD for agency contacts on deals."""
+
+    queryset = AgencyContact.objects.select_related("deal").prefetch_related(
+        "interactions"
+    )
+    serializer_class = AgencyContactSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "deal": ["exact"],
+        "contact_type": ["exact"],
+        "relationship_strength": ["exact", "gte"],
+    }
+    search_fields = ["name", "title", "agency", "office"]
+    ordering_fields = ["relationship_strength", "created_at"]
+    ordering = ["-relationship_strength"]
+
+
+# ── Agency Interaction ViewSet ──────────────────────────
+
+
+class AgencyInteractionViewSet(viewsets.ModelViewSet):
+    """CRUD for agency interactions (meetings, emails, etc.)."""
+
+    queryset = AgencyInteraction.objects.select_related("contact", "deal", "logged_by")
+    serializer_class = AgencyInteractionSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = {
+        "contact": ["exact"],
+        "deal": ["exact"],
+        "interaction_type": ["exact"],
+    }
+    ordering_fields = ["date", "created_at"]
+    ordering = ["-date"]
+
+    def perform_create(self, serializer):
+        serializer.save(logged_by=self.request.user)
+
+
+# ── Stakeholder ViewSet ─────────────────────────────────
+
+
+class StakeholderViewSet(viewsets.ModelViewSet):
+    """CRUD for deal stakeholder mapping."""
+
+    queryset = Stakeholder.objects.select_related("deal")
+    serializer_class = StakeholderSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "deal": ["exact"],
+        "influence_level": ["exact"],
+        "disposition": ["exact"],
+    }
+    search_fields = ["name", "title", "organization"]
+    ordering_fields = ["influence_level", "created_at"]
+    ordering = ["-influence_level"]
+
+
+# ── Gate Review Criteria ViewSet ────────────────────────
+
+
+class GateReviewCriteriaViewSet(viewsets.ModelViewSet):
+    """CRUD for gate review criteria (admin configuration)."""
+
+    queryset = GateReviewCriteria.objects.all()
+    serializer_class = GateReviewCriteriaSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = {"stage": ["exact"], "is_critical": ["exact"]}
+    ordering_fields = ["stage", "order"]
+    ordering = ["stage", "order"]
