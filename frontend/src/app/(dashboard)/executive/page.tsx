@@ -22,11 +22,12 @@ import {
   BarChart3,
 } from "lucide-react";
 
-const formatValue = (v: number): string => {
-  if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`;
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-  return `$${v.toFixed(0)}`;
+const formatValue = (v: number | string | null | undefined): string => {
+  const n = Number(v) || 0;
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -165,7 +166,7 @@ export default function ExecutiveDashboardPage() {
                 <p className="text-sm text-muted-foreground">Pipeline Value</p>
                 <p className="text-3xl font-bold">{formatValue(summary?.pipeline_value ?? 0)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Weighted: {formatValue(pipelineLoad?.weighted_pipeline_value ?? 0)}
+                  Weighted: {formatValue(pipelineLoad?.weighted_pipeline_value ?? pipelineLoad?.total_pipeline_value ?? 0)}
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-green-500" />
@@ -178,7 +179,7 @@ export default function ExecutiveDashboardPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Win Rate</p>
                 <p className="text-3xl font-bold">
-                  {summary?.win_rate != null ? `${summary.win_rate.toFixed(0)}%` : "--"}
+                  {summary?.win_rate != null ? `${Number(summary.win_rate).toFixed(0)}%` : "--"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {summary?.closed_won ?? 0}W / {summary?.closed_lost ?? 0}L
@@ -259,8 +260,8 @@ export default function ExecutiveDashboardPage() {
                         <span className="text-muted-foreground">{STAGE_LABELS[from] || from}</span>
                         <ArrowRight className="h-3 w-3 text-muted-foreground" />
                         <span className="text-muted-foreground">{STAGE_LABELS[to] || to}</span>
-                        <span className={`font-bold ml-1 ${rate >= 70 ? "text-green-600" : rate >= 40 ? "text-yellow-600" : "text-red-600"}`}>
-                          {rate.toFixed(0)}%
+                        <span className={`font-bold ml-1 ${Number(rate) >= 70 ? "text-green-600" : Number(rate) >= 40 ? "text-yellow-600" : "text-red-600"}`}>
+                          {Number(rate).toFixed(0)}%
                         </span>
                       </div>
                     );
@@ -289,9 +290,9 @@ export default function ExecutiveDashboardPage() {
             ) : (
               <div className="space-y-4">
                 {forecast.map((q) => {
-                  const maxVal = Math.max(...forecast.map((f) => f.pipeline_value), 1);
-                  const pipelineWidth = Math.round((q.pipeline_value / maxVal) * 100);
-                  const weightedWidth = Math.round((q.weighted_value / maxVal) * 100);
+                  const maxVal = Math.max(...forecast.map((f) => Number(f.pipeline_value) || 0), 1);
+                  const pipelineWidth = Math.round(((Number(q.pipeline_value) || 0) / maxVal) * 100);
+                  const weightedWidth = Math.round(((Number(q.weighted_value) || 0) / maxVal) * 100);
                   return (
                     <div key={q.quarter} className="space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -348,8 +349,8 @@ export default function ExecutiveDashboardPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-green-600">{m.won}W</span>
                         <span className="text-red-600">{m.lost}L</span>
-                        <span className={`font-bold ${m.win_rate >= 50 ? "text-green-600" : m.win_rate > 0 ? "text-yellow-600" : "text-muted-foreground"}`}>
-                          {m.total > 0 ? `${m.win_rate.toFixed(0)}%` : "--"}
+                        <span className={`font-bold ${Number(m.win_rate) >= 50 ? "text-green-600" : Number(m.win_rate) > 0 ? "text-yellow-600" : "text-muted-foreground"}`}>
+                          {m.total > 0 ? `${Number(m.win_rate).toFixed(0)}%` : "--"}
                         </span>
                       </div>
                     </div>
@@ -371,7 +372,7 @@ export default function ExecutiveDashboardPage() {
                     </div>
                     {m.moving_avg != null && (
                       <p className="text-xs text-muted-foreground">
-                        3-month avg: {m.moving_avg.toFixed(0)}%
+                        3-month avg: {Number(m.moving_avg).toFixed(0)}%
                       </p>
                     )}
                   </div>
@@ -399,19 +400,19 @@ export default function ExecutiveDashboardPage() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div className="rounded-lg border p-3 text-center">
                 <p className="text-xs text-muted-foreground">Active Deals</p>
-                <p className="text-2xl font-bold">{pipelineLoad.active_deal_count}</p>
+                <p className="text-2xl font-bold">{pipelineLoad.active_deal_count ?? pipelineLoad.total_active_deals ?? 0}</p>
               </div>
               <div className="rounded-lg border p-3 text-center">
                 <p className="text-xs text-muted-foreground">In Proposal Stage</p>
-                <p className="text-2xl font-bold">{pipelineLoad.proposal_stage_count}</p>
+                <p className="text-2xl font-bold">{pipelineLoad.proposal_stage_count ?? (pipelineLoad.by_stage?.proposal_dev ?? 0)}</p>
               </div>
               <div className="rounded-lg border p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total Pipeline</p>
-                <p className="text-2xl font-bold">{formatValue(pipelineLoad.total_pipeline_value)}</p>
+                <p className="text-2xl font-bold">{formatValue(pipelineLoad.total_pipeline_value ?? 0)}</p>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <p className="text-xs text-muted-foreground">Weighted Value</p>
-                <p className="text-2xl font-bold">{formatValue(pipelineLoad.weighted_pipeline_value)}</p>
+                <p className="text-xs text-muted-foreground">Avg Per Stage</p>
+                <p className="text-2xl font-bold">{pipelineLoad.weighted_pipeline_value ? formatValue(pipelineLoad.weighted_pipeline_value) : (pipelineLoad.avg_per_stage ?? 0)}</p>
               </div>
             </div>
           </CardContent>
