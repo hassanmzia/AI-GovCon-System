@@ -29,6 +29,7 @@ import {
   Gauge,
   UserCog,
   ScrollText,
+  Activity,
 } from "lucide-react";
 
 const navigation = [
@@ -58,6 +59,7 @@ const navigation = [
 
 const adminNavigation = [
   { name: "Manage Users", href: "/admin/users", icon: KeyRound },
+  { name: "Audit Log", href: "/admin/audit-log", icon: Activity },
 ];
 
 export interface SidebarProps {
