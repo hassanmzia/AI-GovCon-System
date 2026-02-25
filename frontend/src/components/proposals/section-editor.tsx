@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   ChevronDown,
   ChevronRight,
@@ -224,14 +223,14 @@ export function SectionEditor({ sections, onSave, onGenerateAI, readOnly = false
         <CardTitle className="text-base flex items-center gap-2">
           <FileText className="h-4 w-4 text-blue-500" /> Proposal Section Editor
           <div className="ml-auto flex items-center gap-2 text-xs font-normal">
-            <Badge variant="outline">{approved}/{total} approved</Badge>
-            <Badge variant="outline" className="text-emerald-700 border-emerald-300">
+            <span className="border rounded px-1.5 py-0.5">{approved}/{total} approved</span>
+            <span className="border border-emerald-300 text-emerald-700 rounded px-1.5 py-0.5">
               {compliant}/{total} compliant
-            </Badge>
+            </span>
             {required > 0 && (
-              <Badge variant="outline" className="text-red-700 border-red-300">
+              <span className="border border-red-300 text-red-700 rounded px-1.5 py-0.5">
                 {requiredDone}/{required} required done
-              </Badge>
+              </span>
             )}
           </div>
         </CardTitle>
