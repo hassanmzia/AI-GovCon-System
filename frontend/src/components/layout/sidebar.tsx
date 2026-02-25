@@ -28,6 +28,7 @@ import {
   X,
   Gauge,
   UserCog,
+  ScrollText,
 } from "lucide-react";
 
 const navigation = [
@@ -50,6 +51,7 @@ const navigation = [
   { name: "Knowledge Vault", href: "/knowledge-vault", icon: Database },
   { name: "Communications", href: "/communications", icon: MessageSquare },
   { name: "Past Performance", href: "/past-performance", icon: Award },
+  { name: "Policies", href: "/policies", icon: ScrollText },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
