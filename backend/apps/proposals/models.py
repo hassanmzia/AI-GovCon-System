@@ -222,3 +222,75 @@ class ReviewComment(BaseModel):
 
     class Meta:
         ordering = ['-created_at']
+
+
+# ── Phase 2: Red Team & Submission Readiness ─────────────────────────────────
+
+
+class RedTeamFinding(BaseModel):
+    """Red team review finding for a specific proposal requirement."""
+
+    STATUS_CHOICES = [
+        ('fully_addressed', 'Fully Addressed'),
+        ('partially_addressed', 'Partially Addressed'),
+        ('not_addressed', 'Not Addressed'),
+    ]
+
+    SEVERITY_CHOICES = [
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
+    ]
+
+    proposal = models.ForeignKey(
+        Proposal, on_delete=models.CASCADE, related_name='red_team_findings'
+    )
+    requirement_id = models.CharField(max_length=50)
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES)
+    section = models.ForeignKey(
+        ProposalSection, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='red_team_findings'
+    )
+    gap_description = models.TextField(blank=True)
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default='medium')
+    recommendation = models.TextField(blank=True)
+    is_resolved = models.BooleanField(default=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-severity', 'requirement_id']
+
+    def __str__(self):
+        return f"[{self.severity}] {self.requirement_id} - {self.get_status_display()}"
+
+
+class SubmissionChecklist(BaseModel):
+    """Checklist item for proposal submission readiness tracking."""
+
+    CATEGORY_CHOICES = [
+        ('content', 'Content'),
+        ('formatting', 'Formatting'),
+        ('compliance', 'Compliance'),
+        ('administrative', 'Administrative'),
+    ]
+
+    proposal = models.ForeignKey(
+        Proposal, on_delete=models.CASCADE, related_name='submission_checklist'
+    )
+    item_name = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    is_required = models.BooleanField(default=True)
+    is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='completed_checklist_items'
+    )
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='content')
+
+    class Meta:
+        ordering = ['category', 'item_name']
+
+    def __str__(self):
+        status = "DONE" if self.is_completed else "PENDING"
+        return f"[{status}] {self.item_name} ({self.get_category_display()})"

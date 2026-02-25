@@ -127,6 +127,50 @@ class EventType(str, Enum):
     GATE_REVIEW_COMPLETED = "policy.gate_review_completed"
     POLICY_RULE_TRIGGERED = "policy.rule_triggered"
 
+    # Opportunity Amendment / Alert Agent
+    AMENDMENT_DETECTED = "opportunity.amendment_detected"
+    AMENDMENT_ANALYZED = "opportunity.amendment_analyzed"
+    DEADLINE_CHANGED = "opportunity.deadline_changed"
+    SCOPE_CHANGED = "opportunity.scope_changed"
+
+    # Capture Agent
+    CAPTURE_PLAN_GENERATED = "capture.plan_generated"
+    CAPTURE_PLAN_UPDATED = "capture.plan_updated"
+    CAPTURE_INTELLIGENCE_GATHERED = "capture.intelligence_gathered"
+
+    # Workforce Agent
+    WORKFORCE_DEMAND_FORECASTED = "workforce.demand_forecasted"
+    WORKFORCE_GAP_IDENTIFIED = "workforce.gap_identified"
+    WORKFORCE_RECOMMENDATION_READY = "workforce.recommendation_ready"
+    CLEARANCE_EXPIRING = "workforce.clearance_expiring"
+
+    # ATO / Continuous Monitoring Agent
+    ATO_DRIFT_DETECTED = "ato.drift_detected"
+    ATO_EVIDENCE_COLLECTED = "ato.evidence_collected"
+    ATO_REMEDIATION_PLANNED = "ato.remediation_planned"
+    ATO_HEALTH_ASSESSED = "ato.health_assessed"
+
+    # Forecasting Agent
+    FORECAST_GENERATED = "forecast.generated"
+    FORECAST_CONFIDENCE_ASSESSED = "forecast.confidence_assessed"
+
+    # Competitor Simulation Agent
+    COMPETITOR_PROFILES_BUILT = "competitor.profiles_built"
+    COMPETITOR_SCENARIOS_SIMULATED = "competitor.scenarios_simulated"
+    COMPETITOR_GHOST_STRATEGIES_READY = "competitor.ghost_strategies_ready"
+
+    # Red Team Agent
+    RED_TEAM_EVALUATION_COMPLETE = "red_team.evaluation_complete"
+    RED_TEAM_FINDINGS_READY = "red_team.findings_ready"
+
+    # Submission Agent
+    SUBMISSION_PACKAGED = "submission.packaged"
+    SUBMISSION_CHECKLIST_READY = "submission.checklist_ready"
+
+    # Learning / RL
+    RL_TRAINING_COMPLETED = "learning.rl_training_completed"
+    PRECISION_METRIC_COMPUTED = "learning.precision_metric_computed"
+
     # Orchestrator
     AGENT_STARTED = "orchestrator.agent_started"
     AGENT_COMPLETED = "orchestrator.agent_completed"

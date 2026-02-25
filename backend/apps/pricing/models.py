@@ -196,3 +196,54 @@ class PricingApproval(BaseModel):
 
     class Meta:
         ordering = ['-created_at']
+
+
+# ── Phase 2: Pricing Volume ──────────────────────────────────────────────────
+
+
+class PricingVolume(BaseModel):
+    """Pricing volume document for a proposal submission.
+
+    Aggregates the selected pricing scenario, labor/ODC costs, profit margin,
+    and price defense narrative into a single reviewable volume.
+    """
+
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('approved', 'Approved'),
+        ('final', 'Final'),
+    ]
+
+    proposal = models.ForeignKey(
+        'proposals.Proposal', on_delete=models.CASCADE, related_name='pricing_volumes'
+    )
+    deal = models.ForeignKey(
+        'deals.Deal', on_delete=models.CASCADE, related_name='pricing_volumes'
+    )
+    selected_scenario = models.ForeignKey(
+        PricingScenario, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pricing_volumes'
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='draft')
+
+    # Cost breakdown
+    total_price = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    labor_cost = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    odc_cost = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    profit_margin = models.DecimalField(max_digits=5, decimal_places=4, default=0)
+
+    # Narrative
+    price_defense_document = models.TextField(blank=True)
+
+    # Approval
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='approved_pricing_volumes'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Pricing Volume [{self.status}] ${self.total_price} for {self.proposal}"

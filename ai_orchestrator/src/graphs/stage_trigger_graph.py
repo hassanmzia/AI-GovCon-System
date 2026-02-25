@@ -51,10 +51,16 @@ def _get_agent_registry() -> dict:
     from src.agents.fit_agent import FitAgent
     from src.agents.capture_agent import CaptureAgent
     from src.agents.red_team_agent import RedTeamAgent
+    from src.agents.alert_agent import AlertAgent
+    from src.agents.workforce_agent import WorkforceAgent
+    from src.agents.ato_agent import ATOAgent
+    from src.agents.forecasting_agent import ForecastingAgent
+    from src.agents.competitor_sim_agent import CompetitorSimAgent
 
     return {
         "scout_agent": ScoutAgent(),
         "fit_agent": FitAgent(),
+        "alert_agent": AlertAgent(),
         "opportunity_agent": OpportunityAgent(),
         "strategy_agent": StrategyAgent(),
         "research_agent": ResearchAgent(),
@@ -75,6 +81,10 @@ def _get_agent_registry() -> dict:
         "contract_agent": ContractAgent(),
         "security_compliance_agent": SecurityComplianceAgent(),
         "learning_agent": LearningAgent(),
+        "workforce_agent": WorkforceAgent(),
+        "ato_agent": ATOAgent(),
+        "forecasting_agent": ForecastingAgent(),
+        "competitor_sim_agent": CompetitorSimAgent(),
     }
 
 

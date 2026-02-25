@@ -269,3 +269,88 @@ class ContractModification(BaseModel):
 
     def __str__(self):
         return f"Mod {self.modification_number} - {self.contract.title}"
+
+
+class OptionYear(BaseModel):
+    """Tracks individual option years for a contract."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('exercised', 'Exercised'),
+        ('declined', 'Declined'),
+        ('expired', 'Expired'),
+    ]
+
+    contract = models.ForeignKey(
+        Contract, on_delete=models.CASCADE, related_name='option_year_details'
+    )
+    year_number = models.IntegerField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+    value = models.DecimalField(max_digits=15, decimal_places=2)
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='pending'
+    )
+    exercised_date = models.DateField(null=True, blank=True)
+    decision_deadline = models.DateField()
+
+    class Meta:
+        ordering = ['year_number']
+        unique_together = [['contract', 'year_number']]
+
+    def __str__(self):
+        return f"Option Year {self.year_number} - {self.contract.title} ({self.get_status_display()})"
+
+
+class ContractHealth(BaseModel):
+    """Aggregated health score for a contract based on multiple dimensions."""
+
+    RISK_LEVEL_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+
+    contract = models.OneToOneField(
+        Contract, on_delete=models.CASCADE, related_name='health'
+    )
+    overall_score = models.FloatField(
+        help_text='Overall health score from 0 to 100.'
+    )
+    milestone_delivery_score = models.FloatField(
+        default=0.0,
+        help_text='Score based on milestone on-time delivery rate (0-100).'
+    )
+    modification_score = models.FloatField(
+        default=0.0,
+        help_text='Score based on modification frequency and severity (0-100).'
+    )
+    burn_rate_score = models.FloatField(
+        default=0.0,
+        help_text='Score based on budget burn rate versus plan (0-100).'
+    )
+    compliance_score = models.FloatField(
+        default=0.0,
+        help_text='Score based on compliance posture (0-100).'
+    )
+    last_assessed_at = models.DateTimeField()
+    risk_level = models.CharField(
+        max_length=10, choices=RISK_LEVEL_CHOICES, default='medium'
+    )
+    risk_factors = models.JSONField(
+        default=list,
+        help_text='List of identified risk factors.',
+    )
+    recommendations = models.JSONField(
+        default=list,
+        help_text='List of recommended actions to improve health.',
+    )
+
+    class Meta:
+        ordering = ['-last_assessed_at']
+        verbose_name = 'Contract Health'
+        verbose_name_plural = 'Contract Health Records'
+
+    def __str__(self):
+        return f"{self.contract.title} — Health {self.overall_score:.0f}/100 ({self.get_risk_level_display()})"
