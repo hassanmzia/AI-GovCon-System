@@ -28,6 +28,8 @@ import {
 import { decideApproval, PendingApproval, PipelineStageCount } from "@/services/analytics";
 import { Deal, DealStage } from "@/types/deal";
 import { Opportunity } from "@/types/opportunity";
+import { RevenueForecast } from "@/components/dashboard/revenue-forecast";
+import { PipelineFunnel } from "@/components/dashboard/pipeline-funnel";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -796,6 +798,16 @@ export default function DashboardPage() {
           onDecide={handleApprovalDecide}
         />
         <RecentOpportunities opportunities={recentOpps} />
+      </div>
+
+      {/* Revenue Forecast + Pipeline Funnel */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <RevenueForecast
+          pipelineValue={kpis?.pipelineValue ?? 0}
+          winRate={kpis?.winRate ?? null}
+          activeDeals={kpis?.activeDeals ?? 0}
+        />
+        <PipelineFunnel distribution={distribution} />
       </div>
 
       {/* Footer timestamp */}
