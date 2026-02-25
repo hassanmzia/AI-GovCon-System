@@ -1,0 +1,43 @@
+# Django
+Django>=5.1,<5.2
+djangorestframework>=3.15,<3.16
+django-cors-headers>=4.4,<5.0
+django-filter>=24.3,<25.0
+django-environ>=0.11,<1.0
+
+# Authentication
+djangorestframework-simplejwt>=5.3,<6.0
+django-allauth>=65.0,<66.0
+
+# MFA
+django-otp>=1.5,<2.0
+
+# Database
+psycopg2-binary>=2.9,<3.0
+pgvector>=0.3,<1.0
+
+# Celery
+celery[redis]>=5.4,<6.0
+django-celery-beat>=2.7,<3.0
+django-celery-results>=2.5,<3.0
+
+# Storage
+django-storages>=1.14,<2.0
+boto3>=1.35,<2.0
+
+# API
+drf-spectacular>=0.27,<1.0
+
+# Server
+gunicorn>=23.0,<24.0
+whitenoise[brotli]>=6.7,<7.0
+
+# Utilities
+python-dateutil>=2.9,<3.0
+Pillow>=10.4,<11.0
+django-import-export>=4.1,<5.0
+
+# Testing
+pytest>=8.3,<9.0
+pytest-django>=4.9,<5.0
+factory-boy>=3.3,<4.0
