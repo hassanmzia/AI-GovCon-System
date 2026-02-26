@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
+from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
@@ -29,3 +31,9 @@ urlpatterns = [
     path("api/analytics/", include("apps.analytics.urls")),
     path("api/workforce/", include("apps.workforce.urls")),
 ]
+
+# Serve uploaded media files in development (DEBUG=True).
+# In production, Django uses S3 (DEFAULT_FILE_STORAGE) and media
+# files are served directly from S3, so this block is a no-op there.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
