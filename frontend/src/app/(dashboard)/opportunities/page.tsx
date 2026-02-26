@@ -65,7 +65,7 @@ export default function OpportunitiesPage() {
       };
       if (search) params.search = search;
       if (agencyFilter) params["agency__icontains"] = agencyFilter;
-      if (naicsFilter) params.naics_code = naicsFilter;
+      if (naicsFilter) params["naics_code__icontains"] = naicsFilter;
       if (statusFilter) params.status = statusFilter;
       if (recommendationFilter) params["score__recommendation"] = recommendationFilter;
       if (sourceFilter) params["source__name__icontains"] = sourceFilter;
@@ -196,16 +196,20 @@ export default function OpportunitiesPage() {
                 <option key={source} value={source}>{source}</option>
               ))}
             </select>
-            <select
-              value={naicsFilter}
-              onChange={(e) => setNaicsFilter(e.target.value)}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9 sm:w-auto"
-            >
-              <option value="">All NAICS</option>
-              {filterOptions.naics_codes.map((naics) => (
-                <option key={naics} value={naics}>{naics}</option>
-              ))}
-            </select>
+            <>
+              <input
+                list="naics-options"
+                value={naicsFilter}
+                onChange={(e) => setNaicsFilter(e.target.value)}
+                placeholder="NAICS code…"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9 sm:w-36"
+              />
+              <datalist id="naics-options">
+                {filterOptions.naics_codes.map((naics) => (
+                  <option key={naics} value={naics} />
+                ))}
+              </datalist>
+            </>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
