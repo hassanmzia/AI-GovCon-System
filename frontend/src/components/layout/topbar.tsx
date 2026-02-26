@@ -101,29 +101,34 @@ async function fetchLiveNotifications(): Promise<Notification[]> {
     // silently ignore
   }
 
-  // 3. Opportunities posted in the last 24 h  → /opportunities/
-  //    The list serializer exposes `posted_date` (not `created_at`).
+  // 3. Recently ingested opportunities  → /opportunities/
+  //    Use `created_at` (always set by Django auto_now_add, even for lab
+  //    scraped records that have no posted_date) with a 7-day window so that
+  //    existing opportunities surface even if scans don't run every hour.
+  //    `created_at` is now included in OpportunityListSerializer.
   //    Link: /opportunities/<opp-id>
   try {
-    const cutoff = new Date(Date.now() - 86400000);
+    const cutoff = new Date(Date.now() - 7 * 86400000);
     const res = await api.get("/opportunities/", {
-      params: { ordering: "-posted_date", page_size: 10 },
+      params: { ordering: "-created_at", page_size: 10 },
     });
     const opps: Array<{
       id: string;
       title?: string;
-      posted_date?: string | null;
+      created_at?: string | null;
+      source_name?: string | null;
     }> = res.data.results ?? res.data ?? [];
 
     for (const opp of opps) {
-      if (!opp.posted_date) continue;
-      const posted = new Date(opp.posted_date);
-      if (isNaN(posted.getTime()) || posted < cutoff) continue;
+      if (!opp.created_at) continue;
+      const ingested = new Date(opp.created_at);
+      if (isNaN(ingested.getTime()) || ingested < cutoff) continue;
+      const src = opp.source_name ? ` (${opp.source_name})` : "";
       results.push({
         id: `opp-${opp.id}`,
-        message: `New opportunity: ${(opp.title ?? "Untitled").slice(0, 55)}`,
+        message: `New opportunity${src}: ${(opp.title ?? "Untitled").slice(0, 50)}`,
         type: "info",
-        timestamp: posted,
+        timestamp: ingested,
         link: `/opportunities/${opp.id}`,
       });
     }
