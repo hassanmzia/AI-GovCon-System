@@ -69,6 +69,7 @@ class OpportunityListSerializer(serializers.ModelSerializer):
             "set_aside",
             "notice_type",
             "posted_date",
+            "created_at",
             "response_deadline",
             "days_until_deadline",
             "estimated_value",
