@@ -99,8 +99,10 @@ export async function fetchPendingApprovals(): Promise<PendingApproval[]> {
 }
 
 export async function fetchRecentOpportunities(): Promise<Opportunity[]> {
-  const response = await api.get("/opportunities/opportunities/", {
-    params: { ordering: "-posted_date", page_size: 10 },
+  // The opportunities router manually maps its list to /api/opportunities/
+  // (not /api/opportunities/opportunities/ as a DRF router would).
+  const response = await api.get("/opportunities/", {
+    params: { ordering: "-created_at", page_size: 10 },
   });
   const data = response.data.results ?? response.data;
   return Array.isArray(data) ? data : [];
