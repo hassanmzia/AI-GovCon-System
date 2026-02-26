@@ -26,13 +26,13 @@ _DATE_FORMATS = [
     "%Y-%m-%d", "%m-%d-%Y", "%d %B %Y", "%d %b %Y", "%d-%b-%Y",
 ]
 
-# Lab source definitions
+# Lab source definitions — URLs verified Feb 2026
 LAB_CONFIGS: list[dict[str, str]] = [
     {
         "name": "Oak Ridge National Laboratory",
         "source_type": "web_scrape",
-        "base_url": "https://procurement.ornl.gov",
-        "solicitations_url": "https://procurement.ornl.gov/",
+        "base_url": "https://contracts.ornl.gov",
+        "solicitations_url": "https://contracts.ornl.gov/solicitations/",
         "lab_agency": "Oak Ridge National Laboratory",
         "place_state": "TN",
     },
@@ -40,7 +40,7 @@ LAB_CONFIGS: list[dict[str, str]] = [
         "name": "Brookhaven National Laboratory",
         "source_type": "web_scrape",
         "base_url": "https://www.bnl.gov",
-        "solicitations_url": "https://www.bnl.gov/ops/procurement/solicitations.php",
+        "solicitations_url": "https://www.bnl.gov/ppm/procurement.php",
         "lab_agency": "Brookhaven National Laboratory",
         "place_state": "NY",
     },
@@ -48,15 +48,15 @@ LAB_CONFIGS: list[dict[str, str]] = [
         "name": "Sandia National Laboratories",
         "source_type": "web_scrape",
         "base_url": "https://www.sandia.gov",
-        "solicitations_url": "https://www.sandia.gov/partners/working-with-sandia/procurement/current-solicitations/",
+        "solicitations_url": "https://www.sandia.gov/working-with-sandia/prospective-suppliers/business-opportunities/",
         "lab_agency": "Sandia National Laboratories",
         "place_state": "NM",
     },
     {
         "name": "Kansas City National Security Campus",
         "source_type": "web_scrape",
-        "base_url": "https://www.nsc.honeywell.com",
-        "solicitations_url": "https://www.nsc.honeywell.com/en/doing-business-with-us/subcontracting-opportunities",
+        "base_url": "https://supplier.kcnsc.doe.gov",
+        "solicitations_url": "https://supplier.kcnsc.doe.gov/ptl/potential-suppliers",
         "lab_agency": "Kansas City National Security Campus",
         "place_state": "MO",
     },
