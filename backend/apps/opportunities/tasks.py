@@ -18,6 +18,11 @@ def scan_samgov_opportunities(self):
     from .services.normalizer import OpportunityNormalizer
     from .services.enricher import OpportunityEnricher
 
+    import os
+    if not os.environ.get("SAMGOV_API_KEY"):
+        logger.warning("SAMGOV_API_KEY not set — skipping SAM.gov scan")
+        return {"new": 0, "updated": 0, "total": 0, "skipped": "no api key"}
+
     logger.info("Starting SAM.gov opportunity scan...")
 
     try:

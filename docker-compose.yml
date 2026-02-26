@@ -91,6 +91,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@dealmanager.local}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin1234!}
+      - SAMGOV_API_KEY=${SAMGOV_API_KEY:-}
     volumes:
       - ./backend:/app
     depends_on:
@@ -126,6 +127,7 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-changeme}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-dev-secret-key-change-in-prod}
+      - SAMGOV_API_KEY=${SAMGOV_API_KEY:-}
     volumes:
       - ./backend:/app
     depends_on:
