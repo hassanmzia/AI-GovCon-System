@@ -1,3 +1,6 @@
+import uuid
+
+from django.conf import settings
 from django.db import models
 from apps.core.models import BaseModel
 
@@ -135,3 +138,158 @@ class RevenueForecast(BaseModel):
 
     def __str__(self):
         return f"Forecast {self.quarter}: ${self.weighted_value:,.0f}"
+
+
+# ---------------------------------------------------------------------------
+# AI Agent Observability models
+# ---------------------------------------------------------------------------
+
+
+class AIAgentRun(models.Model):
+    """
+    One record per AI agent execution.
+
+    Captures latency, token usage, cost, quality signals, and autonomy metadata
+    so the platform can monitor agent health and compliance over time.
+    """
+
+    STATUS_CHOICES = [
+        ("running", "Running"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    agent_name = models.CharField(max_length=255, db_index=True)
+    deal_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
+    action = models.CharField(max_length=255, blank=True, default="")
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="running",
+        db_index=True,
+    )
+    started_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    # Performance
+    latency_ms = models.IntegerField(null=True, blank=True)
+    cost_usd = models.DecimalField(max_digits=8, decimal_places=6, null=True, blank=True)
+    # Token usage
+    input_tokens = models.IntegerField(null=True, blank=True)
+    output_tokens = models.IntegerField(null=True, blank=True)
+    # Quality signals
+    success = models.BooleanField(null=True, blank=True)
+    confidence = models.FloatField(null=True, blank=True)
+    hallucination_flags = models.IntegerField(default=0)
+    citations_present = models.BooleanField(null=True, blank=True)
+    # HITL / human feedback signals
+    human_edit_delta = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Fraction (0–1) of agent output that was changed by a human reviewer.",
+    )
+    override = models.BooleanField(
+        default=False,
+        help_text="True if a human rejected or overrode the agent's output.",
+    )
+    # Autonomy context
+    risk_score = models.FloatField(null=True, blank=True)
+    autonomy_level = models.IntegerField(null=True, blank=True)
+    # Error details
+    error_message = models.TextField(blank=True, default="")
+    # Requesting user (may be None for fully autonomous runs)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agent_runs",
+    )
+
+    class Meta:
+        verbose_name = "AI Agent Run"
+        verbose_name_plural = "AI Agent Runs"
+        ordering = ["-started_at"]
+
+    def __str__(self) -> str:
+        return f"{self.agent_name} [{self.status}] @ {self.started_at:%Y-%m-%d %H:%M}"
+
+
+class AIAgentMetric(models.Model):
+    """
+    Flexible key-value metric attached to a single AIAgentRun.
+
+    Allows arbitrary per-run metrics without schema changes, e.g.:
+        {"metric_name": "precision_at_10", "metric_value": 0.82, "metric_unit": "ratio"}
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(
+        AIAgentRun,
+        on_delete=models.CASCADE,
+        related_name="metrics",
+    )
+    metric_name = models.CharField(max_length=255)
+    metric_value = models.FloatField()
+    metric_unit = models.CharField(max_length=100, blank=True, default="")
+
+    class Meta:
+        verbose_name = "AI Agent Metric"
+        verbose_name_plural = "AI Agent Metrics"
+        unique_together = [("run", "metric_name")]
+
+    def __str__(self) -> str:
+        return f"{self.metric_name}={self.metric_value}{self.metric_unit} [{self.run_id}]"
+
+
+class AIEvaluation(models.Model):
+    """
+    Human scoring of an AI agent's output on a 1–5 star scale.
+
+    Evaluators can score overall quality, factual accuracy, and usefulness
+    independently, plus leave free-form comments.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.ForeignKey(
+        AIAgentRun,
+        on_delete=models.CASCADE,
+        related_name="evaluations",
+    )
+    evaluator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_evaluations",
+    )
+    # Scores (1–5)
+    quality_score = models.IntegerField(
+        help_text="Overall output quality, 1 (very poor) to 5 (excellent)."
+    )
+    accuracy_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Factual accuracy of the output, 1–5.",
+    )
+    usefulness_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Practical usefulness of the output, 1–5.",
+    )
+    comments = models.TextField(blank=True, default="")
+    evaluated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "AI Evaluation"
+        verbose_name_plural = "AI Evaluations"
+        ordering = ["-evaluated_at"]
+
+    def __str__(self) -> str:
+        evaluator_display = (
+            self.evaluator.get_full_name() or self.evaluator.username
+            if self.evaluator
+            else "anonymous"
+        )
+        return f"Eval by {evaluator_display}: quality={self.quality_score}/5 [{self.run_id}]"

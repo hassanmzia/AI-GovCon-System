@@ -30,10 +30,14 @@ import {
   UserCog,
   ScrollText,
   Activity,
+  Shield,
+  Brain,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "AI Command Center", href: "/ai-command-center", icon: Brain },
+  { name: "Governance", href: "/governance", icon: Shield },
   { name: "Executive", href: "/executive", icon: Gauge },
   { name: "Opportunities", href: "/opportunities", icon: Search },
   { name: "Deals", href: "/deals", icon: Handshake },

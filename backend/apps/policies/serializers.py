@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import BusinessPolicy, PolicyRule, PolicyEvaluation, PolicyException
+from .models import (
+    AIAutonomyPolicy,
+    AIIncident,
+    BusinessPolicy,
+    PolicyApproval,
+    PolicyEnforcementLog,
+    PolicyEvaluation,
+    PolicyException,
+    PolicyRule,
+)
 
 
 class PolicyRuleSerializer(serializers.ModelSerializer):
@@ -171,3 +180,168 @@ class PolicyExceptionSerializer(serializers.ModelSerializer):
         if request and hasattr(request, "user") and request.user.is_authenticated:
             validated_data["requested_by"] = request.user
         return super().create(validated_data)
+
+
+# ---------------------------------------------------------------------------
+# AI Autonomy Governance serializers
+# ---------------------------------------------------------------------------
+
+
+class AIAutonomyPolicySerializer(serializers.ModelSerializer):
+    """Full serializer for the versioned AI autonomy policy bundle."""
+
+    created_by_username = serializers.SerializerMethodField(read_only=True)
+    approved_by_username = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = AIAutonomyPolicy
+        fields = [
+            "id",
+            "name",
+            "description",
+            "version",
+            "status",
+            "policy_json",
+            "autonomy_level",
+            "kill_switch_active",
+            "effective_from",
+            "effective_to",
+            "scope_json",
+            "created_by",
+            "created_by_username",
+            "approved_by",
+            "approved_by_username",
+            "approved_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "created_by_username",
+            "approved_by_username",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_created_by_username(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        return None
+
+    def get_approved_by_username(self, obj):
+        if obj.approved_by:
+            return obj.approved_by.get_full_name() or obj.approved_by.username
+        return None
+
+    def validate(self, attrs):
+        effective_from = attrs.get("effective_from")
+        effective_to = attrs.get("effective_to")
+        if effective_from and effective_to and effective_to < effective_from:
+            raise serializers.ValidationError(
+                {"effective_to": "effective_to must be on or after effective_from."}
+            )
+        return attrs
+
+
+class PolicyApprovalSerializer(serializers.ModelSerializer):
+    """Serializer for policy approval workflow records."""
+
+    approver_username = serializers.SerializerMethodField(read_only=True)
+    policy_name = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = PolicyApproval
+        fields = [
+            "id",
+            "policy",
+            "policy_name",
+            "approver",
+            "approver_username",
+            "decision",
+            "comments",
+            "decided_at",
+        ]
+        read_only_fields = [
+            "id",
+            "policy_name",
+            "approver_username",
+            "decided_at",
+        ]
+
+    def get_approver_username(self, obj):
+        if obj.approver:
+            return obj.approver.get_full_name() or obj.approver.username
+        return None
+
+    def get_policy_name(self, obj):
+        return str(obj.policy) if obj.policy_id else None
+
+
+class PolicyEnforcementLogSerializer(serializers.ModelSerializer):
+    """Read-only serializer for immutable enforcement log entries."""
+
+    user_username = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = PolicyEnforcementLog
+        fields = [
+            "id",
+            "policy",
+            "action_name",
+            "deal_id",
+            "decision",
+            "autonomy_level",
+            "risk_score",
+            "reason",
+            "agent_name",
+            "user",
+            "user_username",
+            "timestamp",
+        ]
+        read_only_fields = [
+            "id",
+            "user_username",
+            "timestamp",
+        ]
+
+    def get_user_username(self, obj):
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+        return None
+
+
+class AIIncidentSerializer(serializers.ModelSerializer):
+    """Full serializer for AI incident records."""
+
+    reported_by_username = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = AIIncident
+        fields = [
+            "id",
+            "title",
+            "description",
+            "incident_type",
+            "severity",
+            "status",
+            "deal_id",
+            "agent_name",
+            "freeze_autonomy",
+            "reported_by",
+            "reported_by_username",
+            "resolved_at",
+            "resolution_notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "reported_by_username",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_reported_by_username(self, obj):
+        if obj.reported_by:
+            return obj.reported_by.get_full_name() or obj.reported_by.username
+        return None

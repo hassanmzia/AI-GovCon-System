@@ -56,11 +56,27 @@ def _get_agent_registry() -> dict:
     from src.agents.ato_agent import ATOAgent
     from src.agents.forecasting_agent import ForecastingAgent
     from src.agents.competitor_sim_agent import CompetitorSimAgent
+    from src.agents.ranking_agent import RankingAgent
 
-    return {
+    # Governance & safety agents (imported with try/except — created by governance framework)
+    try:
+        from src.agents.synthetic_evaluator_agent import SyntheticEvaluatorAgent
+        from src.agents.amendment_diff_agent import AmendmentDiffAgent
+        from src.agents.evidence_validator_agent import EvidenceValidatorAgent
+        _governance_agents = {
+            "synthetic_evaluator_agent": SyntheticEvaluatorAgent(),
+            "amendment_diff_agent": AmendmentDiffAgent(),
+            "evidence_validator_agent": EvidenceValidatorAgent(),
+        }
+    except ImportError:
+        logger.warning("Governance agents not yet available; skipping registration.")
+        _governance_agents = {}
+
+    registry = {
         "scout_agent": ScoutAgent(),
         "fit_agent": FitAgent(),
         "alert_agent": AlertAgent(),
+        "ranking_agent": RankingAgent(),
         "opportunity_agent": OpportunityAgent(),
         "strategy_agent": StrategyAgent(),
         "research_agent": ResearchAgent(),
@@ -86,6 +102,8 @@ def _get_agent_registry() -> dict:
         "forecasting_agent": ForecastingAgent(),
         "competitor_sim_agent": CompetitorSimAgent(),
     }
+    registry.update(_governance_agents)
+    return registry
 
 
 _agent_registry = None
