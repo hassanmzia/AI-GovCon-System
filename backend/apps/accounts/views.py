@@ -69,6 +69,13 @@ class UserListView(ListCreateAPIView):
             return UserCreateSerializer
         return UserSerializer
 
+    def create(self, request, *args, **kwargs):
+        """Create a user and respond with the full UserSerializer (includes id)."""
+        serializer = UserCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
 
 class UserAdminDetailView(RetrieveUpdateDestroyAPIView):
     """Retrieve or update a specific user by ID (admin only)."""
