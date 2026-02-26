@@ -94,6 +94,7 @@ class OpportunityListSerializer(serializers.ModelSerializer):
 class OpportunityDetailSerializer(serializers.ModelSerializer):
     """Full serializer for detail views."""
     source = OpportunitySourceSerializer(read_only=True)
+    source_name = serializers.CharField(source="source.name", read_only=True)
     score = OpportunityScoreSerializer(read_only=True)
     days_until_deadline = serializers.IntegerField(read_only=True)
 
@@ -103,6 +104,7 @@ class OpportunityDetailSerializer(serializers.ModelSerializer):
             "id",
             "notice_id",
             "source",
+            "source_name",
             "source_url",
             "title",
             "description",
