@@ -8,6 +8,7 @@ services:
       - "3028:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./backend/media:/usr/share/nginx/media:ro
     depends_on:
       - django-api
       - frontend
