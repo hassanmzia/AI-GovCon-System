@@ -162,8 +162,11 @@ export default function ProfilePage() {
     formData.append('avatar', pendingAvatarFile);
 
     try {
+      // Do NOT set Content-Type manually — Axios detects FormData and lets
+      // the browser set multipart/form-data with the correct boundary.
+      // Explicitly setting it here would strip the boundary and break parsing.
       const response = await api.patch('/auth/profile/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
       setProfile(response.data);
       // Replace the temporary base64 preview with the persisted server URL
