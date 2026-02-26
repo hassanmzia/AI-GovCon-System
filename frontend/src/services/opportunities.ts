@@ -18,6 +18,17 @@ export async function triggerScan(): Promise<{ message: string }> {
   return response.data;
 }
 
+export async function getOpportunityFilters(): Promise<{
+  agencies: string[];
+  sources: string[];
+  statuses: string[];
+  naics_codes: string[];
+  states: string[];
+}> {
+  const response = await api.get("/opportunities/filters/");
+  return response.data;
+}
+
 export async function getDigests(): Promise<unknown> {
   const response = await api.get("/opportunities/digests/");
   return response.data;
