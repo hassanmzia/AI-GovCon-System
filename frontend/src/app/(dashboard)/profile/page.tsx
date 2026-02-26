@@ -33,6 +33,8 @@ export default function ProfilePage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showMFASetup, setShowMFASetup] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form states
@@ -130,37 +132,59 @@ export default function ProfilePage() {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Step 1: user picks a file → show local preview, wait for explicit save
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
       showAlert('error', 'File size must be less than 5MB');
       return;
     }
 
-    // Preview
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Upload
+    // Hold the file until the user clicks Save
+    setPendingAvatarFile(file);
+  };
+
+  // Step 2: user clicks Save → actually upload and persist
+  const handleAvatarSave = async () => {
+    if (!pendingAvatarFile) return;
+    setAvatarSaving(true);
+
     const formData = new FormData();
-    formData.append('avatar', file);
+    formData.append('avatar', pendingAvatarFile);
 
     try {
       const response = await api.patch('/auth/profile/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setProfile(response.data);
-      showAlert('success', 'Profile picture uploaded successfully!');
+      // Replace the temporary base64 preview with the persisted server URL
+      // so the image survives navigation without needing to re-fetch.
+      if (response.data.avatar) {
+        setAvatarPreview(response.data.avatar);
+      }
+      setPendingAvatarFile(null);
+      showAlert('success', 'Profile picture saved!');
     } catch (error) {
-      console.error('Failed to upload avatar:', error);
-      showAlert('error', 'Failed to upload profile picture');
+      console.error('Failed to save avatar:', error);
+      showAlert('error', 'Failed to save profile picture');
+    } finally {
+      setAvatarSaving(false);
     }
+  };
+
+  const handleAvatarCancel = () => {
+    // Discard local selection, restore the saved avatar (or nothing)
+    setPendingAvatarFile(null);
+    setAvatarPreview(profile?.avatar || null);
   };
 
   const handleMFAToggle = async () => {
@@ -231,19 +255,39 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-          <div>
-            <label className="block mb-2">
+          <div className="space-y-2">
+            <label className="block">
               <input
                 type="file"
                 accept="image/*"
-                onChange={handleAvatarUpload}
+                onChange={handleAvatarSelect}
                 className="hidden"
               />
               <span className="px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600">
-                Upload Photo
+                Choose Photo
               </span>
             </label>
             <p className="text-sm text-gray-600">JPG, PNG or GIF (max 5MB)</p>
+
+            {/* Save / Cancel only appear after a file is chosen */}
+            {pendingAvatarFile && (
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleAvatarSave}
+                  disabled={avatarSaving}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+                >
+                  {avatarSaving ? 'Saving…' : 'Save Picture'}
+                </button>
+                <button
+                  onClick={handleAvatarCancel}
+                  disabled={avatarSaving}
+                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
