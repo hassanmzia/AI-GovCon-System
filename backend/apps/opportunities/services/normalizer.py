@@ -33,7 +33,9 @@ class OpportunityNormalizer:
             "place_state": raw.get("placeOfPerformance", {}).get("state", {}).get("name", "") if raw.get("placeOfPerformance") else "",
             "contacts": self._extract_contacts(raw.get("pointOfContact", [])),
             "attachments": self._extract_attachments(raw.get("resourceLinks", [])),
-            "source_url": raw.get("uiLink", ""),
+            "source_url": raw.get("uiLink") or (
+                f"https://sam.gov/opp/{raw['noticeId']}/view" if raw.get("noticeId") else ""
+            ),
             "raw_data": raw,
         }
 

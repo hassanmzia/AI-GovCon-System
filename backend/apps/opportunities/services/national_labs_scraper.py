@@ -229,11 +229,20 @@ class NationalLabsScraper:
                 def cell_link(idx: int | None) -> str:
                     # Try the specified column first, then fall back to scanning all cells
                     search_cells = ([cells[idx]] if idx is not None and idx < len(cells) else []) + cells
+                    fallback = ""
                     for c in search_cells:
-                        hrefs = re.findall(r'href=["\']([^"\']+)["\']', c, re.IGNORECASE)
-                        if hrefs:
-                            return hrefs[0]
-                    return ""
+                        hrefs = re.findall(r'href=["\']([^"\'#][^"\']*)["\']', c, re.IGNORECASE)
+                        for href in hrefs:
+                            # Skip obvious non-detail hrefs (javascript, mailto, anchors)
+                            if href.startswith(("javascript:", "mailto:", "tel:")):
+                                continue
+                            resolved = _resolve_url(href, config["base_url"])
+                            # Prefer hrefs that look like individual detail/solicitation pages
+                            if _SOL_KEYWORD_RE.search(href):
+                                return resolved
+                            if not fallback:
+                                fallback = resolved
+                    return fallback
 
                 title = cell_text(title_idx)
                 if not title:
@@ -251,7 +260,7 @@ class NationalLabsScraper:
                     "sol_number": cell_text(sol_idx),
                     "deadline": cell_text(deadline_idx),
                     "posted": cell_text(posted_idx),
-                    "url": _resolve_url(cell_link(None), config["base_url"]),
+                    "url": cell_link(None),
                 })
 
         return items
@@ -308,6 +317,13 @@ class NationalLabsScraper:
         title = item.get("title", "").strip()
         sol_number = item.get("sol_number", "").strip()
         url = item.get("url", "").strip()
+        # If the scraped URL is the listings page itself (or empty), use the
+        # solicitations listing as the fallback so the link is at least useful.
+        if not url or url.rstrip("/") in (
+            config["solicitations_url"].rstrip("/"),
+            config["base_url"].rstrip("/"),
+        ):
+            url = config["solicitations_url"]
         notice_id = _make_notice_id(config["name"], sol_number, title)
 
         return {
