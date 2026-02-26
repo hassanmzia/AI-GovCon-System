@@ -459,15 +459,39 @@ class AIAutonomyPolicyViewSet(viewsets.ModelViewSet):
         """
         GET /api/policies/autonomy-policies/active/
 
-        Return the currently active AI autonomy policy JSON, or 404 if none is
-        active.
+        Return the currently active AI autonomy policy JSON.  If no active
+        policy exists, a sensible Year-1 / L1 default is created on first
+        access so the Governance dashboard always has something to display.
         """
         policy = AIAutonomyPolicy.get_latest_active()
         if policy is None:
-            return Response(
-                {"detail": "No active AI autonomy policy found."},
-                status=status.HTTP_404_NOT_FOUND,
+            policy = AIAutonomyPolicy.objects.create(
+                name="Year 1 — L1 Guided Automation",
+                version=1,
+                status="active",
+                autonomy_level=1,
+                kill_switch_active=False,
+                policy_json={
+                    "current_autonomy_level": 1,
+                    "kill_switch_active": False,
+                    "hitl_risk_threshold": 0.35,
+                    "pricing_floor_margin": 0.08,
+                    "risk_thresholds": {"composite": 0.35, "default": 0.35},
+                    "hitl_gates": [
+                        "proposal_submission",
+                        "pricing_finalization",
+                        "contract_signing",
+                    ],
+                    "agency_allowlist": [],
+                    "agency_blocklist": [],
+                },
+                scope_json={},
+                description=(
+                    "Auto-generated default policy. "
+                    "All AI actions require human review (L1 — guided automation)."
+                ),
             )
+            logger.info("Auto-created default active AIAutonomyPolicy (v1, L1).")
         serializer = self.get_serializer(policy)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

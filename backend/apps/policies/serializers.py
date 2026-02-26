@@ -192,6 +192,14 @@ class AIAutonomyPolicySerializer(serializers.ModelSerializer):
 
     created_by_username = serializers.SerializerMethodField(read_only=True)
     approved_by_username = serializers.SerializerMethodField(read_only=True)
+    # Frontend compat: expose autonomy_level also as 'level'
+    level = serializers.IntegerField(source="autonomy_level", read_only=True)
+    # Flatten commonly-used policy_json sub-fields for the dashboard
+    pricing_floor_margin = serializers.SerializerMethodField(read_only=True)
+    risk_thresholds = serializers.SerializerMethodField(read_only=True)
+    hitl_gates = serializers.SerializerMethodField(read_only=True)
+    agency_allowlist = serializers.SerializerMethodField(read_only=True)
+    agency_blocklist = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = AIAutonomyPolicy
@@ -203,10 +211,16 @@ class AIAutonomyPolicySerializer(serializers.ModelSerializer):
             "status",
             "policy_json",
             "autonomy_level",
+            "level",
             "kill_switch_active",
             "effective_from",
             "effective_to",
             "scope_json",
+            "pricing_floor_margin",
+            "risk_thresholds",
+            "hitl_gates",
+            "agency_allowlist",
+            "agency_blocklist",
             "created_by",
             "created_by_username",
             "approved_by",
@@ -232,6 +246,27 @@ class AIAutonomyPolicySerializer(serializers.ModelSerializer):
         if obj.approved_by:
             return obj.approved_by.get_full_name() or obj.approved_by.username
         return None
+
+    def _pj(self, obj):
+        """Return policy_json as a dict, or empty dict."""
+        return obj.policy_json if isinstance(obj.policy_json, dict) else {}
+
+    def get_pricing_floor_margin(self, obj):
+        return self._pj(obj).get("pricing_floor_margin")
+
+    def get_risk_thresholds(self, obj):
+        return self._pj(obj).get("risk_thresholds")
+
+    def get_hitl_gates(self, obj):
+        return self._pj(obj).get("hitl_gates")
+
+    def get_agency_allowlist(self, obj):
+        pj = self._pj(obj)
+        return pj.get("agency_allowlist") or obj.scope_json.get("agency_allowlist") if isinstance(obj.scope_json, dict) else pj.get("agency_allowlist")
+
+    def get_agency_blocklist(self, obj):
+        pj = self._pj(obj)
+        return pj.get("agency_blocklist") or obj.scope_json.get("agency_blocklist") if isinstance(obj.scope_json, dict) else pj.get("agency_blocklist")
 
     def validate(self, attrs):
         effective_from = attrs.get("effective_from")
