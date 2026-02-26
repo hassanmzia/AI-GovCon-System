@@ -9,6 +9,7 @@ from .models import (
     CompanyProfile,
     DailyDigest,
     Opportunity,
+    OpportunitySource,
 )
 from .serializers import (
     CompanyProfileSerializer,
@@ -85,9 +86,10 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
                   .order_by("agency")
             ),
             "sources": list(
-                qs.values_list("source__name", flat=True)
+                OpportunitySource.objects
+                  .values_list("name", flat=True)
                   .distinct()
-                  .order_by("source__name")
+                  .order_by("name")
             ),
             "statuses": list(
                 qs.exclude(status="")
