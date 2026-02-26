@@ -16,7 +16,6 @@ import os
 from typing import Annotated, Any
 
 import httpx
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
@@ -81,12 +80,19 @@ async def _post(path: str, body: dict) -> dict:
         return {"error": str(exc)}
 
 
-async def _llm(system: str, human: str, max_tokens: int = 3000) -> str:
+async def _llm(
+    system: str,
+    human: str,
+    max_tokens: int = 3000,
+    execution_id: str | None = None,
+) -> str:
     try:
-        llm = ChatAnthropic(
-            model="claude-sonnet-4-6",
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
+        from src.observability.tracing import build_llm
+
+        llm = build_llm(
             max_tokens=max_tokens,
+            execution_id=execution_id,
+            agent_name="amendment_diff_agent",
         )
         resp = await llm.ainvoke(
             [SystemMessage(content=system), HumanMessage(content=human)]
@@ -307,7 +313,7 @@ async def analyze_impact(state: AmendmentDiffState) -> dict:
         "Provide your complete impact analysis."
     )
 
-    impact_analysis = await _llm(system_prompt, human_prompt, max_tokens=3000)
+    impact_analysis = await _llm(system_prompt, human_prompt, max_tokens=3000, execution_id=state.get("deal_id"))
 
     # Extract affected sections from the analysis text (heuristic)
     proposal_section_keywords = [
@@ -330,6 +336,7 @@ async def analyze_impact(state: AmendmentDiffState) -> dict:
         "You are a technical writer producing executive briefing summaries.",
         change_summary_prompt,
         max_tokens=300,
+        execution_id=state.get("deal_id"),
     )
 
     return {

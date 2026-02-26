@@ -16,7 +16,6 @@ import os
 from typing import Annotated, Any
 
 import httpx
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
@@ -68,12 +67,19 @@ async def _get(path: str, default: Any = None) -> Any:
         return default
 
 
-async def _llm(system: str, human: str, max_tokens: int = 4096) -> str:
+async def _llm(
+    system: str,
+    human: str,
+    max_tokens: int = 4096,
+    execution_id: str | None = None,
+) -> str:
     try:
-        llm = ChatAnthropic(
-            model="claude-sonnet-4-6",
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
+        from src.observability.tracing import build_llm
+
+        llm = build_llm(
             max_tokens=max_tokens,
+            execution_id=execution_id,
+            agent_name="evidence_validator_agent",
         )
         resp = await llm.ainvoke(
             [SystemMessage(content=system), HumanMessage(content=human)]
@@ -217,7 +223,7 @@ async def extract_claims(state: EvidenceValidatorState) -> dict:
         "Extract all factual claims as JSON."
     )
 
-    raw = await _llm(system_prompt, human_prompt, max_tokens=4096)
+    raw = await _llm(system_prompt, human_prompt, max_tokens=4096, execution_id=state.get("deal_id"))
     parsed = _parse_json_response(raw, fallback={})
 
     claims: list[dict] = []
@@ -305,7 +311,7 @@ async def validate_citations(state: EvidenceValidatorState) -> dict:
         "Produce validation results JSON now."
     )
 
-    raw = await _llm(system_prompt, human_prompt, max_tokens=4096)
+    raw = await _llm(system_prompt, human_prompt, max_tokens=4096, execution_id=state.get("deal_id"))
     parsed = _parse_json_response(raw, fallback={})
 
     citation_results: list[dict] = []

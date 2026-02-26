@@ -12,7 +12,6 @@ import os
 from typing import Annotated, Any
 
 import httpx
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
@@ -62,12 +61,19 @@ async def _get(path: str, default: Any = None) -> Any:
         return default
 
 
-async def _llm(system: str, human: str, max_tokens: int = 4096) -> str:
+async def _llm(
+    system: str,
+    human: str,
+    max_tokens: int = 4096,
+    execution_id: str | None = None,
+) -> str:
     try:
-        llm = ChatAnthropic(
-            model="claude-sonnet-4-6",
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
+        from src.observability.tracing import build_llm
+
+        llm = build_llm(
             max_tokens=max_tokens,
+            execution_id=execution_id,
+            agent_name="synthetic_evaluator_agent",
         )
         resp = await llm.ainvoke(
             [SystemMessage(content=system), HumanMessage(content=human)]
@@ -209,7 +215,7 @@ async def simulate_government_evaluation(state: SyntheticEvaluatorState) -> dict
         "section_scores, strengths, weaknesses."
     )
 
-    raw = await _llm(system_prompt, human_prompt, max_tokens=4096)
+    raw = await _llm(system_prompt, human_prompt, max_tokens=4096, execution_id=state.get("deal_id"))
 
     # Parse JSON out of the LLM response
     section_scores: list[dict] = []
@@ -309,7 +315,7 @@ async def generate_improvement_recommendations(
         "Produce the recommendations JSON now."
     )
 
-    raw = await _llm(system_prompt, human_prompt, max_tokens=3000)
+    raw = await _llm(system_prompt, human_prompt, max_tokens=3000, execution_id=state.get("deal_id"))
 
     recommendations: list[str] = []
     try:
