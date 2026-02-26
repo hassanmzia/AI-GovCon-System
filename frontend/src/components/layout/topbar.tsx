@@ -21,6 +21,8 @@ interface Notification {
   message: string;
   type: "info" | "success" | "warning" | "error";
   timestamp: Date;
+  /** Internal router path to navigate when the item is clicked. */
+  link: string;
 }
 
 interface TopbarProps {
@@ -34,77 +36,102 @@ interface TopbarProps {
 async function fetchLiveNotifications(): Promise<Notification[]> {
   const results: Notification[] = [];
 
-  // 1. Pending approvals
+  // 1. Pending approvals  → /deals/approvals/?status=pending
+  //    Backend now returns `deal_title` (added to ApprovalSerializer).
+  //    Link: /deals/<deal-id>
   try {
     const res = await api.get("/deals/approvals/", {
       params: { status: "pending", ordering: "-created_at", page_size: 20 },
     });
-    const approvals: Array<{ id: string; deal_title?: string; approval_type?: string; created_at: string }> =
-      res.data.results ?? res.data ?? [];
+    const approvals: Array<{
+      id: string;
+      deal: string;
+      deal_title?: string;
+      approval_type?: string;
+      created_at: string;
+    }> = res.data.results ?? res.data ?? [];
+
     for (const a of approvals) {
+      const ts = a.created_at ? new Date(a.created_at) : new Date();
       results.push({
         id: `approval-${a.id}`,
-        message: `${(a.deal_title ?? "A deal").slice(0, 60)} needs ${(a.approval_type ?? "approval").replace(/_/g, " ")}`,
+        message: `${(a.deal_title ?? "Deal").slice(0, 55)} needs ${(
+          a.approval_type ?? "approval"
+        ).replace(/_/g, " ")}`,
         type: "warning",
-        timestamp: new Date(a.created_at),
+        timestamp: ts,
+        link: `/deals/${a.deal}`,
       });
     }
   } catch {
     // silently ignore — auth may not be ready yet
   }
 
-  // 2. Deals with deadline in the next 7 days
+  // 2. Deals with deadline in the next 7 days  → /deals/deals/
+  //    Timestamp = now (the notification is generated now, not at the deadline).
+  //    Link: /deals/<deal-id>
   try {
     const now = new Date();
     const soon = new Date(now.getTime() + 7 * 86400000);
     const res = await api.get("/deals/deals/", {
-      params: {
-        ordering: "due_date",
-        page_size: 50,
-      },
+      params: { ordering: "due_date", page_size: 50 },
     });
-    const deals: Array<{ id: string; title?: string; due_date?: string | null; stage?: string }> =
-      res.data.results ?? res.data ?? [];
+    const deals: Array<{
+      id: string;
+      title?: string;
+      due_date?: string | null;
+    }> = res.data.results ?? res.data ?? [];
 
     for (const d of deals) {
       if (!d.due_date) continue;
       const due = new Date(d.due_date);
-      if (due < now || due > soon) continue;
+      if (isNaN(due.getTime()) || due < now || due > soon) continue;
       const daysLeft = Math.ceil((due.getTime() - now.getTime()) / 86400000);
       results.push({
         id: `deadline-${d.id}`,
-        message: `"${(d.title ?? "Deal").slice(0, 55)}" deadline in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+        message: `"${(d.title ?? "Deal").slice(0, 50)}" deadline in ${daysLeft} day${
+          daysLeft === 1 ? "" : "s"
+        }`,
         type: daysLeft <= 2 ? "error" : "warning",
-        timestamp: due,
+        timestamp: now,
+        link: `/deals/${d.id}`,
       });
     }
   } catch {
     // silently ignore
   }
 
-  // 3. Opportunities posted / ingested in the last 24 hours
+  // 3. Opportunities posted in the last 24 h  → /opportunities/
+  //    The list serializer exposes `posted_date` (not `created_at`).
+  //    Link: /opportunities/<opp-id>
   try {
-    const cutoff = new Date(Date.now() - 86400000).toISOString();
+    const cutoff = new Date(Date.now() - 86400000);
     const res = await api.get("/opportunities/", {
-      params: { ordering: "-created_at", page_size: 5 },
+      params: { ordering: "-posted_date", page_size: 10 },
     });
-    const opps: Array<{ id: string; title?: string; created_at: string }> =
-      res.data.results ?? res.data ?? [];
+    const opps: Array<{
+      id: string;
+      title?: string;
+      posted_date?: string | null;
+    }> = res.data.results ?? res.data ?? [];
 
     for (const opp of opps) {
-      if (new Date(opp.created_at) < new Date(cutoff)) continue;
+      if (!opp.posted_date) continue;
+      const posted = new Date(opp.posted_date);
+      if (isNaN(posted.getTime()) || posted < cutoff) continue;
       results.push({
         id: `opp-${opp.id}`,
-        message: `New opportunity: ${(opp.title ?? "Untitled").slice(0, 60)}`,
+        message: `New opportunity: ${(opp.title ?? "Untitled").slice(0, 55)}`,
         type: "info",
-        timestamp: new Date(opp.created_at),
+        timestamp: posted,
+        link: `/opportunities/${opp.id}`,
       });
     }
   } catch {
     // silently ignore
   }
 
-  // Sort newest first, cap at 20
+  // Sort newest-first, cap at 20
   return results
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
     .slice(0, 20);
@@ -127,7 +154,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     setNotifications(live);
   }, []);
 
-  // Load on mount, then refresh every 60 s
+  // Load on mount, refresh every 60 s
   useEffect(() => {
     refresh();
     const interval = setInterval(refresh, 60_000);
@@ -150,12 +177,13 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     : "User";
 
   const formatTime = (date: Date) => {
+    if (isNaN(date.getTime())) return "";
     const diff = Date.now() - date.getTime();
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    if (hours < 1) return "just now";
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
+    if (Math.abs(hours) < 1) return "just now";
+    if (hours > 0 && hours < 24) return `${hours}h ago`;
+    if (days > 0 && days < 7) return `${days}d ago`;
     return date.toLocaleDateString();
   };
 
@@ -233,32 +261,41 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               ) : (
                 visible.map((notification) => (
                   <div key={notification.id} className="border-b last:border-b-0">
-                    <div className="flex items-start gap-3 px-2 py-3 hover:bg-accent transition-colors group">
-                      <div
-                        className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
-                          notification.type === "success"
-                            ? "bg-green-500"
-                            : notification.type === "warning"
-                            ? "bg-yellow-500"
-                            : notification.type === "error"
-                            ? "bg-red-500"
-                            : "bg-blue-500"
-                        }`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground break-words">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatTime(notification.timestamp)}
-                        </p>
-                      </div>
+                    <div className="flex items-start gap-3 hover:bg-accent transition-colors group">
+                      {/* Clickable area navigates to the relevant page */}
+                      <Link
+                        href={notification.link}
+                        className="flex flex-1 items-start gap-3 px-2 py-3 min-w-0"
+                        onClick={() => removeNotification(notification.id)}
+                      >
+                        <div
+                          className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
+                            notification.type === "success"
+                              ? "bg-green-500"
+                              : notification.type === "warning"
+                              ? "bg-yellow-500"
+                              : notification.type === "error"
+                              ? "bg-red-500"
+                              : "bg-blue-500"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground break-words">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatTime(notification.timestamp)}
+                          </p>
+                        </div>
+                      </Link>
+                      {/* Dismiss button — does not navigate */}
                       <button
                         onMouseDown={(e) => {
                           e.preventDefault();
                           removeNotification(notification.id);
                         }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 mt-2 mr-2 hover:bg-destructive/10 rounded flex-shrink-0"
+                        aria-label="Dismiss"
                       >
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </button>

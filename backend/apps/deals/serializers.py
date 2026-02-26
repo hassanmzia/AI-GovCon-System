@@ -327,12 +327,14 @@ class ApprovalSerializer(serializers.ModelSerializer):
     requested_from_detail = UserMinimalSerializer(
         source="requested_from", read_only=True
     )
+    deal_title = serializers.CharField(source="deal.title", read_only=True)
 
     class Meta:
         model = Approval
         fields = [
             "id",
             "deal",
+            "deal_title",
             "approval_type",
             "requested_by",
             "requested_by_detail",
