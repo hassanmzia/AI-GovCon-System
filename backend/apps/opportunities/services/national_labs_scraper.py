@@ -33,7 +33,9 @@ LAB_CONFIGS: list[dict[str, str]] = [
         "source_type": "web_scrape",
         "base_url": "https://contracts.ornl.gov",
         "solicitations_url": "https://contracts.ornl.gov/solicitations/",
-        "lab_agency": "Oak Ridge National Laboratory",
+        # Use the real contracting agency (DOE / Office of Science) so the
+        # Agencies filter dropdown shows something distinct from the Sources list.
+        "lab_agency": "U.S. Department of Energy",
         "place_state": "TN",
     },
     {
@@ -41,7 +43,7 @@ LAB_CONFIGS: list[dict[str, str]] = [
         "source_type": "web_scrape",
         "base_url": "https://www.bnl.gov",
         "solicitations_url": "https://www.bnl.gov/ppm/procurement.php",
-        "lab_agency": "Brookhaven National Laboratory",
+        "lab_agency": "U.S. Department of Energy",
         "place_state": "NY",
     },
     {
@@ -49,7 +51,7 @@ LAB_CONFIGS: list[dict[str, str]] = [
         "source_type": "web_scrape",
         "base_url": "https://www.sandia.gov",
         "solicitations_url": "https://www.sandia.gov/working-with-sandia/prospective-suppliers/business-opportunities/",
-        "lab_agency": "Sandia National Laboratories",
+        "lab_agency": "U.S. Department of Energy",
         "place_state": "NM",
     },
     {
@@ -57,7 +59,7 @@ LAB_CONFIGS: list[dict[str, str]] = [
         "source_type": "web_scrape",
         "base_url": "https://supplier.kcnsc.doe.gov",
         "solicitations_url": "https://supplier.kcnsc.doe.gov/ptl/potential-suppliers",
-        "lab_agency": "Kansas City National Security Campus",
+        "lab_agency": "U.S. Department of Energy",
         "place_state": "MO",
     },
 ]

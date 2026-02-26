@@ -9,6 +9,7 @@ from .models import (
     CompanyProfile,
     DailyDigest,
     Opportunity,
+    OpportunitySource,
 )
 from .serializers import (
     CompanyProfileSerializer,
@@ -77,19 +78,28 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
     def filters(self, request):
         """Return distinct values used to populate filter dropdowns."""
         qs = self.get_queryset()
+        # Sources come from the OpportunitySource registry so that all configured
+        # sources (e.g. SAM.gov) are always visible even before any opportunities
+        # have been ingested from them.
+        all_sources = list(
+            OpportunitySource.objects.filter(is_active=True)
+            .values_list("name", flat=True)
+            .order_by("name")
+        )
+        # Agencies should reflect the contracting agency, not the scrape-source
+        # name.  Exclude any agency value that is identical to a source name so
+        # the two dropdowns stay distinct (national-lab opportunities are re-mapped
+        # to their DOE parent agency via the scraper).
+        source_names = set(all_sources)
         return Response({
             "agencies": list(
                 qs.exclude(agency="")
+                  .exclude(agency__in=source_names)
                   .values_list("agency", flat=True)
                   .distinct()
                   .order_by("agency")
             ),
-            "sources": list(
-                qs.exclude(source__name="")
-                  .values_list("source__name", flat=True)
-                  .distinct()
-                  .order_by("source__name")
-            ),
+            "sources": all_sources,
             "statuses": list(
                 qs.exclude(status="")
                   .values_list("status", flat=True)
