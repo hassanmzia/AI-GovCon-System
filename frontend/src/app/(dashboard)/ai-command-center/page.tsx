@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import api from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -163,9 +164,8 @@ export default function AICommandCenterPage() {
     setAgentRunsLoading(true);
     setAgentRunsError(null);
     try {
-      const res = await fetch("/api/analytics/agent-runs/?limit=100");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const res = await api.get("/analytics/agent-runs/?limit=100");
+      const data = res.data;
       const runs: AgentRun[] = Array.isArray(data)
         ? data
         : data.results ?? [];
@@ -183,9 +183,8 @@ export default function AICommandCenterPage() {
     setWinLossLoading(true);
     setWinLossError(null);
     try {
-      const res = await fetch("/api/analytics/win-loss/?limit=50");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const res = await api.get("/analytics/win-loss/?limit=50");
+      const data = res.data;
       setWinLoss(Array.isArray(data) ? data : data.results ?? []);
     } catch (e) {
       setWinLossError(
@@ -200,9 +199,8 @@ export default function AICommandCenterPage() {
     setEnforcementLoading(true);
     setEnforcementError(null);
     try {
-      const res = await fetch("/api/policies/enforcement-log/?limit=100");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const res = await api.get("/policies/enforcement-log/?limit=100");
+      const data = res.data;
       setEnforcement(Array.isArray(data) ? data : data.results ?? []);
     } catch (e) {
       setEnforcementError(
@@ -215,9 +213,8 @@ export default function AICommandCenterPage() {
 
   const fetchRecentRuns = useCallback(async () => {
     try {
-      const res = await fetch("/api/analytics/agent-runs/?days=7");
-      if (!res.ok) return;
-      const data = await res.json();
+      const res = await api.get("/analytics/agent-runs/?days=7");
+      const data = res.data;
       setRecentRuns(Array.isArray(data) ? data : data.results ?? []);
     } catch {
       // non-critical
@@ -226,9 +223,8 @@ export default function AICommandCenterPage() {
 
   const fetchForecast = useCallback(async () => {
     try {
-      const res = await fetch("/api/analytics/forecast/");
-      if (!res.ok) return;
-      const data = await res.json();
+      const res = await api.get("/analytics/forecast/");
+      const data = res.data;
       setForecastQuarters(Array.isArray(data) ? data : data.quarters ?? []);
     } catch {
       // non-critical — forecast chart shows stub state
