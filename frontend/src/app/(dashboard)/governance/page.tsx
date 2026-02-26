@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import api from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -149,9 +150,8 @@ export default function GovernancePage() {
     setPolicyLoading(true);
     setPolicyError(null);
     try {
-      const res = await fetch("/api/policies/autonomy-policies/active/");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const res = await api.get("/policies/autonomy-policies/active/");
+      const data = res.data;
       setPolicy(data);
     } catch (e) {
       setPolicyError(e instanceof Error ? e.message : "Failed to load policy");
@@ -165,9 +165,8 @@ export default function GovernancePage() {
     setLogLoading(true);
     setLogError(null);
     try {
-      const res = await fetch("/api/policies/enforcement-log/?limit=20");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const res = await api.get("/policies/enforcement-log/?limit=20");
+      const data = res.data;
       setEnforcementLog(Array.isArray(data) ? data : data.results ?? []);
     } catch (e) {
       setLogError(e instanceof Error ? e.message : "Failed to load log");
@@ -181,9 +180,8 @@ export default function GovernancePage() {
     setIncidentsLoading(true);
     setIncidentsError(null);
     try {
-      const res = await fetch("/api/policies/incidents/");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const res = await api.get("/policies/incidents/");
+      const data = res.data;
       setIncidents(Array.isArray(data) ? data : data.results ?? []);
     } catch (e) {
       setIncidentsError(
@@ -205,18 +203,13 @@ export default function GovernancePage() {
     setRiskLoading(true);
     setRiskError(null);
     try {
-      const res = await fetch("/api/policies/assess-risk/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          context: "current_pipeline",
-          deal_value: 5000000,
-          agency: "DoD",
-          classification: "unclassified",
-        }),
+      const res = await api.post("/policies/assess-risk/", {
+        context: "current_pipeline",
+        deal_value: 5000000,
+        agency: "DoD",
+        classification: "unclassified",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = res.data;
       setRiskScore(data.risk_score ?? data);
     } catch (e) {
       setRiskError(
@@ -232,15 +225,7 @@ export default function GovernancePage() {
     if (!policy) return;
     setActionLoading(true);
     try {
-      const res = await fetch(
-        `/api/policies/autonomy-policies/${policy.id}/set-level/`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ level }),
-        }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await api.post(`/policies/autonomy-policies/${policy.id}/set-level/`, { level });
       await fetchPolicy();
     } catch {
       // silently refresh
@@ -256,13 +241,9 @@ export default function GovernancePage() {
     setActionLoading(true);
     try {
       const endpoint = policy.kill_switch_active
-        ? `/api/policies/autonomy-policies/${policy.id}/restore/`
-        : `/api/policies/autonomy-policies/${policy.id}/kill-switch/`;
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        ? `/policies/autonomy-policies/${policy.id}/restore/`
+        : `/policies/autonomy-policies/${policy.id}/kill-switch/`;
+      await api.post(endpoint);
       await fetchPolicy();
     } catch {
       await fetchPolicy();
