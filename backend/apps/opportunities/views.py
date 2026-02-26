@@ -37,7 +37,7 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         "agency": ["exact", "icontains"],
-        "naics_code": ["exact"],
+        "naics_code": ["exact", "icontains", "startswith"],
         "status": ["exact"],
         "set_aside": ["exact", "icontains"],
         "notice_type": ["exact"],

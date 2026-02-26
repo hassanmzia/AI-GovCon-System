@@ -65,7 +65,7 @@ export default function OpportunitiesPage() {
       };
       if (search) params.search = search;
       if (agencyFilter) params["agency__icontains"] = agencyFilter;
-      if (naicsFilter) params.naics_code = naicsFilter;
+      if (naicsFilter) params["naics_code__icontains"] = naicsFilter;
       if (statusFilter) params.status = statusFilter;
       if (recommendationFilter) params["score__recommendation"] = recommendationFilter;
       if (sourceFilter) params["source__name__icontains"] = sourceFilter;
@@ -196,16 +196,20 @@ export default function OpportunitiesPage() {
                 <option key={source} value={source}>{source}</option>
               ))}
             </select>
-            <select
-              value={naicsFilter}
-              onChange={(e) => setNaicsFilter(e.target.value)}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9 sm:w-auto"
-            >
-              <option value="">All NAICS</option>
-              {filterOptions.naics_codes.map((naics) => (
-                <option key={naics} value={naics}>{naics}</option>
-              ))}
-            </select>
+            <>
+              <input
+                list="naics-options"
+                value={naicsFilter}
+                onChange={(e) => setNaicsFilter(e.target.value)}
+                placeholder="NAICS code…"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9 sm:w-36"
+              />
+              <datalist id="naics-options">
+                {filterOptions.naics_codes.map((naics) => (
+                  <option key={naics} value={naics} />
+                ))}
+              </datalist>
+            </>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -290,10 +294,10 @@ export default function OpportunitiesPage() {
                   <thead>
                     <tr className="border-b text-left">
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Agency</th>
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Agency / State</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Source</th>
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Sol #</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">NAICS</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Set-Aside</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Deadline</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Score</th>
                       <th className="pb-3 font-medium text-muted-foreground">Posted</th>
@@ -307,10 +311,15 @@ export default function OpportunitiesPage() {
                         className="border-b cursor-pointer transition-colors hover:bg-muted/50"
                       >
                         <td className="py-3 pr-4 font-medium">{truncate(opp.title, 50)}</td>
-                        <td className="py-3 pr-4 text-muted-foreground">{truncate(opp.agency, 30)}</td>
+                        <td className="py-3 pr-4 text-muted-foreground">
+                          <div>{truncate(opp.agency, 28)}</div>
+                          {opp.place_state && (
+                            <div className="text-xs text-muted-foreground/70">{opp.place_state}</div>
+                          )}
+                        </td>
                         <td className="py-3 pr-4 text-muted-foreground text-xs">{opp.source_name || "--"}</td>
+                        <td className="py-3 pr-4 text-muted-foreground font-mono text-xs">{opp.sol_number || "--"}</td>
                         <td className="py-3 pr-4 text-muted-foreground">{opp.naics_code || "--"}</td>
-                        <td className="py-3 pr-4 text-muted-foreground">{opp.set_aside || "--"}</td>
                         <td className="py-3 pr-4">
                           <div className="flex flex-col">
                             <span className="text-muted-foreground">{formatDate(opp.response_deadline)}</span>

@@ -153,7 +153,7 @@ export default function OpportunityDetailPage() {
                   className="mt-4 inline-flex items-center gap-1 text-sm text-primary hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  View on SAM.gov
+                  View on {opportunity.source_name || "Original Listing"}
                 </a>
               )}
             </CardContent>
@@ -293,8 +293,8 @@ export default function OpportunityDetailPage() {
                   <span className="text-xs text-muted-foreground uppercase tracking-wider">
                     Archive Date
                   </span>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    --
+                  <p className="text-sm font-medium">
+                    {formatDate(opportunity.archive_date)}
                   </p>
                 </div>
               </div>
