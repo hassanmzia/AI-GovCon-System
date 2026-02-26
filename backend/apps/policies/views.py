@@ -472,12 +472,21 @@ class AIAutonomyPolicyViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class PolicyEnforcementLogViewSet(viewsets.ReadOnlyModelViewSet):
+class PolicyEnforcementLogViewSet(viewsets.ModelViewSet):
     """
-    Read-only access to policy enforcement log entries.
+    Enforcement log: list/retrieve (humans) + create (AI orchestrator service).
 
-    Supports filtering by: deal_id, agent_name, decision.
+    The AI orchestrator POSTs new enforcement decisions via the service token.
+    Human users (dashboard) can only list and retrieve — all mutating actions
+    other than create are disabled.
+
+    URL registered under both ``enforcement-logs`` (canonical) and the
+    ``enforcement-log`` alias used by the AI orchestrator.
+
+    Supports filtering by: deal_id, agent_name, decision, limit.
     """
+
+    http_method_names = ["get", "post", "head", "options"]  # no PUT/PATCH/DELETE
 
     queryset = PolicyEnforcementLog.objects.select_related(
         "policy", "user"
@@ -490,6 +499,7 @@ class PolicyEnforcementLogViewSet(viewsets.ReadOnlyModelViewSet):
         deal_id = self.request.query_params.get("deal_id")
         agent_name = self.request.query_params.get("agent_name")
         decision = self.request.query_params.get("decision")
+        limit = self.request.query_params.get("limit")
 
         if deal_id:
             qs = qs.filter(deal_id=deal_id)
@@ -497,6 +507,11 @@ class PolicyEnforcementLogViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(agent_name=agent_name)
         if decision:
             qs = qs.filter(decision=decision)
+        if limit:
+            try:
+                qs = qs[: int(limit)]
+            except (ValueError, TypeError):
+                pass
         return qs
 
 

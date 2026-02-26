@@ -128,6 +128,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ── REST Framework ───────────────────────────────────────
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        # Service-to-service calls (AI orchestrator, internal microservices).
+        # Must come first so the shared DJANGO_SERVICE_TOKEN is recognised
+        # before JWT / session auth are attempted.
+        "apps.core.authentication.ServiceTokenAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
