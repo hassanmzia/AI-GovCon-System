@@ -13,4 +13,5 @@ asyncpg>=0.30.0
 pgvector>=0.3.0
 mcp>=1.0.0
 langfuse>=2.50.0
+langsmith>=0.1.0
 python-dotenv>=1.0.0

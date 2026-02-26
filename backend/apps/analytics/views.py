@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.analytics.models import (
+    AIAgentRun,
     AgentPerformanceMetric,
     DealVelocityMetric,
     KPISnapshot,
@@ -20,6 +21,7 @@ from apps.analytics.models import (
     WinLossAnalysis,
 )
 from apps.analytics.serializers import (
+    AIAgentRunSerializer,
     AgentPerformanceMetricSerializer,
     DealVelocityMetricSerializer,
     KPISnapshotSerializer,
@@ -338,3 +340,140 @@ class PipelineLoadView(APIView):
             "bottlenecks": bottlenecks,
             "avg_per_stage": round(avg_count, 1),
         }
+
+
+# ---------------------------------------------------------------------------
+# AI Agent Run observability endpoints
+# ---------------------------------------------------------------------------
+
+
+class AIAgentRunViewSet(viewsets.ModelViewSet):
+    """
+    CRUD + list for AI agent execution records.
+
+    GET  /api/analytics/agent-runs/          — list (supports ?limit, ?days, ?agent_name, ?deal_id, ?status)
+    POST /api/analytics/agent-runs/          — create (called by the AI orchestrator to record a run)
+    GET  /api/analytics/agent-runs/{id}/     — retrieve single run
+    PATCH/PUT /api/analytics/agent-runs/{id}/ — update (e.g. mark completed, add cost/tokens)
+
+    Query parameters
+    ----------------
+    days        : only return runs started within the last N days (default: all)
+    limit       : max results per page (uses DRF pagination; max PAGE_SIZE still applies)
+    agent_name  : filter by agent_name (exact match)
+    deal_id     : filter by deal_id
+    status      : filter by status (running | completed | failed | cancelled)
+    """
+
+    serializer_class = AIAgentRunSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["agent_name", "deal_id", "status"]
+
+    def get_queryset(self):
+        qs = AIAgentRun.objects.select_related("user").order_by("-started_at")
+
+        days = self.request.query_params.get("days")
+        if days:
+            try:
+                cutoff = date.today() - timedelta(days=int(days))
+                qs = qs.filter(started_at__date__gte=cutoff)
+            except (ValueError, TypeError):
+                pass
+
+        limit = self.request.query_params.get("limit")
+        if limit:
+            try:
+                # Honour ?limit as a hard cap independent of pagination.
+                qs = qs[: int(limit)]
+            except (ValueError, TypeError):
+                pass
+
+        return qs
+
+    @action(detail=False, methods=["get"], url_path="summary")
+    def summary(self, request):
+        """
+        GET /api/analytics/agent-runs/summary/
+
+        Returns aggregate health metrics across all (or recent) agent runs.
+        Useful for the AI Command Center overview dashboard.
+        """
+        days = int(request.query_params.get("days", 7))
+        cutoff = date.today() - timedelta(days=days)
+        qs = AIAgentRun.objects.filter(started_at__date__gte=cutoff)
+
+        total = qs.count()
+        completed = qs.filter(status="completed").count()
+        failed = qs.filter(status="failed").count()
+        running = qs.filter(status="running").count()
+
+        avg_latency = qs.exclude(latency_ms__isnull=True).aggregate(
+            avg=Avg("latency_ms")
+        )["avg"]
+        total_cost = qs.exclude(cost_usd__isnull=True).aggregate(
+            total=Sum("cost_usd")
+        )["total"]
+        overrides = qs.filter(override=True).count()
+        hallucinations = qs.aggregate(total=Sum("hallucination_flags"))["total"] or 0
+
+        by_agent = list(
+            qs.values("agent_name")
+            .annotate(runs=Count("id"), failures=Count("id", filter=Q(status="failed")))
+            .order_by("-runs")[:10]
+        )
+
+        return Response({
+            "period_days": days,
+            "total_runs": total,
+            "completed": completed,
+            "failed": failed,
+            "running": running,
+            "success_rate": round((completed / total) * 100, 1) if total else None,
+            "avg_latency_ms": round(avg_latency, 1) if avg_latency else None,
+            "total_cost_usd": str(total_cost) if total_cost else "0",
+            "human_overrides": overrides,
+            "hallucination_flags": hallucinations,
+            "top_agents": by_agent,
+        })
+
+
+class RevenueForecastViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only access to revenue forecast records.
+
+    GET /api/analytics/forecast/         — list forecasts (most recent forecast_date first)
+    GET /api/analytics/forecast/{id}/    — single forecast record
+
+    The latest forecast can be obtained with ?ordering=-forecast_date&limit=1
+    or via the /latest/ custom action.
+    """
+
+    serializer_class = RevenueForecastSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = RevenueForecast.objects.order_by("-forecast_date", "quarter")
+        forecast_date = self.request.query_params.get("forecast_date")
+        if forecast_date:
+            qs = qs.filter(forecast_date=forecast_date)
+        return qs
+
+    @action(detail=False, methods=["get"], url_path="latest")
+    def latest(self, request):
+        """
+        GET /api/analytics/forecast/latest/
+
+        Returns all quarters of the most recently generated forecast.
+        """
+        latest_date = (
+            RevenueForecast.objects.order_by("-forecast_date")
+            .values_list("forecast_date", flat=True)
+            .first()
+        )
+        if not latest_date:
+            return Response({"detail": "No forecasts available."}, status=status.HTTP_404_NOT_FOUND)
+
+        records = RevenueForecast.objects.filter(forecast_date=latest_date).order_by("quarter")
+        serializer = self.get_serializer(records, many=True)
+        return Response({"forecast_date": str(latest_date), "quarters": serializer.data})

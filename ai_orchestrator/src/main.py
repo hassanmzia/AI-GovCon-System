@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.observability.tracing import flush_langfuse, init_langfuse, init_langsmith
+
 logger = logging.getLogger("ai_orchestrator")
 logging.basicConfig(level=logging.INFO)
 
@@ -12,10 +14,20 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     logger.info("AI Orchestrator starting up...")
+
+    # Initialise LLM observability backends.
+    # Langfuse: cost/latency/token tracking — enabled when LANGFUSE_SECRET_KEY is set.
+    # LangSmith: LangGraph-native tracing — enabled when LANGCHAIN_TRACING_V2=true.
+    init_langfuse()
+    init_langsmith()
+
     logger.info("Initializing agent registry and MCP connections...")
     # TODO: Initialize LangGraph agents, MCP server connections, RAG pipeline
     yield
+
     logger.info("AI Orchestrator shutting down...")
+    # Drain any pending Langfuse events before the process exits.
+    await flush_langfuse()
 
 
 app = FastAPI(

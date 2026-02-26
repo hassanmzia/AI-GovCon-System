@@ -42,6 +42,44 @@ class BaseAgent(ABC):
         """
         ...
 
+    def _build_llm(
+        self,
+        max_tokens: int = 3000,
+        execution_id: str | None = None,
+    ) -> Any:
+        """
+        Build a ChatAnthropic instance pre-wired with observability callbacks.
+
+        New agents should call this instead of instantiating ChatAnthropic
+        directly.  The returned model automatically sends traces to Langfuse
+        (cost/latency/token counts) and LangSmith (LangGraph node visibility)
+        when those backends are configured via environment variables.
+
+        Example::
+
+            llm = self._build_llm(max_tokens=2000, execution_id=deal_id)
+            resp = await llm.ainvoke([SystemMessage(content=s), HumanMessage(content=h)])
+        """
+        try:
+            from src.observability.tracing import build_llm
+
+            return build_llm(
+                max_tokens=max_tokens,
+                execution_id=execution_id,
+                agent_name=self.agent_name,
+            )
+        except Exception:
+            # Graceful fallback — observability unavailable but agent still works.
+            import os
+
+            from langchain_anthropic import ChatAnthropic  # type: ignore[import]
+
+            return ChatAnthropic(
+                model="claude-sonnet-4-6",
+                api_key=os.getenv("ANTHROPIC_API_KEY"),
+                max_tokens=max_tokens,
+            )
+
     async def emit_event(
         self,
         event_type: str,

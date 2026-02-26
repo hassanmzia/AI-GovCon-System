@@ -33,6 +33,7 @@ from typing_extensions import TypedDict
 from src.governance import policy_loader
 from src.governance.autonomy_controller import AutonomyController
 from src.governance.risk_engine import assess as _assess_risk
+from src.observability.tracing import get_callbacks
 
 logger = logging.getLogger("ai_orchestrator.graphs.autonomy_aware_proposal")
 
@@ -662,12 +663,33 @@ async def run_proposal_workflow(deal_id: str) -> ProposalWorkflowState:
     is required, the request is logged and the workflow continues to gather
     additional context. The final_status reflects the overall governance outcome.
 
+    Observability:
+        A top-level Langfuse trace is created for the whole workflow, scoped to
+        deal_id as the session.  LangSmith automatically traces every LangGraph
+        graph invoked inside the step functions when LANGCHAIN_TRACING_V2=true.
+
     Args:
         deal_id: The deal to run the proposal workflow for.
 
     Returns:
         ProposalWorkflowState dict populated with all results.
     """
+    # --- Langfuse top-level trace for the entire workflow --------------------
+    _lf_trace = None
+    try:
+        from src.observability.tracing import get_callbacks as _gcb, \
+            _langfuse_client as _lfc  # noqa: F401 — intentional private access
+        if _lfc is not None:
+            _lf_trace = _lfc.trace(
+                name="proposal_workflow",
+                session_id=str(deal_id),
+                input={"deal_id": deal_id},
+                tags=["govcon", "proposal"],
+            )
+    except Exception:
+        pass  # Observability must never block the workflow
+    # -------------------------------------------------------------------------
+
     state: ProposalWorkflowState = {
         "deal_id": deal_id,
         "policy": {},
@@ -726,6 +748,20 @@ async def run_proposal_workflow(deal_id: str) -> ProposalWorkflowState:
         "[ProposalWorkflow] Complete for deal %s — status=%s, hitl_requests=%d",
         deal_id, state["final_status"], len(state.get("hitl_requests") or []),
     )
+
+    # Close the Langfuse trace with final outcome
+    if _lf_trace is not None:
+        try:
+            _lf_trace.update(
+                output={
+                    "final_status": state["final_status"],
+                    "hitl_requests": len(state.get("hitl_requests") or []),
+                    "bid_recommendation": state.get("bid_recommendation"),
+                },
+            )
+        except Exception:
+            pass
+
     return state
 
 
