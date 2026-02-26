@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Bell, LogOut, User, Trash2, Sun, Moon, Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useThemeStore } from "@/store/theme";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import api from "@/lib/api";
 
 interface Notification {
-  id: number;
+  id: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: "info" | "success" | "warning" | "error";
   timestamp: Date;
 }
 
@@ -26,53 +27,133 @@ interface TopbarProps {
   onMenuClick?: () => void;
 }
 
+// ---------------------------------------------------------------------------
+// Fetch live notifications from real API endpoints
+// ---------------------------------------------------------------------------
+
+async function fetchLiveNotifications(): Promise<Notification[]> {
+  const results: Notification[] = [];
+
+  // 1. Pending approvals
+  try {
+    const res = await api.get("/deals/approvals/", {
+      params: { status: "pending", ordering: "-created_at", page_size: 20 },
+    });
+    const approvals: Array<{ id: string; deal_title?: string; approval_type?: string; created_at: string }> =
+      res.data.results ?? res.data ?? [];
+    for (const a of approvals) {
+      results.push({
+        id: `approval-${a.id}`,
+        message: `${(a.deal_title ?? "A deal").slice(0, 60)} needs ${(a.approval_type ?? "approval").replace(/_/g, " ")}`,
+        type: "warning",
+        timestamp: new Date(a.created_at),
+      });
+    }
+  } catch {
+    // silently ignore — auth may not be ready yet
+  }
+
+  // 2. Deals with deadline in the next 7 days
+  try {
+    const now = new Date();
+    const soon = new Date(now.getTime() + 7 * 86400000);
+    const res = await api.get("/deals/deals/", {
+      params: {
+        ordering: "due_date",
+        page_size: 50,
+      },
+    });
+    const deals: Array<{ id: string; title?: string; due_date?: string | null; stage?: string }> =
+      res.data.results ?? res.data ?? [];
+
+    for (const d of deals) {
+      if (!d.due_date) continue;
+      const due = new Date(d.due_date);
+      if (due < now || due > soon) continue;
+      const daysLeft = Math.ceil((due.getTime() - now.getTime()) / 86400000);
+      results.push({
+        id: `deadline-${d.id}`,
+        message: `"${(d.title ?? "Deal").slice(0, 55)}" deadline in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+        type: daysLeft <= 2 ? "error" : "warning",
+        timestamp: due,
+      });
+    }
+  } catch {
+    // silently ignore
+  }
+
+  // 3. Opportunities posted / ingested in the last 24 hours
+  try {
+    const cutoff = new Date(Date.now() - 86400000).toISOString();
+    const res = await api.get("/opportunities/", {
+      params: { ordering: "-created_at", page_size: 5 },
+    });
+    const opps: Array<{ id: string; title?: string; created_at: string }> =
+      res.data.results ?? res.data ?? [];
+
+    for (const opp of opps) {
+      if (new Date(opp.created_at) < new Date(cutoff)) continue;
+      results.push({
+        id: `opp-${opp.id}`,
+        message: `New opportunity: ${(opp.title ?? "Untitled").slice(0, 60)}`,
+        type: "info",
+        timestamp: new Date(opp.created_at),
+      });
+    }
+  } catch {
+    // silently ignore
+  }
+
+  // Sort newest first, cap at 20
+  return results
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, 20);
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function Topbar({ onMenuClick }: TopbarProps) {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { theme, toggleTheme } = useThemeStore();
-  // Lazy initializer: runs only on the client, avoiding SSR/hydration timestamp mismatch.
-  const [notifications, setNotifications] = useState<Notification[]>(() => [
-    {
-      id: 1,
-      message: 'Deal "Enterprise Software License" moved to Won',
-      type: 'success',
-      timestamp: new Date(Date.now() - 3600000),
-    },
-    {
-      id: 2,
-      message: 'New RFP received from Acme Corp',
-      type: 'info',
-      timestamp: new Date(Date.now() - 7200000),
-    },
-    {
-      id: 3,
-      message: 'Proposal review deadline tomorrow',
-      type: 'warning',
-      timestamp: new Date(Date.now() - 86400000),
-    },
-  ]);
+
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  const refresh = useCallback(async () => {
+    const live = await fetchLiveNotifications();
+    setNotifications(live);
+  }, []);
+
+  // Load on mount, then refresh every 60 s
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, 60_000);
+    return () => clearInterval(interval);
+  }, [refresh]);
+
+  const visible = notifications.filter((n) => !dismissed.has(n.id));
+  const unreadCount = visible.length;
+
+  const removeNotification = (id: string) => {
+    setDismissed((prev) => new Set(prev).add(id));
+  };
+
+  const clearAll = () => {
+    setDismissed(new Set(notifications.map((n) => n.id)));
+  };
 
   const displayName = user
     ? `${user.first_name || user.username} ${user.last_name || ""}`.trim()
     : "User";
 
-  const unreadCount = notifications.length;
-
-  const removeNotification = (id: number) => {
-    setNotifications(notifications.filter(n => n.id !== id));
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-  };
-
   const formatTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = Date.now() - date.getTime();
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-
-    if (hours < 1) return 'just now';
+    if (hours < 1) return "just now";
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
     return date.toLocaleDateString();
@@ -120,7 +201,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+                  {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </Button>
@@ -145,23 +226,23 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             </div>
             <DropdownMenuSeparator />
             <div className="max-h-72 overflow-y-auto">
-              {notifications.length === 0 ? (
+              {visible.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">
                   No notifications
                 </div>
               ) : (
-                notifications.map((notification) => (
+                visible.map((notification) => (
                   <div key={notification.id} className="border-b last:border-b-0">
                     <div className="flex items-start gap-3 px-2 py-3 hover:bg-accent transition-colors group">
                       <div
                         className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
-                          notification.type === 'success'
-                            ? 'bg-green-500'
-                            : notification.type === 'warning'
-                            ? 'bg-yellow-500'
-                            : notification.type === 'error'
-                            ? 'bg-red-500'
-                            : 'bg-blue-500'
+                          notification.type === "success"
+                            ? "bg-green-500"
+                            : notification.type === "warning"
+                            ? "bg-yellow-500"
+                            : notification.type === "error"
+                            ? "bg-red-500"
+                            : "bg-blue-500"
                         }`}
                       />
                       <div className="flex-1 min-w-0">
@@ -209,7 +290,10 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout} className="flex cursor-pointer items-center gap-2 text-destructive">
+            <DropdownMenuItem
+              onClick={logout}
+              className="flex cursor-pointer items-center gap-2 text-destructive"
+            >
               <LogOut className="h-4 w-4" />
               Sign Out
             </DropdownMenuItem>
