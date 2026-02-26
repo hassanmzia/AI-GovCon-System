@@ -64,6 +64,7 @@ class OpportunityListSerializer(serializers.ModelSerializer):
             "notice_id",
             "title",
             "agency",
+            "sol_number",
             "naics_code",
             "set_aside",
             "notice_type",

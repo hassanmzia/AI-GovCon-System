@@ -290,10 +290,10 @@ export default function OpportunitiesPage() {
                   <thead>
                     <tr className="border-b text-left">
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Agency</th>
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Agency / State</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Source</th>
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Sol #</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">NAICS</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Set-Aside</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Deadline</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Score</th>
                       <th className="pb-3 font-medium text-muted-foreground">Posted</th>
@@ -307,10 +307,15 @@ export default function OpportunitiesPage() {
                         className="border-b cursor-pointer transition-colors hover:bg-muted/50"
                       >
                         <td className="py-3 pr-4 font-medium">{truncate(opp.title, 50)}</td>
-                        <td className="py-3 pr-4 text-muted-foreground">{truncate(opp.agency, 30)}</td>
+                        <td className="py-3 pr-4 text-muted-foreground">
+                          <div>{truncate(opp.agency, 28)}</div>
+                          {opp.place_state && (
+                            <div className="text-xs text-muted-foreground/70">{opp.place_state}</div>
+                          )}
+                        </td>
                         <td className="py-3 pr-4 text-muted-foreground text-xs">{opp.source_name || "--"}</td>
+                        <td className="py-3 pr-4 text-muted-foreground font-mono text-xs">{opp.sol_number || "--"}</td>
                         <td className="py-3 pr-4 text-muted-foreground">{opp.naics_code || "--"}</td>
-                        <td className="py-3 pr-4 text-muted-foreground">{opp.set_aside || "--"}</td>
                         <td className="py-3 pr-4">
                           <div className="flex flex-col">
                             <span className="text-muted-foreground">{formatDate(opp.response_deadline)}</span>
