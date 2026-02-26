@@ -196,6 +196,78 @@ def generate_daily_digest():
     return {"date": str(today), "opportunities": top_opportunities.count()}
 
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def scan_national_labs(self):
+    """
+    Scrape all configured national lab procurement pages and persist opportunities.
+    """
+    from .models import Opportunity, OpportunitySource
+    from .services.national_labs_scraper import NationalLabsScraper, LAB_CONFIGS
+    from .services.enricher import OpportunityEnricher
+
+    logger.info("Starting national labs procurement scan...")
+
+    enricher = OpportunityEnricher()
+    scraper = NationalLabsScraper()
+
+    try:
+        all_results = scraper.scrape_all()
+    except Exception as exc:
+        logger.error(f"National labs scrape failed: {exc}")
+        raise self.retry(exc=exc)
+    finally:
+        scraper.close()
+
+    total_created = 0
+    total_updated = 0
+
+    for config in LAB_CONFIGS:
+        lab_name = config["name"]
+        opps = all_results.get(lab_name, [])
+
+        source, _ = OpportunitySource.objects.get_or_create(
+            name=lab_name,
+            defaults={
+                "source_type": "web_scrape",
+                "base_url": config["base_url"],
+                "is_active": True,
+                "scan_frequency_hours": 24,
+            },
+        )
+        source.last_scan_at = timezone.now()
+        source.last_scan_status = "running"
+        source.save(update_fields=["last_scan_at", "last_scan_status"])
+
+        created = 0
+        updated = 0
+        for normalized in opps:
+            try:
+                enriched = enricher.enrich(normalized)
+                notice_id = enriched.pop("notice_id")
+                raw_data_field = enriched.pop("raw_data")
+                _, was_created = Opportunity.objects.update_or_create(
+                    notice_id=notice_id,
+                    defaults={"source": source, "raw_data": raw_data_field, **enriched},
+                )
+                if was_created:
+                    created += 1
+                else:
+                    updated += 1
+            except Exception as exc:
+                logger.error(f"Error saving opportunity from {lab_name}: {exc}")
+
+        source.last_scan_status = "success"
+        source.save(update_fields=["last_scan_status"])
+        total_created += created
+        total_updated += updated
+        logger.info(f"{lab_name}: {created} new, {updated} updated")
+
+    logger.info(
+        f"National labs scan complete: {total_created} new, {total_updated} updated"
+    )
+    return {"new": total_created, "updated": total_updated}
+
+
 def _build_digest_summary(opportunities) -> str:
     """Build a plain-text summary of the top opportunities."""
     if not opportunities:

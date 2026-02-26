@@ -23,6 +23,7 @@ export default function OpportunitiesPage() {
   const [naicsFilter, setNaicsFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [recommendationFilter, setRecommendationFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
 
   const fetchOpportunities = useCallback(async () => {
     setLoading(true);
@@ -34,6 +35,7 @@ export default function OpportunitiesPage() {
       if (naicsFilter) params.naics_code = naicsFilter;
       if (statusFilter) params.status = statusFilter;
       if (recommendationFilter) params.recommendation = recommendationFilter;
+      if (sourceFilter) params["source__name"] = sourceFilter;
 
       const data = await getOpportunities(params);
       setOpportunities(data.results || []);
@@ -43,7 +45,7 @@ export default function OpportunitiesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, agencyFilter, naicsFilter, statusFilter, recommendationFilter]);
+  }, [search, agencyFilter, naicsFilter, statusFilter, recommendationFilter, sourceFilter]);
 
   useEffect(() => {
     fetchOpportunities();
@@ -114,6 +116,9 @@ export default function OpportunitiesPage() {
   ).sort();
   const uniqueStatuses = Array.from(
     new Set(opportunities.map((o) => o.status).filter(Boolean))
+  ).sort();
+  const uniqueSources = Array.from(
+    new Set(opportunities.map((o) => o.source_name).filter(Boolean))
   ).sort();
 
   return (
@@ -197,6 +202,18 @@ export default function OpportunitiesPage() {
               <option value="bid">Bid</option>
               <option value="consider">Consider</option>
               <option value="no_bid">No Bid</option>
+            </select>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9 sm:w-auto"
+            >
+              <option value="">All Sources</option>
+              {uniqueSources.map((source) => (
+                <option key={source} value={source}>
+                  {source}
+                </option>
+              ))}
             </select>
           </div>
         </CardContent>

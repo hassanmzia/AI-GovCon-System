@@ -19,6 +19,7 @@ export interface Opportunity {
   keywords: string[];
   contacts: Contact[];
   attachments: Attachment[];
+  source_name: string;
   source_url: string;
   score?: OpportunityScore;
   days_until_deadline: number | null;

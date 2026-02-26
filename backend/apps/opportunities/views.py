@@ -39,6 +39,7 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
         "response_deadline": ["gte", "lte"],
         "estimated_value": ["gte", "lte"],
         "place_state": ["exact", "icontains"],
+        "source__name": ["exact", "icontains"],
     }
     search_fields = ["title", "description", "agency", "notice_id", "sol_number"]
     ordering_fields = [
@@ -64,11 +65,12 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def trigger_scan(self, request):
-        """Trigger an async SAM.gov scan."""
-        from .tasks import scan_samgov_opportunities
+        """Trigger async scans for SAM.gov and all national lab sources."""
+        from .tasks import scan_samgov_opportunities, scan_national_labs
         scan_samgov_opportunities.delay()
+        scan_national_labs.delay()
         return Response(
-            {"message": "SAM.gov scan queued. Results will appear shortly."},
+            {"message": "Scan queued for SAM.gov and national labs. Results will appear shortly."},
             status=status.HTTP_202_ACCEPTED,
         )
 
