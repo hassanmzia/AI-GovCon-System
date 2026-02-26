@@ -35,6 +35,7 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarSizeMsg, setAvatarSizeMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form states
@@ -132,15 +133,34 @@ export default function ProfilePage() {
     }
   };
 
-  // Step 1: user picks a file → show local preview, wait for explicit save
+  const formatBytes = (bytes: number) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    return `${Math.round(bytes / 1024)} KB`;
+  };
+
+  // Step 1: user picks a file → validate size, show local preview, wait for explicit save
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showAlert('error', 'File size must be less than 5MB');
+    const MAX = 5 * 1024 * 1024;  // 5 MB hard limit
+    const WARN = 2 * 1024 * 1024; // 2 MB — large but allowed
+
+    if (file.size > MAX) {
+      setAvatarSizeMsg({
+        ok: false,
+        text: `File is too large (${formatBytes(file.size)}). Maximum allowed size is 5 MB.`,
+      });
+      e.target.value = '';
       return;
     }
+
+    setAvatarSizeMsg({
+      ok: true,
+      text: file.size > WARN
+        ? `Large file (${formatBytes(file.size)}) — upload may take a moment.`
+        : `File size: ${formatBytes(file.size)}`,
+    });
 
     // Show local preview immediately
     const reader = new FileReader();
@@ -175,6 +195,7 @@ export default function ProfilePage() {
         setAvatarPreview(response.data.avatar);
       }
       setPendingAvatarFile(null);
+      setAvatarSizeMsg(null);
       showAlert('success', 'Profile picture saved!');
     } catch (error) {
       console.error('Failed to save avatar:', error);
@@ -188,6 +209,7 @@ export default function ProfilePage() {
     // Discard local selection, restore the saved avatar (or nothing)
     setPendingAvatarFile(null);
     setAvatarPreview(profile?.avatar || null);
+    setAvatarSizeMsg(null);
   };
 
   const handleMFAToggle = async () => {
@@ -270,7 +292,14 @@ export default function ProfilePage() {
                 Choose Photo
               </span>
             </label>
-            <p className="text-sm text-gray-600">JPG, PNG or GIF (max 5MB)</p>
+            <p className="text-sm text-gray-600">JPG, PNG or GIF (max 5 MB)</p>
+
+            {/* Inline file-size feedback shown immediately after selection */}
+            {avatarSizeMsg && (
+              <p className={`text-sm font-medium ${avatarSizeMsg.ok ? 'text-amber-600' : 'text-red-600'}`}>
+                {avatarSizeMsg.text}
+              </p>
+            )}
 
             {/* Save / Cancel only appear after a file is chosen */}
             {pendingAvatarFile && (
