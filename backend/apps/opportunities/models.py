@@ -30,7 +30,7 @@ class Opportunity(BaseModel):
     # Identity
     notice_id = models.CharField(max_length=255, unique=True)
     source = models.ForeignKey(OpportunitySource, on_delete=models.CASCADE, related_name='opportunities')
-    source_url = models.URLField(blank=True)
+    source_url = models.URLField(max_length=2000, blank=True)
     raw_data = models.JSONField(default=dict)  # Original API response
 
     # Core fields
