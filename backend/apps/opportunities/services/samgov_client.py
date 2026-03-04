@@ -1,11 +1,30 @@
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_retry_after(header_value: str, default: int = 60) -> int:
+    """Parse a Retry-After header that may be either an integer number of
+    seconds or an HTTP-date string (e.g. 'Thu, 05 Mar 2026 00:00:00 GMT').
+    Returns the number of seconds to wait, clamped to at least 1."""
+    try:
+        return max(1, int(header_value))
+    except ValueError:
+        pass
+    try:
+        retry_at = parsedate_to_datetime(header_value)
+        now = datetime.now(tz=dt_timezone.utc)
+        delta = int((retry_at - now).total_seconds())
+        return max(1, delta)
+    except Exception:
+        pass
+    return default
 
 
 class RateLimitError(Exception):
@@ -72,7 +91,7 @@ class SAMGovClient:
         try:
             response = await self.client.get(f"{self.BASE_URL}/search", params=params)
             if response.status_code == 429:
-                retry_after = int(response.headers.get("Retry-After", 60))
+                retry_after = _parse_retry_after(response.headers.get("Retry-After", "60"))
                 logger.warning(
                     "SAM.gov rate limited (429). Retry-After: %ds", retry_after
                 )
