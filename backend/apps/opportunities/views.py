@@ -91,6 +91,19 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
         # the two dropdowns stay distinct (national-lab opportunities are re-mapped
         # to their DOE parent agency via the scraper).
         source_names = set(all_sources)
+
+        # Always include company profile NAICS codes so the dropdown is populated
+        # even before opportunities with those codes have been ingested.
+        profile = CompanyProfile.objects.filter(is_primary=True).first()
+        profile_naics = list(profile.naics_codes) if profile and profile.naics_codes else []
+        db_naics = list(
+            qs.exclude(naics_code="")
+              .exclude(naics_code__isnull=True)
+              .values_list("naics_code", flat=True)
+              .distinct()
+        )
+        all_naics = sorted(set(profile_naics + db_naics))
+
         return Response({
             "agencies": list(
                 qs.exclude(agency="")
@@ -106,12 +119,7 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
                   .distinct()
                   .order_by("status")
             ),
-            "naics_codes": list(
-                qs.exclude(naics_code="")
-                  .values_list("naics_code", flat=True)
-                  .distinct()
-                  .order_by("naics_code")
-            ),
+            "naics_codes": all_naics,
             "states": list(
                 qs.exclude(place_state="")
                   .values_list("place_state", flat=True)
