@@ -49,22 +49,57 @@ def scan_samgov_opportunities(self):
             from .models import CompanyProfile
             profile = CompanyProfile.objects.filter(is_primary=True).first()
             naics = profile.naics_codes if profile else None
+            # naics=[] (empty list) means no primary profile had codes; treat as None
+            if not naics:
+                naics = None
+            logger.info(
+                "SAM.gov scan starting | profile=%s | naics=%s",
+                profile.name if profile else "none",
+                naics or "unfiltered (all)",
+            )
 
-            # Paginate through all results
-            page_size = 100
-            offset = 0
-            opportunities_data = []
-            while True:
-                page = loop.run_until_complete(
-                    client.search_opportunities(naics=naics, limit=page_size, offset=offset)
-                )
-                batch = page.get("opportunitiesData", [])
-                opportunities_data.extend(batch)
-                total_records = page.get("totalRecords", 0)
-                offset += len(batch)
-                if not batch or offset >= total_records:
-                    break
-                logger.info(f"SAM.gov paginating: fetched {offset}/{total_records}")
+            # ---- helper: paginate a single search query ----
+            def _fetch_all(**search_kwargs) -> list[dict]:
+                results = []
+                _offset = 0
+                while True:
+                    page = loop.run_until_complete(
+                        client.search_opportunities(**search_kwargs, limit=100, offset=_offset)
+                    )
+                    batch = page.get("opportunitiesData", [])
+                    results.extend(batch)
+                    total = page.get("totalRecords", 0)
+                    _offset += len(batch)
+                    if not batch or _offset >= total:
+                        break
+                    logger.info("SAM.gov paginating: fetched %d/%d", _offset, total)
+                return results
+
+            # Pass 1: search by NAICS codes
+            opportunities_data = _fetch_all(naics=naics) if naics else []
+            seen_ids = {r.get("noticeId") for r in opportunities_data}
+            logger.info("NAICS search returned %d records", len(opportunities_data))
+
+            # Pass 2: keyword searches to catch PSC-relevant opportunities
+            # that may not share our NAICS codes (SAM.gov has no PSC filter).
+            KEYWORD_QUERIES = [
+                ["software development", "IT services"],
+                ["cybersecurity", "information security"],
+                ["cloud computing", "hosting", "platform"],
+                ["research and development", "R&D"],
+                ["training", "education services"],
+                ["artificial intelligence", "machine learning"],
+            ]
+            for kw_group in KEYWORD_QUERIES:
+                kw_results = _fetch_all(keywords=kw_group)
+                for r in kw_results:
+                    if r.get("noticeId") not in seen_ids:
+                        opportunities_data.append(r)
+                        seen_ids.add(r.get("noticeId"))
+            logger.info(
+                "Total unique opportunities after keyword passes: %d",
+                len(opportunities_data),
+            )
         finally:
             loop.run_until_complete(client.close())
             loop.close()
