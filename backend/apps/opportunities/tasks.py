@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from contextlib import contextmanager
 from datetime import date
 
 from celery import shared_task
@@ -10,24 +9,23 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 _SAMGOV_LOCK_KEY = "lock:scan_samgov_opportunities"
-_SAMGOV_LOCK_TIMEOUT = 1800  # 30 min — maximum expected run time
+_NATIONAL_LABS_LOCK_KEY = "lock:scan_national_labs"
+_LOCK_RUN_TIMEOUT = 1800  # 30 min — maximum expected single-run duration
 
 
-@contextmanager
-def _samgov_task_lock():
-    """Redis-backed lock that prevents concurrent SAM.gov scan executions.
+def _acquire_lock(key: str, timeout: int = _LOCK_RUN_TIMEOUT) -> bool:
+    """Try to acquire a task lock. Returns True if acquired, False if already held."""
+    return bool(cache.add(key, "running", timeout=timeout))
 
-    Uses Django's cache (backed by Redis in this project) with ``add`` semantics
-    so that only the first caller acquires the lock; subsequent callers raise
-    ``RuntimeError`` without blocking.
-    """
-    acquired = cache.add(_SAMGOV_LOCK_KEY, "1", timeout=_SAMGOV_LOCK_TIMEOUT)
-    if not acquired:
-        raise RuntimeError("scan_samgov_opportunities is already running — skipping duplicate")
-    try:
-        yield
-    finally:
-        cache.delete(_SAMGOV_LOCK_KEY)
+
+def _release_lock(key: str) -> None:
+    """Release a task lock immediately (success or non-rate-limit error)."""
+    cache.delete(key)
+
+
+def _hold_lock_for(key: str, seconds: int) -> None:
+    """Extend the lock for ``seconds`` to block new attempts during rate-limit backoff."""
+    cache.set(key, "rate_limited", timeout=max(1, seconds))
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -45,12 +43,12 @@ def scan_samgov_opportunities(self):
         logger.warning("SAMGOV_API_KEY not set — skipping SAM.gov scan")
         return {"new": 0, "updated": 0, "total": 0, "skipped": "no api key"}
 
-    # Prevent multiple concurrent instances from hammering the SAM.gov API.
-    try:
-        lock_ctx = _samgov_task_lock()
-        lock_ctx.__enter__()
-    except RuntimeError as lock_err:
-        logger.warning(str(lock_err))
+    # Prevent concurrent instances (and manual triggers during rate-limit windows)
+    # from hammering the SAM.gov API.
+    if not _acquire_lock(_SAMGOV_LOCK_KEY):
+        logger.warning(
+            "scan_samgov_opportunities lock held (running or rate-limited) — skipping"
+        )
         return {"skipped": "already_running"}
 
     logger.info("Starting SAM.gov opportunity scan...")
@@ -178,7 +176,7 @@ def scan_samgov_opportunities(self):
             f"{updated_count} updated, {error_count} skipped "
             f"out of {len(opportunities_data)} records"
         )
-        lock_ctx.__exit__(None, None, None)
+        _release_lock(_SAMGOV_LOCK_KEY)
         return {
             "new": created_count,
             "updated": updated_count,
@@ -187,9 +185,11 @@ def scan_samgov_opportunities(self):
         }
 
     except RateLimitError as exc:
-        lock_ctx.__exit__(type(exc), exc, exc.__traceback__)
+        # Hold the lock for the full rate-limit window so manual triggers and
+        # scheduled beats are also blocked until SAM.gov allows requests again.
+        _hold_lock_for(_SAMGOV_LOCK_KEY, exc.retry_after)
         logger.warning(
-            "SAM.gov rate limited — scheduling retry in %ds (attempt %d/%d)",
+            "SAM.gov rate limited — lock held for %ds, retry scheduled (attempt %d/%d)",
             exc.retry_after,
             self.request.retries + 1,
             self.max_retries,
@@ -202,7 +202,7 @@ def scan_samgov_opportunities(self):
         raise self.retry(exc=exc, countdown=exc.retry_after)
 
     except Exception as exc:
-        lock_ctx.__exit__(type(exc), exc, exc.__traceback__)
+        _release_lock(_SAMGOV_LOCK_KEY)
         logger.error(f"SAM.gov scan failed: {exc}")
         try:
             source.last_scan_status = "failed"
@@ -318,6 +318,10 @@ def scan_national_labs(self):
     from .services.national_labs_scraper import NationalLabsScraper, LAB_CONFIGS
     from .services.enricher import OpportunityEnricher
 
+    if not _acquire_lock(_NATIONAL_LABS_LOCK_KEY):
+        logger.warning("scan_national_labs lock held — skipping duplicate")
+        return {"skipped": "already_running"}
+
     logger.info("Starting national labs procurement scan...")
 
     enricher = OpportunityEnricher()
@@ -326,6 +330,7 @@ def scan_national_labs(self):
     try:
         all_results = scraper.scrape_all()
     except Exception as exc:
+        _release_lock(_NATIONAL_LABS_LOCK_KEY)
         logger.error(f"National labs scrape failed: {exc}")
         raise self.retry(exc=exc)
     finally:
@@ -375,6 +380,7 @@ def scan_national_labs(self):
         total_updated += updated
         logger.info(f"{lab_name}: {created} new, {updated} updated")
 
+    _release_lock(_NATIONAL_LABS_LOCK_KEY)
     logger.info(
         f"National labs scan complete: {total_created} new, {total_updated} updated"
     )
