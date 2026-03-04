@@ -8,6 +8,14 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+class RateLimitError(Exception):
+    """Raised when SAM.gov returns 429 Too Many Requests."""
+
+    def __init__(self, message: str, retry_after: int = 60):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 class SAMGovClient:
     """Official SAM.gov Opportunities API v2 client."""
 
@@ -63,6 +71,15 @@ class SAMGovClient:
 
         try:
             response = await self.client.get(f"{self.BASE_URL}/search", params=params)
+            if response.status_code == 429:
+                retry_after = int(response.headers.get("Retry-After", 60))
+                logger.warning(
+                    "SAM.gov rate limited (429). Retry-After: %ds", retry_after
+                )
+                raise RateLimitError(
+                    f"SAM.gov rate limit hit; retry after {retry_after}s",
+                    retry_after=retry_after,
+                )
             response.raise_for_status()
             data = response.json()
             logger.info(
@@ -71,6 +88,8 @@ class SAMGovClient:
                 len(data.get("opportunitiesData", [])),
             )
             return data
+        except RateLimitError:
+            raise
         except httpx.HTTPError as e:
             logger.error(f"SAM.gov API error: {e}")
             raise

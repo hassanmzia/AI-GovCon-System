@@ -1,11 +1,33 @@
 import asyncio
 import logging
+from contextlib import contextmanager
 from datetime import date
 
 from celery import shared_task
+from django.core.cache import cache
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+_SAMGOV_LOCK_KEY = "lock:scan_samgov_opportunities"
+_SAMGOV_LOCK_TIMEOUT = 1800  # 30 min — maximum expected run time
+
+
+@contextmanager
+def _samgov_task_lock():
+    """Redis-backed lock that prevents concurrent SAM.gov scan executions.
+
+    Uses Django's cache (backed by Redis in this project) with ``add`` semantics
+    so that only the first caller acquires the lock; subsequent callers raise
+    ``RuntimeError`` without blocking.
+    """
+    acquired = cache.add(_SAMGOV_LOCK_KEY, "1", timeout=_SAMGOV_LOCK_TIMEOUT)
+    if not acquired:
+        raise RuntimeError("scan_samgov_opportunities is already running — skipping duplicate")
+    try:
+        yield
+    finally:
+        cache.delete(_SAMGOV_LOCK_KEY)
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -14,7 +36,7 @@ def scan_samgov_opportunities(self):
     Scan SAM.gov for new opportunities, normalize, enrich, and save them.
     """
     from .models import Opportunity, OpportunitySource
-    from .services.samgov_client import SAMGovClient
+    from .services.samgov_client import SAMGovClient, RateLimitError
     from .services.normalizer import OpportunityNormalizer
     from .services.enricher import OpportunityEnricher
 
@@ -22,6 +44,14 @@ def scan_samgov_opportunities(self):
     if not os.environ.get("SAMGOV_API_KEY"):
         logger.warning("SAMGOV_API_KEY not set — skipping SAM.gov scan")
         return {"new": 0, "updated": 0, "total": 0, "skipped": "no api key"}
+
+    # Prevent multiple concurrent instances from hammering the SAM.gov API.
+    try:
+        lock_ctx = _samgov_task_lock()
+        lock_ctx.__enter__()
+    except RuntimeError as lock_err:
+        logger.warning(str(lock_err))
+        return {"skipped": "already_running"}
 
     logger.info("Starting SAM.gov opportunity scan...")
 
@@ -148,6 +178,7 @@ def scan_samgov_opportunities(self):
             f"{updated_count} updated, {error_count} skipped "
             f"out of {len(opportunities_data)} records"
         )
+        lock_ctx.__exit__(None, None, None)
         return {
             "new": created_count,
             "updated": updated_count,
@@ -155,7 +186,23 @@ def scan_samgov_opportunities(self):
             "total": len(opportunities_data),
         }
 
+    except RateLimitError as exc:
+        lock_ctx.__exit__(type(exc), exc, exc.__traceback__)
+        logger.warning(
+            "SAM.gov rate limited — scheduling retry in %ds (attempt %d/%d)",
+            exc.retry_after,
+            self.request.retries + 1,
+            self.max_retries,
+        )
+        try:
+            source.last_scan_status = "failed"
+            source.save(update_fields=["last_scan_status"])
+        except Exception:
+            pass
+        raise self.retry(exc=exc, countdown=exc.retry_after)
+
     except Exception as exc:
+        lock_ctx.__exit__(type(exc), exc, exc.__traceback__)
         logger.error(f"SAM.gov scan failed: {exc}")
         try:
             source.last_scan_status = "failed"
