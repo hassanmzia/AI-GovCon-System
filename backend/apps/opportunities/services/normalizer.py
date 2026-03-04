@@ -27,7 +27,7 @@ class OpportunityNormalizer:
             "posted_date": self._parse_date(raw.get("postedDate")),
             "response_deadline": self._parse_date(raw.get("responseDeadLine")),
             "archive_date": self._parse_date(raw.get("archiveDate")),
-            "estimated_value": raw.get("award", {}).get("amount") if raw.get("award") else None,
+            "estimated_value": raw.get("award", {}).get("amount") or None,
             "award_type": raw.get("typeOfSetAsideDescription") or "",
             "place_of_performance": pop.get("streetAddress") or "",
             "place_city": (pop.get("city") or {}).get("name") or "",
@@ -48,6 +48,11 @@ class OpportunityNormalizer:
                 return datetime.strptime(date_str.strip(), fmt)
             except (ValueError, AttributeError):
                 continue
+        # Fallback: ISO 8601 with timezone offset (e.g. 2026-03-31T17:00:00+02:00)
+        try:
+            return datetime.fromisoformat(date_str.strip())
+        except (ValueError, AttributeError):
+            pass
         logger.warning(f"Could not parse date: {date_str}")
         return None
 
