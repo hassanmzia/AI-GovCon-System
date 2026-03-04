@@ -65,7 +65,13 @@ class OpportunityScorer:
     def _score_psc(self, opp) -> float:
         if not opp.psc_code or not self.company_profile.psc_codes:
             return 0.5
-        return 1.0 if opp.psc_code in self.company_profile.psc_codes else 0.0
+        # Exact match
+        if opp.psc_code in self.company_profile.psc_codes:
+            return 1.0
+        # Prefix match: broad codes like "D" match specific codes like "DA01"
+        if any(opp.psc_code.startswith(code) for code in self.company_profile.psc_codes):
+            return 0.8
+        return 0.0
 
     def _score_keywords(self, opp) -> float:
         if not opp.keywords or not self.company_profile.core_competencies:
