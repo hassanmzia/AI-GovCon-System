@@ -136,10 +136,18 @@ def scan_samgov_opportunities(self):
             )
             for kw_group in kw_queries:
                 kw_results = _fetch_all(keywords=kw_group)
+                new_from_group = 0
                 for r in kw_results:
                     if r.get("noticeId") not in seen_ids:
                         opportunities_data.append(r)
                         seen_ids.add(r.get("noticeId"))
+                        new_from_group += 1
+                logger.info(
+                    "Keyword group %r → %d total from API, %d new unique",
+                    kw_group,
+                    len(kw_results),
+                    new_from_group,
+                )
             logger.info(
                 "Total unique opportunities after keyword passes: %d",
                 len(opportunities_data),

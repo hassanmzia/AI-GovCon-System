@@ -80,7 +80,8 @@ class SAMGovClient:
             params.append(("ptype", notice_type))
 
         logger.info(
-            "SAM.gov search | naics=%s | from=%s to=%s | offset=%d limit=%d",
+            "SAM.gov search | q=%r | naics=%s | from=%s to=%s | offset=%d limit=%d",
+            " ".join(keywords) if keywords else None,
             naics or "all",
             date_from,
             date_to,
