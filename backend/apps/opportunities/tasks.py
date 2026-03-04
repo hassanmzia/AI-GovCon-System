@@ -49,6 +49,14 @@ def scan_samgov_opportunities(self):
             from .models import CompanyProfile
             profile = CompanyProfile.objects.filter(is_primary=True).first()
             naics = profile.naics_codes if profile else None
+            # naics=[] (empty list) means no primary profile had codes; treat as None
+            if not naics:
+                naics = None
+            logger.info(
+                "SAM.gov scan starting | profile=%s | naics=%s",
+                profile.name if profile else "none",
+                naics or "unfiltered (all)",
+            )
 
             # Paginate through all results
             page_size = 100

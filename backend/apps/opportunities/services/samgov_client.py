@@ -29,27 +29,47 @@ class SAMGovClient:
         offset: int = 0,
     ) -> dict[str, Any]:
         """Search SAM.gov for matching opportunities."""
-        params = {
-            "api_key": self.api_key,
-            "limit": limit,
-            "offset": offset,
-            "postedFrom": posted_from or (datetime.now() - timedelta(days=7)).strftime("%m/%d/%Y"),
-            "postedTo": posted_to or datetime.now().strftime("%m/%d/%Y"),
-        }
+        date_from = posted_from or (datetime.now() - timedelta(days=30)).strftime("%m/%d/%Y")
+        date_to = posted_to or datetime.now().strftime("%m/%d/%Y")
+
+        # Build params as a list of tuples so multiple ncode values are sent as
+        # separate query parameters (ncode=X&ncode=Y) rather than a single
+        # comma-joined string, which SAM.gov v2 does not support.
+        params: list[tuple[str, Any]] = [
+            ("api_key", self.api_key),
+            ("limit", limit),
+            ("offset", offset),
+            ("postedFrom", date_from),
+            ("postedTo", date_to),
+        ]
         if naics:
-            params["ncode"] = ",".join(naics)
+            for code in naics:
+                params.append(("ncode", code))
         if keywords:
-            params["q"] = " ".join(keywords)
+            params.append(("q", " ".join(keywords)))
         if set_aside:
-            params["typeOfSetAside"] = set_aside
+            params.append(("typeOfSetAside", set_aside))
         if notice_type:
-            params["ptype"] = notice_type
+            params.append(("ptype", notice_type))
+
+        logger.info(
+            "SAM.gov search | naics=%s | from=%s to=%s | offset=%d limit=%d",
+            naics or "all",
+            date_from,
+            date_to,
+            offset,
+            limit,
+        )
 
         try:
             response = await self.client.get(f"{self.BASE_URL}/search", params=params)
             response.raise_for_status()
             data = response.json()
-            logger.info(f"SAM.gov search returned {data.get('totalRecords', 0)} results")
+            logger.info(
+                "SAM.gov search returned %d total records (this page: %d)",
+                data.get("totalRecords", 0),
+                len(data.get("opportunitiesData", [])),
+            )
             return data
         except httpx.HTTPError as e:
             logger.error(f"SAM.gov API error: {e}")
