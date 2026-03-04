@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 _SAMGOV_LOCK_KEY = "lock:scan_samgov_opportunities"
 _NATIONAL_LABS_LOCK_KEY = "lock:scan_national_labs"
-_LOCK_RUN_TIMEOUT = 1800  # 30 min — maximum expected single-run duration
+_LOCK_RUN_TIMEOUT = 1800   # 30 min — maximum expected single-run duration
+_NATIONAL_LABS_COOLDOWN = 300  # 5 min cooldown after a successful national-labs run
 
 
 def _acquire_lock(key: str, timeout: int = _LOCK_RUN_TIMEOUT) -> bool:
@@ -380,9 +381,12 @@ def scan_national_labs(self):
         total_updated += updated
         logger.info(f"{lab_name}: {created} new, {updated} updated")
 
-    _release_lock(_NATIONAL_LABS_LOCK_KEY)
+    # Hold the lock for a cooldown window so any duplicate messages already
+    # sitting in the Celery queue skip immediately rather than running again.
+    _hold_lock_for(_NATIONAL_LABS_LOCK_KEY, _NATIONAL_LABS_COOLDOWN)
     logger.info(
-        f"National labs scan complete: {total_created} new, {total_updated} updated"
+        f"National labs scan complete: {total_created} new, {total_updated} updated "
+        f"(lock held for {_NATIONAL_LABS_COOLDOWN}s cooldown)"
     )
     return {"new": total_created, "updated": total_updated}
 
