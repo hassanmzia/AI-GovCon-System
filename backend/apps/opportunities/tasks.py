@@ -109,8 +109,11 @@ def scan_samgov_opportunities(self):
             seen_ids = {r.get("noticeId") for r in opportunities_data}
             logger.info("NAICS search returned %d records", len(opportunities_data))
 
-            # Pass 2: keyword searches to catch PSC-relevant opportunities
-            # that may not share our NAICS codes (SAM.gov has no PSC filter).
+            # Pass 2: one combined keyword search to catch PSC-relevant
+            # opportunities that may not share our NAICS codes.
+            # All keyword groups are flattened into a single API call so the
+            # entire scan costs just 2 requests (NAICS + keywords) against the
+            # SAM.gov personal-key daily limit of 10 requests/day.
             # Keyword groups are stored on CompanyProfile.search_keywords so
             # they can be updated from the admin UI without code changes.
             _DEFAULT_KW_QUERIES = [
@@ -129,27 +132,35 @@ def scan_samgov_opportunities(self):
                 if profile and profile.search_keywords
                 else _DEFAULT_KW_QUERIES
             )
+
+            # Flatten all groups into one deduplicated keyword list.
+            seen_kw: set[str] = set()
+            combined_keywords: list[str] = []
+            for group in kw_queries:
+                for kw in group:
+                    if kw not in seen_kw:
+                        combined_keywords.append(kw)
+                        seen_kw.add(kw)
+
             logger.info(
-                "SAM.gov keyword passes: %d groups from %s",
+                "SAM.gov keyword pass: %d unique terms from %d groups (1 API call)",
+                len(combined_keywords),
                 len(kw_queries),
-                "profile" if (profile and profile.search_keywords) else "defaults",
             )
-            for kw_group in kw_queries:
-                kw_results = _fetch_all(keywords=kw_group)
-                new_from_group = 0
-                for r in kw_results:
-                    if r.get("noticeId") not in seen_ids:
-                        opportunities_data.append(r)
-                        seen_ids.add(r.get("noticeId"))
-                        new_from_group += 1
-                logger.info(
-                    "Keyword group %r → %d total from API, %d new unique",
-                    kw_group,
-                    len(kw_results),
-                    new_from_group,
-                )
+            kw_results = _fetch_all(keywords=combined_keywords)
+            new_from_keywords = 0
+            for r in kw_results:
+                if r.get("noticeId") not in seen_ids:
+                    opportunities_data.append(r)
+                    seen_ids.add(r.get("noticeId"))
+                    new_from_keywords += 1
             logger.info(
-                "Total unique opportunities after keyword passes: %d",
+                "Keyword search → %d total from API, %d new unique",
+                len(kw_results),
+                new_from_keywords,
+            )
+            logger.info(
+                "Total unique opportunities after keyword pass: %d",
                 len(opportunities_data),
             )
         finally:
