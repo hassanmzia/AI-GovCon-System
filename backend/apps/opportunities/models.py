@@ -163,6 +163,10 @@ class CompanyProfile(BaseModel):
     target_value_min = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     target_value_max = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     is_primary = models.BooleanField(default=False)
+    # SAM.gov keyword search groups.  Each item is a list of terms that are
+    # joined into one `q=` query per SAM.gov API call.
+    # Example: [["agentic AI"], ["software development", "IT services"]]
+    search_keywords = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.name

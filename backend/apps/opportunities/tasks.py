@@ -111,7 +111,12 @@ def scan_samgov_opportunities(self):
 
             # Pass 2: keyword searches to catch PSC-relevant opportunities
             # that may not share our NAICS codes (SAM.gov has no PSC filter).
-            KEYWORD_QUERIES = [
+            # Keyword groups are stored on CompanyProfile.search_keywords so
+            # they can be updated from the admin UI without code changes.
+            _DEFAULT_KW_QUERIES = [
+                ["agentic AI"],
+                ["AI agents", "autonomous agents"],
+                ["multi-agent system"],
                 ["software development", "IT services"],
                 ["cybersecurity", "information security"],
                 ["cloud computing", "hosting", "platform"],
@@ -119,7 +124,17 @@ def scan_samgov_opportunities(self):
                 ["training", "education services"],
                 ["artificial intelligence", "machine learning"],
             ]
-            for kw_group in KEYWORD_QUERIES:
+            kw_queries = (
+                profile.search_keywords
+                if profile and profile.search_keywords
+                else _DEFAULT_KW_QUERIES
+            )
+            logger.info(
+                "SAM.gov keyword passes: %d groups from %s",
+                len(kw_queries),
+                "profile" if (profile and profile.search_keywords) else "defaults",
+            )
+            for kw_group in kw_queries:
                 kw_results = _fetch_all(keywords=kw_group)
                 for r in kw_results:
                     if r.get("noticeId") not in seen_ids:
