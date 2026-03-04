@@ -12,6 +12,14 @@ import { Search, RefreshCw, Loader2, ChevronLeft, ChevronRight } from "lucide-re
 
 const PAGE_SIZE = 50;
 
+const NAICS_LABELS: Record<string, string> = {
+  "513210": "513210 – Software Publishing",
+  "541511": "541511 – Custom Computer Programming",
+  "518210": "518210 – Computing Infrastructure / Web Hosting",
+  "611420": "611420 – Computer Training",
+  "541714": "541714 – R&D in Biotechnology",
+};
+
 interface FilterOptions {
   agencies: string[];
   sources: string[];
@@ -205,7 +213,7 @@ export default function OpportunitiesPage() {
             >
               <option value="">All NAICS</option>
               {filterOptions.naics_codes.map((naics) => (
-                <option key={naics} value={naics}>{naics}</option>
+                <option key={naics} value={naics}>{NAICS_LABELS[naics] || naics}</option>
               ))}
             </select>
             <input
