@@ -130,12 +130,32 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def trigger_scan(self, request):
-        """Trigger async scans for SAM.gov and all national lab sources."""
-        from .tasks import scan_samgov_opportunities, scan_national_labs
+        """Trigger async scans for SAM.gov and all national lab sources.
+
+        Pass ``{"force": true}`` in the request body to clear stale rate-limit
+        locks before queuing (useful when retries are exhausted but the lock
+        TTL hasn't expired yet).
+        """
+        from django.core.cache import cache
+        from .tasks import (
+            scan_samgov_opportunities,
+            scan_national_labs,
+            _SAMGOV_LOCK_KEY,
+            _NATIONAL_LABS_LOCK_KEY,
+        )
+
+        force = bool(request.data.get("force", False))
+        if force:
+            cache.delete(_SAMGOV_LOCK_KEY)
+            cache.delete(_NATIONAL_LABS_LOCK_KEY)
+
         scan_samgov_opportunities.delay()
         scan_national_labs.delay()
         return Response(
-            {"message": "Scan queued for SAM.gov and national labs. Results will appear shortly."},
+            {
+                "message": "Scan queued for SAM.gov and national labs. Results will appear shortly.",
+                "locks_cleared": force,
+            },
             status=status.HTTP_202_ACCEPTED,
         )
 

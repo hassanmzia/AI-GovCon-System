@@ -203,19 +203,30 @@ def scan_samgov_opportunities(self):
     except RateLimitError as exc:
         # Hold the lock for the full rate-limit window so manual triggers and
         # scheduled beats are also blocked until SAM.gov allows requests again.
-        _hold_lock_for(_SAMGOV_LOCK_KEY, exc.retry_after)
-        logger.warning(
-            "SAM.gov rate limited — lock held for %ds, retry scheduled (attempt %d/%d)",
-            exc.retry_after,
-            self.request.retries + 1,
-            self.max_retries,
-        )
+        # If this is the last retry, release the lock immediately so the next
+        # scheduled beat (or a forced manual trigger) can attempt a fresh scan.
+        retries_left = self.max_retries - self.request.retries - 1
+        if retries_left > 0:
+            _hold_lock_for(_SAMGOV_LOCK_KEY, exc.retry_after)
+            logger.warning(
+                "SAM.gov rate limited — lock held for %ds, retry scheduled (attempt %d/%d)",
+                exc.retry_after,
+                self.request.retries + 1,
+                self.max_retries,
+            )
+        else:
+            _release_lock(_SAMGOV_LOCK_KEY)
+            logger.warning(
+                "SAM.gov rate limited — all %d retries exhausted, lock released",
+                self.max_retries,
+            )
         try:
             source.last_scan_status = "failed"
             source.save(update_fields=["last_scan_status"])
         except Exception:
             pass
-        raise self.retry(exc=exc, countdown=exc.retry_after)
+        if retries_left > 0:
+            raise self.retry(exc=exc, countdown=exc.retry_after)
 
     except Exception as exc:
         _release_lock(_SAMGOV_LOCK_KEY)
