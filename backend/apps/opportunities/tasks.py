@@ -50,47 +50,67 @@ def scan_samgov_opportunities(self):
             profile = CompanyProfile.objects.filter(is_primary=True).first()
             naics = profile.naics_codes if profile else None
 
-            raw_data = loop.run_until_complete(
-                client.search_opportunities(naics=naics)
-            )
+            # Paginate through all results
+            page_size = 100
+            offset = 0
+            opportunities_data = []
+            while True:
+                page = loop.run_until_complete(
+                    client.search_opportunities(naics=naics, limit=page_size, offset=offset)
+                )
+                batch = page.get("opportunitiesData", [])
+                opportunities_data.extend(batch)
+                total_records = page.get("totalRecords", 0)
+                offset += len(batch)
+                if not batch or offset >= total_records:
+                    break
+                logger.info(f"SAM.gov paginating: fetched {offset}/{total_records}")
         finally:
             loop.run_until_complete(client.close())
             loop.close()
 
-        opportunities_data = raw_data.get("opportunitiesData", [])
         created_count = 0
         updated_count = 0
+        error_count = 0
 
         for raw in opportunities_data:
-            normalized = normalizer.normalize_samgov(raw)
-            enriched = enricher.enrich(normalized)
+            try:
+                normalized = normalizer.normalize_samgov(raw)
+                enriched = enricher.enrich(normalized)
 
-            notice_id = enriched.pop("notice_id")
-            raw_data_field = enriched.pop("raw_data")
+                notice_id = enriched.pop("notice_id")
+                raw_data_field = enriched.pop("raw_data")
 
-            opp, created = Opportunity.objects.update_or_create(
-                notice_id=notice_id,
-                defaults={
-                    "source": source,
-                    "raw_data": raw_data_field,
-                    **enriched,
-                },
-            )
-            if created:
-                created_count += 1
-            else:
-                updated_count += 1
+                opp, created = Opportunity.objects.update_or_create(
+                    notice_id=notice_id,
+                    defaults={
+                        "source": source,
+                        "raw_data": raw_data_field,
+                        **enriched,
+                    },
+                )
+                if created:
+                    created_count += 1
+                else:
+                    updated_count += 1
+            except Exception as record_exc:
+                error_count += 1
+                logger.warning(
+                    f"Skipping opportunity {raw.get('noticeId', '?')}: {record_exc}"
+                )
 
         source.last_scan_status = "success"
         source.save(update_fields=["last_scan_status"])
 
         logger.info(
             f"SAM.gov scan complete: {created_count} new, "
-            f"{updated_count} updated out of {len(opportunities_data)} records"
+            f"{updated_count} updated, {error_count} skipped "
+            f"out of {len(opportunities_data)} records"
         )
         return {
             "new": created_count,
             "updated": updated_count,
+            "skipped": error_count,
             "total": len(opportunities_data),
         }
 
