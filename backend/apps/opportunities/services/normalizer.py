@@ -27,7 +27,7 @@ class OpportunityNormalizer:
             "posted_date": self._parse_date(raw.get("postedDate")),
             "response_deadline": self._parse_date(raw.get("responseDeadLine")),
             "archive_date": self._parse_date(raw.get("archiveDate")),
-            "estimated_value": raw.get("award", {}).get("amount") or None,
+            "estimated_value": (raw.get("award") or {}).get("amount") or None,
             "award_type": raw.get("typeOfSetAsideDescription") or "",
             "place_of_performance": pop.get("streetAddress") or "",
             "place_city": (pop.get("city") or {}).get("name") or "",
