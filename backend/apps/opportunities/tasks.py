@@ -130,9 +130,15 @@ def scan_samgov_opportunities(self):
                     updated_count += 1
             except Exception as record_exc:
                 error_count += 1
-                logger.warning(
-                    f"Skipping opportunity {raw.get('noticeId', '?')}: {record_exc}"
-                )
+                if error_count <= 5:
+                    logger.warning(
+                        "Skipping opportunity %s [%s]: %s",
+                        raw.get("noticeId", "?"),
+                        type(record_exc).__name__,
+                        record_exc,
+                    )
+                elif error_count == 6:
+                    logger.warning("Further per-record errors suppressed (showing first 5 only)")
 
         source.last_scan_status = "success"
         source.save(update_fields=["last_scan_status"])
