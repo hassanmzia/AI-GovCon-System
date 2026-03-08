@@ -111,7 +111,7 @@ async def load_context(state: SolutionArchitectState) -> dict:
     """Fetch deal, opportunity, RFP requirements, strategy, and knowledge vault."""
     logger.info("SA: Loading context for deal %s", state["deal_id"])
 
-    deal = await _get(f"/api/deals/{state['deal_id']}/", default={})
+    deal = await _get(f"/api/deals/deals/{state['deal_id']}/", default={})
     opp_id = deal.get("opportunity") or state.get("opportunity_id", "")
     opportunity = await _get(f"/api/opportunities/{opp_id}/", default={}) if opp_id else {}
 
@@ -121,12 +121,14 @@ async def load_context(state: SolutionArchitectState) -> dict:
     )
     rfp_requirements = rfp_data.get("results", []) if isinstance(rfp_data, dict) else []
 
-    # Company strategy
-    strategy = await _get("/api/strategy/current/", default={})
+    # Company strategy — fetch the most recent strategy
+    strategy_data = await _get("/api/strategy/strategies/?ordering=-created_at&page_size=1", default={})
+    strategies = strategy_data.get("results", []) if isinstance(strategy_data, dict) else []
+    strategy = strategies[0] if strategies else {}
 
     # Knowledge vault — retrieve approved documents relevant to architecture
     kv_data = await _get(
-        "/api/knowledge-vault/?status=approved&limit=20", default={}
+        "/api/knowledge-vault/documents/?status=approved&limit=20", default={}
     )
     knowledge_docs = kv_data.get("results", []) if isinstance(kv_data, dict) else []
     knowledge_bundle = {
