@@ -38,6 +38,11 @@ class LegalRunRequest(BaseModel):
     review_type: str = "rfp_review"
 
 
+class SolutionArchitectRunRequest(BaseModel):
+    deal_id: str
+    opportunity_id: str
+
+
 class MarketingRunRequest(BaseModel):
     deal_id: str
     context: dict[str, Any] = {}
@@ -136,6 +141,25 @@ async def _run_marketing_agent(run_id: str, input_data: dict) -> None:
         await _fail_run(run_id, str(exc))
 
 
+async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
+    try:
+        from src.agents.solution_architect_agent import SolutionArchitectAgent
+
+        q = run_event_queues.get(run_id)
+        if q:
+            await q.put({"event": "thinking", "data": {"message": "Starting solution architecture design..."}})
+
+        agent = SolutionArchitectAgent()
+        result = await agent.run(
+            deal_id=input_data["deal_id"],
+            opportunity_id=input_data["opportunity_id"],
+        )
+        await _finalize_run(run_id, result)
+    except Exception as exc:
+        logger.exception("Solution architect agent run %s failed", run_id)
+        await _fail_run(run_id, str(exc))
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/ai/agents/strategy/run", response_model=AgentRunResponse, tags=["agents"])
@@ -196,6 +220,22 @@ async def run_marketing_agent(
     _create_run(run_id)
     input_data = {"deal_id": request.deal_id, **request.context}
     background_tasks.add_task(_run_marketing_agent, run_id, input_data)
+    return AgentRunResponse(run_id=run_id, status="running")
+
+
+@router.post("/ai/agents/solution-architect/run", response_model=AgentRunResponse, tags=["agents"])
+async def run_solution_architect_agent(
+    request: SolutionArchitectRunRequest,
+    background_tasks: BackgroundTasks,
+) -> AgentRunResponse:
+    """Run the Solution Architect Agent for a deal."""
+    run_id = str(uuid.uuid4())
+    _create_run(run_id)
+    input_data = {
+        "deal_id": request.deal_id,
+        "opportunity_id": request.opportunity_id,
+    }
+    background_tasks.add_task(_run_solution_architect_agent, run_id, input_data)
     return AgentRunResponse(run_id=run_id, status="running")
 
 

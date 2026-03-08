@@ -221,27 +221,71 @@ class DealViewSet(viewsets.ModelViewSet):
     def run_solution_architect(self, request, pk=None):
         """Trigger the Solution Architect Agent for this deal.
 
-        Runs the full 9-node LangGraph pipeline:
-        load_context → analyze_requirements → select_frameworks →
-        retrieve_knowledge → synthesize_solution → generate_diagrams →
-        generate_volume → validate → (refine loop)
-
-        Returns the complete architecture output synchronously.
-        For long-running jobs, consider using a Celery task.
+        Calls the AI Orchestrator service which runs the full 9-node
+        LangGraph pipeline, then persists results to Django models.
         """
+        import os
+        import time
+
+        import httpx
+
         deal = self.get_object()
+        orchestrator_url = os.getenv(
+            "AI_ORCHESTRATOR_URL", "http://ai-orchestrator:8003"
+        )
 
         try:
-            import asyncio
-            from ai_orchestrator.src.agents.solution_architect_agent import SolutionArchitectAgent
+            client = httpx.Client(timeout=30)
 
-            agent = SolutionArchitectAgent()
-            result = asyncio.run(agent.run(
-                deal_id=str(deal.id),
-                opportunity_id=str(deal.opportunity_id),
-            ))
+            # 1. Kick off the agent run via the AI Orchestrator service
+            start_resp = client.post(
+                f"{orchestrator_url}/ai/agents/solution-architect/run",
+                json={
+                    "deal_id": str(deal.id),
+                    "opportunity_id": str(deal.opportunity_id),
+                },
+            )
+            start_resp.raise_for_status()
+            run_data = start_resp.json()
+            run_id = run_data["run_id"]
 
-            # Persist the solution as TechnicalSolution + ArchitectureDiagram models
+            # 2. Poll for completion (the agent pipeline can take 30-120s)
+            max_wait = 180  # seconds
+            poll_interval = 3  # seconds
+            elapsed = 0
+            result = None
+
+            while elapsed < max_wait:
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+
+                poll_resp = client.get(
+                    f"{orchestrator_url}/ai/agents/runs/{run_id}",
+                )
+                poll_resp.raise_for_status()
+                poll_data = poll_resp.json()
+
+                if poll_data["status"] == "completed":
+                    result = poll_data.get("result", {})
+                    break
+                elif poll_data["status"] == "failed":
+                    error_msg = poll_data.get("result", {}).get(
+                        "error", "Agent run failed"
+                    )
+                    return Response(
+                        {"error": error_msg},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+
+            client.close()
+
+            if result is None:
+                return Response(
+                    {"error": "Solution Architect Agent timed out after 180 seconds"},
+                    status=status.HTTP_504_GATEWAY_TIMEOUT,
+                )
+
+            # 3. Persist the solution as TechnicalSolution + ArchitectureDiagram models
             try:
                 from apps.proposals.models import (
                     ArchitectureDiagram,
@@ -315,10 +359,16 @@ class DealViewSet(viewsets.ModelViewSet):
 
             return Response(result, status=status.HTTP_200_OK)
 
-        except ImportError as exc:
+        except httpx.ConnectError:
             return Response(
-                {"error": f"Solution Architect Agent not available: {exc}"},
+                {"error": "AI Orchestrator service is not reachable. Please ensure it is running."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except httpx.HTTPStatusError as exc:
+            logger.exception("AI Orchestrator returned an error for deal %s", pk)
+            return Response(
+                {"error": f"AI Orchestrator error: {exc}"},
+                status=status.HTTP_502_BAD_GATEWAY,
             )
         except Exception as exc:
             logger.exception("Solution Architect Agent failed for deal %s", pk)
