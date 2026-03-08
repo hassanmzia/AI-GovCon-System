@@ -315,10 +315,12 @@ export default function SamRegistrationPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Sync Status
           </Button>
-          <Button size="sm">
-            <Send className="mr-2 h-4 w-4" />
-            Open SAM.gov
-          </Button>
+          <a href="https://sam.gov" target="_blank" rel="noopener noreferrer">
+            <Button size="sm">
+              <Send className="mr-2 h-4 w-4" />
+              Open SAM.gov
+            </Button>
+          </a>
         </div>
       </div>
 
