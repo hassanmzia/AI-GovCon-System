@@ -109,23 +109,41 @@ def _on_enter_contract_setup(deal, from_stage, user):
 
 
 def _on_enter_closed_won(deal, from_stage, user):
-    """Record win outcome and trigger analytics."""
+    """Record win outcome, trigger analytics and learning feedback."""
     deal.outcome = "won"
     deal.award_date = timezone.now()
     deal.save(update_fields=["outcome", "award_date", "updated_at"])
+    _trigger_learning_feedback(deal)
 
 
 def _on_enter_closed_lost(deal, from_stage, user):
-    """Record loss outcome and trigger analytics."""
+    """Record loss outcome, trigger analytics and learning feedback."""
     deal.outcome = "lost"
     deal.save(update_fields=["outcome", "updated_at"])
+    _trigger_learning_feedback(deal)
 
 
 def _on_enter_no_bid(deal, from_stage, user):
-    """Record no-bid outcome."""
+    """Record no-bid outcome and trigger learning feedback."""
     deal.outcome = "no_bid"
     deal.bid_decision_date = timezone.now()
     deal.save(update_fields=["outcome", "bid_decision_date", "updated_at"])
+    _trigger_learning_feedback(deal)
+
+
+def _trigger_learning_feedback(deal):
+    """Trigger win/loss analysis, velocity recording, and scoring weight updates."""
+    try:
+        from apps.analytics.tasks import analyze_win_loss, record_deal_velocity
+        analyze_win_loss.delay(str(deal.id))
+        record_deal_velocity.delay(str(deal.id), deal.stage, "exit")
+        logger.info("Triggered learning feedback for deal %s (%s)", deal.id, deal.outcome)
+    except Exception:
+        logger.warning(
+            "Failed to trigger learning feedback for deal %s",
+            deal.id,
+            exc_info=True,
+        )
 
 
 # Map of stage -> handler function

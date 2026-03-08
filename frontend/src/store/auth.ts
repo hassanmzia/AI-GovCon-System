@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import api from "@/lib/api";
+import { disconnectAll } from "@/lib/socket";
 
 interface User {
   id: number;
@@ -83,6 +84,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    disconnectAll();
     localStorage.removeItem("auth-tokens");
     set({ user: null, tokens: null, isAuthenticated: false });
     if (typeof window !== "undefined") {
