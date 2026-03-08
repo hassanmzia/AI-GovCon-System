@@ -15,7 +15,6 @@ import {
   BarChart3,
   Users,
   CheckCircle,
-  Clock,
   AlertTriangle,
   Target,
   Layers,
@@ -35,30 +34,19 @@ function formatPct(value: number | null | undefined): string {
   return `${value.toFixed(1)}%`;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  under_review: "bg-yellow-100 text-yellow-700",
-  approved: "bg-green-100 text-green-700",
-  rejected: "bg-red-100 text-red-700",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  under_review: "Under Review",
-  approved: "Approved",
-  rejected: "Rejected",
-};
-
-const SCENARIO_TYPE_LABELS: Record<string, string> = {
-  cost_plus: "Cost Plus",
-  fixed_price: "Fixed Price",
-  time_material: "Time & Materials",
-  idiq: "IDIQ",
+const STRATEGY_TYPE_LABELS: Record<string, string> = {
+  max_profit: "Maximum Profit",
+  value_based: "Value-Based",
+  competitive: "Competitive",
+  aggressive: "Aggressive",
+  incumbent_match: "Incumbent Match",
+  budget_fit: "Budget Fit",
+  floor: "Floor",
 };
 
 // ── Win Probability Curve ────────────────────────────────────────────────────
 function WinProbabilityCurve({ scenario }: { scenario: PricingScenario }) {
-  const margin = scenario.margin_percentage || 0;
+  const margin = scenario.margin_pct || 0;
   // Simulated win probability curve based on margin
   const points = [0, 5, 10, 15, 20, 25, 30, 35, 40].map((m) => ({
     margin: m,
@@ -242,10 +230,9 @@ export default function PricingDetailPage() {
   }
 
   const totalHours = loeEstimates.reduce((s, e) => s + e.total_hours, 0);
-  const feeAmt = Number(scenario.total_fee) || 0;
-  const directCost = Number(scenario.total_direct_cost) || 0;
-  const indirectCost = Number(scenario.total_indirect_cost) || 0;
   const totalPrice = Number(scenario.total_price) || 0;
+  const profit = Number(scenario.profit) || 0;
+  const expectedValue = Number(scenario.expected_value) || 0;
 
   return (
     <div className="space-y-6 p-6">
@@ -259,16 +246,15 @@ export default function PricingDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{scenario.name}</h1>
-            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${STATUS_COLORS[scenario.status]}`}>
-              {STATUS_LABELS[scenario.status]}
-            </span>
+            {scenario.is_recommended && (
+              <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-green-100 text-green-700">
+                Recommended
+              </span>
+            )}
             <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">
-              {SCENARIO_TYPE_LABELS[scenario.scenario_type]}
+              {scenario.strategy_type_display || STRATEGY_TYPE_LABELS[scenario.strategy_type] || scenario.strategy_type}
             </span>
           </div>
-          {scenario.deal_name && (
-            <p className="text-muted-foreground mt-0.5">Deal: {scenario.deal_name}</p>
-          )}
         </div>
       </div>
 
@@ -289,25 +275,25 @@ export default function PricingDetailPage() {
               <TrendingUp className="h-4 w-4" />
               <span className="text-xs">Margin</span>
             </div>
-            <div className="text-2xl font-bold">{formatPct(scenario.margin_percentage)}</div>
+            <div className="text-2xl font-bold">{formatPct(scenario.margin_pct)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Layers className="h-4 w-4" />
-              <span className="text-xs">Fee</span>
+              <span className="text-xs">Profit</span>
             </div>
-            <div className="text-2xl font-bold">{formatCurrency(feeAmt)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(profit)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Users className="h-4 w-4" />
-              <span className="text-xs">Total Hours</span>
+              <Target className="h-4 w-4" />
+              <span className="text-xs">Expected Value</span>
             </div>
-            <div className="text-2xl font-bold">{totalHours.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatCurrency(expectedValue)}</div>
           </CardContent>
         </Card>
       </div>
@@ -339,33 +325,41 @@ export default function PricingDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cost Summary */}
+        {/* Pricing Summary */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="h-4 w-4" /> Cost Summary
+              <DollarSign className="h-4 w-4" /> Pricing Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex justify-between py-1.5 border-b">
-                <span className="text-sm text-muted-foreground">Direct Costs</span>
-                <span className="font-semibold">{formatCurrency(directCost)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b">
-                <span className="text-sm text-muted-foreground">Indirect Costs</span>
-                <span className="font-semibold">{formatCurrency(indirectCost)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b">
-                <span className="text-sm text-muted-foreground">Fee</span>
-                <span className="font-semibold">{formatCurrency(feeAmt)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 font-bold text-lg">
+              <div className="flex justify-between py-1.5 font-bold text-lg border-b">
                 <span>Total Price</span>
                 <span className="text-blue-700">{formatCurrency(totalPrice)}</span>
               </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-sm text-muted-foreground">Profit</span>
+                <span className="font-semibold">{formatCurrency(profit)}</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-sm text-muted-foreground">Margin</span>
+                <span className="font-semibold">{formatPct(scenario.margin_pct)}</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-sm text-muted-foreground">P(Win)</span>
+                <span className="font-semibold">{scenario.probability_of_win != null ? `${(scenario.probability_of_win * 100).toFixed(0)}%` : "--"}</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b">
+                <span className="text-sm text-muted-foreground">Expected Value</span>
+                <span className="font-semibold">{formatCurrency(expectedValue)}</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-sm text-muted-foreground">Competitive Position</span>
+                <span className="font-semibold">{scenario.competitive_position || "--"}</span>
+              </div>
               {costModel && (
-                <div className="pt-2 space-y-1.5 text-xs text-muted-foreground">
+                <div className="pt-2 space-y-1.5 text-xs text-muted-foreground border-t">
                   <div className="flex justify-between">
                     <span>Fringe Rate</span>
                     <span>{formatPct(costModel.fringe_rate)}</span>
@@ -426,36 +420,33 @@ export default function PricingDetailPage() {
         </Card>
       </div>
 
-      {/* Approval Status */}
+      {/* Recommendation Status */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            {scenario.is_approved ? (
+            {scenario.is_recommended ? (
               <CheckCircle className="h-4 w-4 text-green-500" />
-            ) : scenario.status === "under_review" ? (
-              <Clock className="h-4 w-4 text-yellow-500" />
             ) : (
               <AlertTriangle className="h-4 w-4 text-gray-400" />
             )}
-            Approval Status
+            Recommendation
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
-            <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${STATUS_COLORS[scenario.status]}`}>
-              {STATUS_LABELS[scenario.status]}
-            </span>
-            {scenario.is_approved && (
-              <span className="text-green-600 text-sm font-medium flex items-center gap-1">
-                <CheckCircle className="h-4 w-4" /> Approved for submission
+            {scenario.is_recommended ? (
+              <span className="px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                Recommended
               </span>
-            )}
-            {!scenario.is_approved && scenario.status === "draft" && (
-              <span className="text-muted-foreground text-sm">
-                Submit for review when ready
+            ) : (
+              <span className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                Not Recommended
               </span>
             )}
           </div>
+          {scenario.rationale && (
+            <p className="mt-3 text-sm text-muted-foreground">{scenario.rationale}</p>
+          )}
         </CardContent>
       </Card>
     </div>
