@@ -150,10 +150,7 @@ async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
             await q.put({"event": "thinking", "data": {"message": "Starting solution architecture design..."}})
 
         agent = SolutionArchitectAgent()
-        result = await agent.run(
-            deal_id=input_data["deal_id"],
-            opportunity_id=input_data["opportunity_id"],
-        )
+        result = await agent.run(input_data)
         await _finalize_run(run_id, result)
     except Exception as exc:
         logger.exception("Solution architect agent run %s failed", run_id)
