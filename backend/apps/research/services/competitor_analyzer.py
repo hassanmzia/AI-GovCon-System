@@ -27,7 +27,7 @@ class CompetitorAnalyzer:
         Returns:
             Analysis dict with contract history and performance data.
         """
-        # TODO: integrate with actual FPDS API
+        # Phase 2: replace with live FPDS API integration via MCP tools.
         logger.info(
             "CompetitorAnalyzer.analyze_from_fpds called for CAGE=%s",
             cage_code,
@@ -100,7 +100,7 @@ class CompetitorAnalyzer:
         Returns:
             Comprehensive profile dict suitable for creating a CompetitorProfile.
         """
-        # TODO: integrate with SAM.gov, FPDS, LinkedIn, GlassDoor, news sources
+        # Phase 2: integrate SAM.gov, FPDS, and OSINT sources via MCP tools.
         logger.info(
             "CompetitorAnalyzer.build_profile called for '%s'",
             competitor_name,
@@ -201,7 +201,7 @@ class CompetitorAnalyzer:
         Returns:
             Comparison analysis dict with threat assessment.
         """
-        # TODO: integrate with deal data and competitor profile data
+        # Phase 2: enrich with live deal data and competitor intelligence.
         logger.info(
             "CompetitorAnalyzer.compare_against called for "
             "competitor=%s, deal=%s",

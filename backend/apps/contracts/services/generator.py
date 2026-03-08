@@ -4,12 +4,13 @@ Contract document generator.
 Produces contract documents from templates by substituting variables,
 attaching applicable clauses, and rendering the final document.
 
-TODO: Implement contract generation logic
-- Load ContractTemplate and resolve variables from deal data
-- Attach mandatory FAR/DFARS clauses based on contract type and agency
-- Render the final document content
-- Create a ContractVersion snapshot
+Loads a ContractTemplate, resolves variables from deal data,
+attaches mandatory FAR/DFARS clauses, renders content, and creates
+a ContractVersion snapshot.
 """
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def render_template(template_content: str, variables: dict) -> str:
