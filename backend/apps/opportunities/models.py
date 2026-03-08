@@ -130,9 +130,29 @@ class OpportunityScore(BaseModel):
     competition_intensity = models.FloatField(default=0.0)  # Higher = worse
     risk_factors = models.FloatField(default=0.0)  # Higher = worse
 
+    # Purchase threshold intelligence (per The Vault Ch. III)
+    purchase_category = models.CharField(max_length=20, choices=[
+        ('micro', 'Micro-Purchase (< $10K)'),
+        ('simplified', 'Simplified Acquisition ($10K-$250K)'),
+        ('commercial', 'Commercial Items (< $10M)'),
+        ('full_open', 'Full & Open Competition'),
+    ], blank=True)
+    small_business_set_aside = models.BooleanField(default=False)
+    set_aside_eligible = models.BooleanField(default=False)
+    has_relevant_past_performance = models.BooleanField(default=False)
+    within_size_standard = models.BooleanField(default=False)
+
+    # Entry strategy recommendation (per The Vault Ch. VII)
+    entry_strategy = models.CharField(max_length=20, choices=[
+        ('prime', 'Bid as Prime'), ('sub', 'Pursue as Subcontractor'),
+        ('team', 'Form Teaming Arrangement'), ('jv', 'Form Joint Venture'),
+        ('sources_sought', 'Respond to Sources Sought'), ('no_bid', 'No Bid'),
+    ], blank=True)
+    entry_strategy_rationale = models.TextField(blank=True)
+
     # Explanation
-    score_explanation = models.JSONField(default=dict)  # Per-factor explanations
-    ai_rationale = models.TextField(blank=True)  # LLM-generated summary
+    score_explanation = models.JSONField(default=dict)
+    ai_rationale = models.TextField(blank=True)
 
     scored_at = models.DateTimeField(auto_now=True)
 
@@ -187,6 +207,118 @@ class DailyDigest(BaseModel):
 
     def __str__(self):
         return f"Digest {self.date}"
+
+
+class SAMRegistration(BaseModel):
+    """SAM.gov registration tracking and compliance per Bidvantage SAM Registration Guide."""
+    company_profile = models.OneToOneField(CompanyProfile, on_delete=models.CASCADE, related_name='sam_registration')
+
+    # Core registration data (per SAM Guide Steps 1-7)
+    legal_business_name = models.CharField(max_length=500)
+    physical_address = models.JSONField(default=dict)  # {street, city, state, zip}
+    mailing_address = models.JSONField(default=dict, blank=True)
+    taxpayer_id_type = models.CharField(max_length=10, choices=[
+        ('ein', 'EIN'), ('ssn', 'SSN'),
+    ], blank=True)
+    taxpayer_id_last_four = models.CharField(max_length=4, blank=True)
+    entity_type = models.CharField(max_length=100, blank=True)  # LLC, Corp, etc.
+    ownership_details = models.JSONField(default=dict, blank=True)
+    banking_verified = models.BooleanField(default=False)
+
+    # Registration status
+    registration_status = models.CharField(max_length=20, choices=[
+        ('not_started', 'Not Started'), ('in_progress', 'In Progress'),
+        ('submitted', 'Submitted'), ('active', 'Active'), ('expired', 'Expired'),
+    ], default='not_started')
+    registration_date = models.DateField(null=True, blank=True)
+    expiration_date = models.DateField(null=True, blank=True)
+    tracking_number = models.CharField(max_length=100, blank=True)
+    renewal_reminder_sent = models.BooleanField(default=False)
+
+    # Validation checklist (per The Vault SAM.gov Tips)
+    name_matches_irs = models.BooleanField(default=False)
+    address_matches_irs = models.BooleanField(default=False)
+    ein_verified = models.BooleanField(default=False)
+    bank_info_business_account = models.BooleanField(default=False)
+    correct_entity_type = models.BooleanField(default=False)
+    naics_codes_added = models.BooleanField(default=False)
+    reps_certs_complete = models.BooleanField(default=False)
+    pocs_added = models.BooleanField(default=False)
+    all_sections_complete = models.BooleanField(default=False)
+
+    # Points of Contact (per SAM Guide Step 7)
+    admin_poc = models.JSONField(default=dict, blank=True)
+    gov_business_poc = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = 'SAM Registration'
+
+    def __str__(self):
+        return f"SAM: {self.legal_business_name} ({self.registration_status})"
+
+    @property
+    def is_expiring_soon(self):
+        if not self.expiration_date:
+            return False
+        from django.utils import timezone
+        delta = self.expiration_date - timezone.now().date()
+        return 0 < delta.days <= 30
+
+    @property
+    def validation_checklist_score(self):
+        checks = [
+            self.name_matches_irs, self.address_matches_irs, self.ein_verified,
+            self.bank_info_business_account, self.correct_entity_type,
+            self.naics_codes_added, self.reps_certs_complete, self.pocs_added,
+            self.all_sections_complete,
+        ]
+        return round(sum(checks) / len(checks) * 100, 1)
+
+
+class NAICSCode(BaseModel):
+    """NAICS code reference data per The Vault Ch. II."""
+    code = models.CharField(max_length=6, unique=True)
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    size_standard = models.CharField(max_length=100, blank=True)
+    size_standard_type = models.CharField(max_length=20, choices=[
+        ('revenue', 'Revenue'), ('employees', 'Employees'),
+    ], blank=True)
+    sector = models.CharField(max_length=2, blank=True)
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = 'NAICS Code'
+
+    def __str__(self):
+        return f"{self.code} - {self.title}"
+
+
+class SBACertification(BaseModel):
+    """SBA certification tracking per The Vault Ch. II (8 categories)."""
+    company_profile = models.ForeignKey(CompanyProfile, on_delete=models.CASCADE, related_name='sba_certifications')
+    certification_type = models.CharField(max_length=20, choices=[
+        ('sb', 'Small Business'), ('sdb', 'Small Disadvantaged Business'),
+        ('8a', '8(a) Business Development'), ('wosb', 'Woman-Owned Small Business'),
+        ('edwosb', 'Economically Disadvantaged WOSB'), ('vosb', 'Veteran-Owned Small Business'),
+        ('sdvosb', 'Service-Disabled Veteran-Owned'), ('hubzone', 'HUBZone'),
+    ])
+    status = models.CharField(max_length=20, choices=[
+        ('not_applicable', 'Not Applicable'), ('eligible', 'Eligible'),
+        ('applied', 'Applied'), ('certified', 'Certified'), ('expired', 'Expired'),
+    ], default='not_applicable')
+    certification_date = models.DateField(null=True, blank=True)
+    expiration_date = models.DateField(null=True, blank=True)
+    certification_number = models.CharField(max_length=100, blank=True)
+    eligibility_notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['certification_type']
+        unique_together = ['company_profile', 'certification_type']
+        verbose_name = 'SBA Certification'
+
+    def __str__(self):
+        return f"{self.get_certification_type_display()} - {self.get_status_display()}"
 
 
 class OpportunityAmendment(BaseModel):

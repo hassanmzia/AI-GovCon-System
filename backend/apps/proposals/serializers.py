@@ -6,6 +6,8 @@ from .models import (
     ProposalTemplate,
     ReviewComment,
     ReviewCycle,
+    SourcesSoughtResponse,
+    SubmissionEmail,
 )
 
 
@@ -168,6 +170,10 @@ class ProposalListSerializer(serializers.ModelSerializer):
             "title",
             "version",
             "status",
+            "solicitation_number",
+            "evaluation_method",
+            "contract_type",
+            "submission_date",
             "total_requirements",
             "compliant_count",
             "compliance_percentage",
@@ -196,14 +202,76 @@ class ProposalDetailSerializer(serializers.ModelSerializer):
             "title",
             "version",
             "status",
+            "solicitation_number",
+            "project_title",
+            "issuing_agency",
+            "submission_date",
+            "evaluation_method",
+            "contract_type",
             "win_themes",
             "discriminators",
             "executive_summary",
             "total_requirements",
             "compliant_count",
             "compliance_percentage",
+            "submission_method",
+            "submission_email",
+            "submission_portal_url",
+            "submitted_at",
+            "confirmation_number",
             "sections",
             "reviews",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+# ── Sources Sought ────────────────────────────────────────────────────────────
+
+class SourcesSoughtResponseSerializer(serializers.ModelSerializer):
+    deal_title = serializers.CharField(source="deal.title", read_only=True)
+
+    class Meta:
+        model = SourcesSoughtResponse
+        fields = [
+            "id",
+            "deal",
+            "deal_title",
+            "opportunity",
+            "title",
+            "solicitation_number",
+            "company_overview",
+            "relevant_experience",
+            "technical_approach_summary",
+            "capability_gaps",
+            "questions_for_government",
+            "interest_level",
+            "status",
+            "submitted_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+# ── Submission Email ──────────────────────────────────────────────────────────
+
+class SubmissionEmailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubmissionEmail
+        fields = [
+            "id",
+            "proposal",
+            "sources_sought",
+            "email_type",
+            "recipient_email",
+            "recipient_name",
+            "subject_line",
+            "body",
+            "attachments_list",
+            "is_sent",
+            "sent_at",
             "created_at",
             "updated_at",
         ]

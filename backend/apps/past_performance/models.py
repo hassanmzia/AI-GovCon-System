@@ -10,10 +10,16 @@ class PastPerformance(BaseModel):
     # Project info
     project_name = models.CharField(max_length=500)
     contract_number = models.CharField(max_length=100, blank=True)
+    subcontract_number = models.CharField(max_length=100, blank=True)  # Per Bidvantage template
     client_agency = models.CharField(max_length=500)
     client_name = models.CharField(max_length=300, blank=True)
     client_email = models.EmailField(blank=True)
     client_phone = models.CharField(max_length=50, blank=True)
+
+    # Technical POC (per Bidvantage Past Performance template)
+    technical_poc_name = models.CharField(max_length=300, blank=True)
+    technical_poc_email = models.EmailField(blank=True)
+    technical_poc_phone = models.CharField(max_length=50, blank=True)
 
     # Details
     description = models.TextField()
@@ -22,6 +28,11 @@ class PastPerformance(BaseModel):
     technologies = models.JSONField(default=list)
     domains = models.JSONField(default=list)  # AI/ML, Cloud, Cyber, etc.
 
+    # Bidvantage template structured fields
+    relevance_summary = models.TextField(blank=True)  # Why this project is relevant
+    performance_summary = models.TextField(blank=True)  # How well the project performed
+    scope_of_work_bullets = models.JSONField(default=list, blank=True)  # Structured bullet points
+
     # Performance
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
@@ -29,6 +40,14 @@ class PastPerformance(BaseModel):
     contract_type = models.CharField(max_length=50, blank=True)  # FFP, T&M, CPFF
     performance_rating = models.CharField(max_length=50, blank=True)  # Exceptional, Very Good, Satisfactory
     cpars_rating = models.CharField(max_length=50, blank=True)
+
+    # Role on contract (per Bidvantage template)
+    role_on_contract = models.CharField(max_length=20, choices=[
+        ('prime', 'Prime Contractor'),
+        ('sub', 'Subcontractor'),
+        ('jv', 'Joint Venture Partner'),
+        ('team', 'Teaming Partner'),
+    ], blank=True)
 
     # Metrics
     on_time_delivery = models.BooleanField(default=True)

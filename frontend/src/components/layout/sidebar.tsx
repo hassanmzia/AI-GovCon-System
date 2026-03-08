@@ -32,6 +32,11 @@ import {
   Activity,
   Shield,
   Brain,
+  BadgeCheck,
+  Building2,
+  FileBadge,
+  MailCheck,
+  ListChecks,
 } from "lucide-react";
 
 const navigation = [
@@ -49,6 +54,7 @@ const navigation = [
   { name: "Workforce", href: "/workforce", icon: UserCog },
   { name: "Strategy", href: "/strategy", icon: Lightbulb },
   { name: "Marketing", href: "/marketing", icon: Megaphone },
+  { name: "Capability Statements", href: "/capability-statements", icon: FileBadge },
   { name: "Research", href: "/research", icon: BookOpen },
   { name: "Legal", href: "/legal", icon: Scale },
   { name: "Teaming", href: "/teaming", icon: Users },
@@ -56,6 +62,10 @@ const navigation = [
   { name: "Knowledge Vault", href: "/knowledge-vault", icon: Database },
   { name: "Communications", href: "/communications", icon: MessageSquare },
   { name: "Past Performance", href: "/past-performance", icon: Award },
+  { name: "SAM Registration", href: "/sam-registration", icon: Building2 },
+  { name: "SBA Certifications", href: "/sba-certifications", icon: BadgeCheck },
+  { name: "Sources Sought", href: "/sources-sought", icon: MailCheck },
+  { name: "Compliance", href: "/compliance", icon: ListChecks },
   { name: "Policies", href: "/policies", icon: ScrollText },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
