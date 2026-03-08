@@ -33,25 +33,14 @@ import {
 
 type ActiveTab = "scenarios" | "rate-cards" | "loe-estimates";
 
-const SCENARIO_TYPE_LABELS: Record<string, string> = {
-  cost_plus: "Cost Plus",
-  fixed_price: "Fixed Price",
-  time_material: "T&M",
-  idiq: "IDIQ",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  under_review: "bg-yellow-100 text-yellow-700",
-  approved: "bg-green-100 text-green-700",
-  rejected: "bg-red-100 text-red-700",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  under_review: "Under Review",
-  approved: "Approved",
-  rejected: "Rejected",
+const STRATEGY_TYPE_LABELS: Record<string, string> = {
+  max_profit: "Maximum Profit",
+  value_based: "Value-Based",
+  competitive: "Competitive",
+  aggressive: "Aggressive",
+  incumbent_match: "Incumbent Match",
+  budget_fit: "Budget Fit",
+  floor: "Floor",
 };
 
 function formatCurrency(value: number | null | undefined): string {
@@ -81,18 +70,21 @@ interface NewScenarioModalProps {
 
 function NewScenarioModal({ onClose, onCreated }: NewScenarioModalProps) {
   const [name, setName] = useState("");
-  const [scenarioType, setScenarioType] = useState("fixed_price");
+  const [strategyType, setStrategyType] = useState("competitive");
   const [dealId, setDealId] = useState("");
   const [deals, setDeals] = useState<Deal[]>([]);
   const [dealsLoading, setDealsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const scenarioTypes = [
-    { value: "cost_plus", label: "Cost Plus" },
-    { value: "fixed_price", label: "Fixed Price" },
-    { value: "time_material", label: "Time & Materials" },
-    { value: "idiq", label: "IDIQ" },
+  const strategyTypes = [
+    { value: "max_profit", label: "Maximum Profit" },
+    { value: "value_based", label: "Value-Based" },
+    { value: "competitive", label: "Competitive" },
+    { value: "aggressive", label: "Aggressive" },
+    { value: "incumbent_match", label: "Incumbent Match" },
+    { value: "budget_fit", label: "Budget Fit" },
+    { value: "floor", label: "Floor" },
   ];
 
   useEffect(() => {
@@ -111,7 +103,7 @@ function NewScenarioModal({ onClose, onCreated }: NewScenarioModalProps) {
     setSubmitting(true);
     setError(null);
     try {
-      const scenario = await createScenario({ name: name.trim(), scenario_type: scenarioType as PricingScenario["scenario_type"], deal: dealId });
+      const scenario = await createScenario({ name: name.trim(), strategy_type: strategyType as PricingScenario["strategy_type"], deal: dealId });
       onCreated(scenario);
     } catch {
       setError("Failed to create scenario. Please try again.");
@@ -135,9 +127,9 @@ function NewScenarioModal({ onClose, onCreated }: NewScenarioModalProps) {
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Base Scenario – FFP" autoFocus />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Type</label>
-            <select value={scenarioType} onChange={(e) => setScenarioType(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-              {scenarioTypes.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            <label className="text-sm font-medium">Strategy Type</label>
+            <select value={strategyType} onChange={(e) => setStrategyType(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              {strategyTypes.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
@@ -253,14 +245,14 @@ export default function PricingPage() {
   };
 
   // Computed summary stats
-  const approvedScenarios = scenarios.filter((s) => s.status === "approved");
+  const recommendedScenarios = scenarios.filter((s) => s.is_recommended);
   const totalPipelineValue = scenarios.reduce(
     (sum, s) => sum + (s.total_price || 0),
     0
   );
   const avgMargin =
     scenarios.length > 0
-      ? scenarios.reduce((sum, s) => sum + (s.margin_percentage || 0), 0) /
+      ? scenarios.reduce((sum, s) => sum + (s.margin_pct || 0), 0) /
         scenarios.length
       : 0;
 
@@ -336,9 +328,9 @@ export default function PricingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Approved Scenarios
+                  Recommended Scenarios
                 </p>
-                <p className="text-2xl font-bold">{approvedScenarios.length}</p>
+                <p className="text-2xl font-bold">{recommendedScenarios.length}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -461,28 +453,28 @@ export default function PricingPage() {
                                     {scenario.name || "--"}
                                   </td>
                                   <td className="py-3 pr-4 text-muted-foreground">
-                                    {SCENARIO_TYPE_LABELS[
-                                      scenario.scenario_type
-                                    ] || scenario.scenario_type || "--"}
+                                    {STRATEGY_TYPE_LABELS[
+                                      scenario.strategy_type
+                                    ] || scenario.strategy_type || "--"}
                                   </td>
                                   <td className="py-3 pr-4 font-medium">
                                     {formatCurrency(scenario.total_price)}
                                   </td>
                                   <td className="py-3 pr-4">
-                                    {scenario.margin_percentage != null
-                                      ? `${Number(scenario.margin_percentage).toFixed(1)}%`
+                                    {scenario.margin_pct != null
+                                      ? `${Number(scenario.margin_pct).toFixed(1)}%`
                                       : "--"}
                                   </td>
                                   <td className="py-3 pr-4">
-                                    <span
-                                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                        STATUS_COLORS[scenario.status] ||
-                                        "bg-gray-100 text-gray-700"
-                                      }`}
-                                    >
-                                      {STATUS_LABELS[scenario.status] ||
-                                        scenario.status}
-                                    </span>
+                                    {scenario.is_recommended ? (
+                                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-700">
+                                        Recommended
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700">
+                                        Draft
+                                      </span>
+                                    )}
                                   </td>
                                   <td className="py-3 pr-4">
                                     {approvalStatus ? (
@@ -530,36 +522,18 @@ export default function PricingPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {/* Cost Summary */}
+                      {/* Pricing Summary */}
                       <div>
                         <h4 className="text-sm font-semibold mb-2">
-                          Cost Summary
+                          Pricing Summary
                         </h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">
-                              Direct Cost
+                              Strategy
                             </span>
                             <span className="font-medium">
-                              {formatCurrency(
-                                selectedScenario.total_direct_cost
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">
-                              Indirect Cost
-                            </span>
-                            <span className="font-medium">
-                              {formatCurrency(
-                                selectedScenario.total_indirect_cost
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Fee</span>
-                            <span className="font-medium">
-                              {formatCurrency(selectedScenario.total_fee)}
+                              {selectedScenario.strategy_type_display || STRATEGY_TYPE_LABELS[selectedScenario.strategy_type] || selectedScenario.strategy_type}
                             </span>
                           </div>
                           <div className="flex justify-between border-t pt-2">
@@ -570,12 +544,38 @@ export default function PricingPage() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">
+                              Profit
+                            </span>
+                            <span className="font-medium">
+                              {formatCurrency(selectedScenario.profit)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
                               Margin
                             </span>
                             <span className="font-medium">
-                              {selectedScenario.margin_percentage != null
-                                ? `${Number(selectedScenario.margin_percentage).toFixed(1)}%`
+                              {selectedScenario.margin_pct != null
+                                ? `${Number(selectedScenario.margin_pct).toFixed(1)}%`
                                 : "--"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              P(Win)
+                            </span>
+                            <span className="font-medium">
+                              {selectedScenario.probability_of_win != null
+                                ? `${(Number(selectedScenario.probability_of_win) * 100).toFixed(0)}%`
+                                : "--"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Expected Value
+                            </span>
+                            <span className="font-medium">
+                              {formatCurrency(selectedScenario.expected_value)}
                             </span>
                           </div>
                         </div>
