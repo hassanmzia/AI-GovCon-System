@@ -140,7 +140,7 @@ function DiagramCard({ diagram }: { diagram: ArchitectureDiagram }) {
 // ── Tab content components ─────────────────────────────────────────────────
 
 function RequirementsTab({ analysis }: { analysis: RequirementAnalysis }) {
-  const entries = Object.entries(analysis).filter(([, v]) => v && v.trim());
+  const entries = Object.entries(analysis).filter(([, v]) => typeof v === "string" && v.trim());
   if (!entries.length) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
@@ -165,7 +165,7 @@ function RequirementsTab({ analysis }: { analysis: RequirementAnalysis }) {
 }
 
 function SolutionTab({ solution }: { solution: TechnicalSolution }) {
-  const entries = Object.entries(solution).filter(([, v]) => v && v.trim());
+  const entries = Object.entries(solution).filter(([, v]) => typeof v === "string" && v.trim());
   if (!entries.length) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">

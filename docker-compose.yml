@@ -93,6 +93,7 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@dealmanager.local}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin1234!}
       - SAMGOV_API_KEY=${SAMGOV_API_KEY:-}
+      - DJANGO_SERVICE_TOKEN=${DJANGO_SERVICE_TOKEN:-dev-service-token-change-in-prod}
     volumes:
       - ./backend:/app
     depends_on:
@@ -216,6 +217,7 @@ services:
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_HOST=http://langfuse:8004
       - DJANGO_API_URL=http://django-api:8001
+      - DJANGO_SERVICE_TOKEN=${DJANGO_SERVICE_TOKEN:-dev-service-token-change-in-prod}
     depends_on:
       postgres:
         condition: service_healthy
