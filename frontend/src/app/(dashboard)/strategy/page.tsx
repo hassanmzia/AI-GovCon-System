@@ -480,9 +480,9 @@ export default function StrategyPage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2">
                     Growth Markets
                   </p>
-                  {strategy.growth_markets.length > 0 ? (
+                  {(strategy.growth_markets ?? []).length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {strategy.growth_markets.map((m) => (
+                      {(strategy.growth_markets ?? []).map((m) => (
                         <MarketChip key={m} label={m} color="bg-green-100 text-green-800" />
                       ))}
                     </div>
@@ -496,9 +496,9 @@ export default function StrategyPage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-2">
                     Mature Markets
                   </p>
-                  {strategy.mature_markets.length > 0 ? (
+                  {(strategy.mature_markets ?? []).length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {strategy.mature_markets.map((m) => (
+                      {(strategy.mature_markets ?? []).map((m) => (
                         <MarketChip key={m} label={m} color="bg-blue-100 text-blue-800" />
                       ))}
                     </div>
@@ -512,9 +512,9 @@ export default function StrategyPage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-red-700 mb-2">
                     Exit Markets
                   </p>
-                  {strategy.exit_markets.length > 0 ? (
+                  {(strategy.exit_markets ?? []).length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {strategy.exit_markets.map((m) => (
+                      {(strategy.exit_markets ?? []).map((m) => (
                         <MarketChip key={m} label={m} color="bg-red-100 text-red-800" />
                       ))}
                     </div>
@@ -689,7 +689,7 @@ export default function StrategyPage() {
                   <CardTitle className="text-base">Win Themes</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {strategy.win_themes.length === 0 ? (
+                  {!strategy.win_themes?.length ? (
                     <p className="text-sm text-muted-foreground">No win themes defined.</p>
                   ) : (
                     <ol className="space-y-2">
@@ -711,7 +711,7 @@ export default function StrategyPage() {
                   <CardTitle className="text-base">Differentiators</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {strategy.differentiators.length === 0 ? (
+                  {!strategy.differentiators?.length ? (
                     <p className="text-sm text-muted-foreground">No differentiators defined.</p>
                   ) : (
                     <ul className="space-y-2">
