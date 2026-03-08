@@ -204,10 +204,23 @@ export default function GovernancePage() {
     setRiskError(null);
     try {
       const res = await api.post("/policies/assess-risk/", {
-        context: "current_pipeline",
-        deal_value: 5000000,
-        agency: "DoD",
-        classification: "unclassified",
+        deal_context: {
+          days_remaining: 30,
+          days_needed_estimate: 20,
+          compliance_coverage_pct: 0.85,
+          missing_forms: 0,
+          prohibited_clauses: 0,
+          review_clauses: 1,
+          margin_pct: 0.12,
+          margin_floor: 0.08,
+          price_uncertainty: 0.3,
+          assumption_weakness: 0.2,
+          has_cui: false,
+          has_itar: false,
+          classified_handling: false,
+          past_performance_gaps: 0,
+          compliance_history_score: 0.9,
+        },
       });
       const data = res.data;
       setRiskScore(data.risk_score ?? data);
