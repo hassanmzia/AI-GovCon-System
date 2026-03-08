@@ -119,16 +119,24 @@ class MFASetupView(CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        """Initialize MFA setup and return QR code."""
-        # TODO: Implement actual TOTP setup with pyotp and QR code generation
-        # For now, just mark MFA as enabled
+        """Initialize MFA setup: generate TOTP secret, QR code, and backup codes."""
+        from apps.accounts.services.mfa import setup_mfa_for_user
+
         user = request.user
+        mfa_data = setup_mfa_for_user(user.id)
+
+        # Persist the secret and hashed backup codes on the user model
+        user.mfa_secret = mfa_data["secret"]
+        user.mfa_backup_codes = mfa_data["hashed_backup_codes"]
         user.is_mfa_enabled = True
-        user.save()
+        user.save(update_fields=["mfa_secret", "mfa_backup_codes", "is_mfa_enabled"])
+
         return Response(
             {
-                "detail": "MFA setup initiated. Please scan the QR code with your authenticator app.",
-                "qr_code": "placeholder",  # In production, generate actual QR code
+                "detail": "MFA setup complete. Scan the QR code with your authenticator app.",
+                "provisioning_uri": mfa_data["provisioning_uri"],
+                "qr_code": mfa_data["qr_code_b64"],
+                "backup_codes": mfa_data["backup_codes"],
             },
             status=status.HTTP_200_OK,
         )

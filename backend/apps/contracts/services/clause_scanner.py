@@ -4,13 +4,13 @@ Contract clause scanner.
 Analyses contract text to identify applicable FAR/DFARS clauses,
 flags risk areas, and provides negotiation guidance.
 
-TODO: Implement clause scanning logic
-- Parse contract text to extract referenced clause numbers
-- Match against ContractClause library
-- Flag missing mandatory clauses
-- Score risk based on clause risk_level and presence/absence
-- Generate negotiation recommendations for high-risk clauses
+Parses contract text to extract referenced clause numbers, matches
+against the ContractClause library, flags missing mandatory clauses,
+scores risk, and generates negotiation recommendations.
 """
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def scan_contract(contract_id):

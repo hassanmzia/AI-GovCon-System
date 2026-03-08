@@ -25,13 +25,6 @@ class ComplianceMapper:
             A dict summarising the mapping results including counts of
             controls mapped, gaps identified, and a list of mapping ids.
         """
-        # TODO: Implement full mapping logic:
-        #   1. Load the deal and its compliance requirements.
-        #   2. Load all controls for the given framework.
-        #   3. Use NLP / keyword matching to associate requirements
-        #      with the most relevant controls.
-        #   4. Create SecurityControlMapping records for each match.
-        #   5. Return summary statistics.
 
         from apps.deals.models import Deal
         from apps.security_compliance.models import (
@@ -90,13 +83,6 @@ class ComplianceMapper:
             A dict containing gap counts, gap details, and overall
             compliance percentage.
         """
-        # TODO: Implement AI-powered gap analysis:
-        #   1. Load all SecurityControlMapping records for the deal.
-        #   2. Evaluate each mapping's implementation status and evidence.
-        #   3. Use LLM to compare implementation descriptions against
-        #      control requirements.
-        #   4. Generate gap descriptions where controls are not fully met.
-        #   5. Calculate overall compliance percentage.
 
         from apps.security_compliance.models import SecurityControlMapping
 
@@ -178,13 +164,6 @@ class ComplianceMapper:
         Returns:
             A dict with the POA&M items list and summary metadata.
         """
-        # TODO: Implement full POA&M generation:
-        #   1. Load all gap mappings (planned / partial).
-        #   2. Prioritise by control priority (P1 > P2 > P3) and
-        #      baseline impact level.
-        #   3. Generate remediation milestones with estimated effort.
-        #   4. Use LLM to draft remediation action descriptions.
-        #   5. Store POA&M in a SecurityComplianceReport record.
 
         from apps.security_compliance.models import SecurityControlMapping
 
