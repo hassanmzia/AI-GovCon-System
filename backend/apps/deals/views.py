@@ -87,6 +87,33 @@ class DealViewSet(viewsets.ModelViewSet):
             return DealCreateSerializer
         return DealDetailSerializer
 
+    def perform_create(self, serializer):
+        deal = serializer.save(owner=self.request.user)
+        # Emit deal.created event to AI orchestrator via Redis
+        try:
+            from apps.deals.signals import on_deal_created
+            on_deal_created(
+                deal_id=str(deal.id),
+                opportunity_id=str(deal.opportunity_id) if deal.opportunity_id else "",
+                user_id=self.request.user.id,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to emit deal.created signal for deal %s",
+                deal.id,
+                exc_info=True,
+            )
+        # Auto-generate stage tasks for initial stage
+        try:
+            from apps.deals.tasks import auto_generate_stage_tasks
+            auto_generate_stage_tasks.delay(str(deal.id), deal.stage)
+        except Exception:
+            logger.warning(
+                "Failed to enqueue auto_generate_stage_tasks for deal %s",
+                deal.id,
+                exc_info=True,
+            )
+
     # ── Custom actions ───────────────────────────────────
 
     @action(detail=True, methods=["post"], url_path="transition")

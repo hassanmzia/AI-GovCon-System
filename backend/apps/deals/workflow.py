@@ -68,6 +68,17 @@ class WorkflowEngine:
                     f"Request approval first."
                 )
 
+        # Gate readiness check: evaluate criteria and block on critical failures.
+        from apps.deals.services.gate_evaluator import evaluate_gate
+        evaluation = evaluate_gate(deal, target_stage)
+        if not evaluation.can_proceed:
+            failed = [c.name for c in evaluation.criteria
+                      if c.status == "red" and c.is_critical]
+            return False, (
+                f"Gate criteria not met for '{target_stage}': "
+                f"{', '.join(failed)}. {evaluation.summary}"
+            )
+
         return True, ""
 
     def evaluate_gate(self, deal, target_stage: str) -> dict:
@@ -137,6 +148,18 @@ class WorkflowEngine:
             description=f"Stage changed from {old_stage} to {target_stage}",
             metadata={'from': old_stage, 'to': target_stage, 'reason': reason},
         )
+
+        # Record stage velocity metrics (exit old stage, enter new stage)
+        try:
+            from apps.analytics.tasks import record_deal_velocity
+            record_deal_velocity.delay(str(deal.id), old_stage, "exit")
+            record_deal_velocity.delay(str(deal.id), target_stage, "enter")
+        except Exception:
+            logger.warning(
+                "Could not enqueue velocity recording for deal %s",
+                deal.id,
+                exc_info=True,
+            )
 
         # Trigger auto-generation of tasks for the new stage
         try:
