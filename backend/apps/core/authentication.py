@@ -17,9 +17,8 @@ Security notes
   the DJANGO_SERVICE_TOKEN environment variable.
 - The service account ("ai-orchestrator-service") is created automatically
   on first use; it has no password and is_staff=False.
-- This class never falls back to any other auth mechanism.  If the token
-  does not match it returns None, leaving other authenticators in the chain
-  to try.
+- JWT Bearer tokens (containing dots) are skipped so JWTAuthentication
+  can handle them.  Only dot-free static service tokens are validated here.
 """
 
 import logging
@@ -58,9 +57,12 @@ class ServiceTokenAuthentication(BaseAuthentication):
 
         provided_token = auth_header[len("Bearer "):]
 
+        # JWTs contain dots (header.payload.signature) — skip them so
+        # JWTAuthentication further down the chain can handle them.
+        if "." in provided_token:
+            return None
+
         if provided_token != service_token:
-            # Token present but wrong — raise so the request fails fast
-            # instead of falling through to JWT/session which would also fail.
             raise AuthenticationFailed(
                 "Service token is invalid.",
                 code="service_token_invalid",
