@@ -18,17 +18,21 @@ export interface RateCard {
 export interface PricingScenario {
   id: string;
   deal: string;
-  deal_name?: string;
+  cost_model?: string | null;
   name: string;
-  scenario_type: "cost_plus" | "fixed_price" | "time_material" | "idiq";
-  total_direct_cost: number;
-  total_indirect_cost: number;
-  total_fee: number;
+  strategy_type: "max_profit" | "value_based" | "competitive" | "aggressive" | "incumbent_match" | "budget_fit" | "floor";
+  strategy_type_display?: string;
   total_price: number;
-  margin_percentage: number;
-  status: "draft" | "under_review" | "approved" | "rejected";
-  is_approved: boolean;
+  profit: number;
+  margin_pct: number;
+  probability_of_win: number;
+  expected_value: number;
+  competitive_position: string;
+  sensitivity_data: Record<string, unknown>;
+  is_recommended: boolean;
+  rationale: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface LOEEstimate {

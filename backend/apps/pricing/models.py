@@ -129,7 +129,7 @@ class CostModel(BaseModel):
 class PricingScenario(BaseModel):
     """Pricing scenario with P(win) and expected value analysis."""
     deal = models.ForeignKey('deals.Deal', on_delete=models.CASCADE, related_name='pricing_scenarios')
-    cost_model = models.ForeignKey(CostModel, on_delete=models.CASCADE)
+    cost_model = models.ForeignKey(CostModel, on_delete=models.CASCADE, null=True, blank=True)
 
     name = models.CharField(max_length=200)  # Max Profit, Competitive, Aggressive, etc.
     strategy_type = models.CharField(max_length=50, choices=[
@@ -143,9 +143,9 @@ class PricingScenario(BaseModel):
     ])
 
     # Pricing
-    total_price = models.DecimalField(max_digits=15, decimal_places=2)
-    profit = models.DecimalField(max_digits=15, decimal_places=2)
-    margin_pct = models.FloatField()
+    total_price = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    profit = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    margin_pct = models.FloatField(default=0.0)
 
     # Analysis
     probability_of_win = models.FloatField(default=0.0)
