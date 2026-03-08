@@ -48,6 +48,17 @@ class SAMRegistrationViewSet(viewsets.ModelViewSet):
             }
             registration.save(update_fields=["validation_items"])
 
+    def create(self, request, *args, **kwargs):
+        """Override to return the full detail serializer in the response."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        # Re-serialize with the detail serializer so the response includes
+        # all computed fields (contacts, progress, days_until_expiration).
+        detail = SAMRegistrationDetailSerializer(serializer.instance).data
+        headers = self.get_success_headers(serializer.data)
+        return Response(detail, status=status.HTTP_201_CREATED, headers=headers)
+
     @action(detail=True, methods=["patch"])
     def update_steps(self, request, pk=None):
         """Update step completion status. Expects: {steps_completed: [bool,...]}"""
