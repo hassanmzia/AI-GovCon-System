@@ -272,10 +272,10 @@ export default function AuditLogPage() {
                   setFilterAction(e.target.value);
                   setPage(1);
                 }}
-                className="text-sm border rounded px-2 py-1.5 bg-white"
+                className="text-sm border rounded px-2 py-1.5 bg-background text-foreground"
               >
                 {actionTypes.map((t) => (
-                  <option key={t.value} value={t.value}>
+                  <option key={t.value} value={t.value} className="bg-background text-foreground">
                     {t.label}
                   </option>
                 ))}
@@ -291,7 +291,7 @@ export default function AuditLogPage() {
                     className={`px-3 py-1.5 capitalize ${
                       filterActor === v
                         ? "bg-blue-600 text-white"
-                        : "text-muted-foreground hover:bg-gray-50"
+                        : "text-muted-foreground hover:bg-accent"
                     }`}
                   >
                     {v}
