@@ -9,6 +9,8 @@ from .models import (
     ProposalTemplate,
     ReviewComment,
     ReviewCycle,
+    SourcesSoughtResponse,
+    SubmissionEmail,
 )
 from .serializers import (
     ProposalDetailSerializer,
@@ -19,6 +21,8 @@ from .serializers import (
     ReviewCommentSerializer,
     ReviewCycleDetailSerializer,
     ReviewCycleListSerializer,
+    SourcesSoughtResponseSerializer,
+    SubmissionEmailSerializer,
 )
 
 
@@ -159,3 +163,37 @@ class ReviewCommentViewSet(viewsets.ModelViewSet):
         return ReviewComment.objects.select_related(
             "review", "section", "reviewer"
         ).all()
+
+
+class SourcesSoughtResponseViewSet(viewsets.ModelViewSet):
+    """CRUD ViewSet for Sources Sought / RFI responses."""
+    serializer_class = SourcesSoughtResponseSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "deal": ["exact"],
+        "status": ["exact"],
+        "interest_level": ["exact"],
+    }
+    search_fields = ["title", "solicitation_number"]
+    ordering_fields = ["created_at", "submitted_at"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        return SourcesSoughtResponse.objects.select_related("deal", "opportunity").all()
+
+
+class SubmissionEmailViewSet(viewsets.ModelViewSet):
+    """CRUD ViewSet for submission email templates."""
+    serializer_class = SubmissionEmailSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = {
+        "proposal": ["exact"],
+        "sources_sought": ["exact"],
+        "email_type": ["exact"],
+        "is_sent": ["exact"],
+    }
+
+    def get_queryset(self):
+        return SubmissionEmail.objects.select_related("proposal", "sources_sought").all()

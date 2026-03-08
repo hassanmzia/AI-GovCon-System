@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from pgvector.django import VectorField
 
 from apps.core.models import BaseModel
 
@@ -56,3 +57,50 @@ class MarketingCampaign(BaseModel):
 
     def __str__(self):
         return f"{self.name} [{self.get_channel_display()}]"
+
+
+class CapabilityStatement(BaseModel):
+    """One-page capability statement per Bidvantage Capability Statement Guide."""
+    company_profile = models.ForeignKey(
+        'opportunities.CompanyProfile', on_delete=models.CASCADE,
+        related_name='capability_statements'
+    )
+    title = models.CharField(max_length=300, default='Capability Statement')
+    version = models.IntegerField(default=1)
+    is_primary = models.BooleanField(default=False)
+
+    # Core sections (per Bidvantage Guide)
+    company_overview = models.TextField(blank=True)  # Brief company description
+    core_competencies = models.JSONField(default=list, blank=True)  # List of competency strings
+    differentiators = models.JSONField(default=list, blank=True)  # What sets company apart
+    past_performance_highlights = models.JSONField(default=list, blank=True)  # [{project, agency, summary}]
+
+    # Company data section
+    duns_number = models.CharField(max_length=20, blank=True)
+    uei_number = models.CharField(max_length=20, blank=True)
+    cage_code = models.CharField(max_length=10, blank=True)
+    naics_codes = models.JSONField(default=list, blank=True)
+    psc_codes = models.JSONField(default=list, blank=True)
+    certifications = models.JSONField(default=list, blank=True)  # SBA certifications list
+    contract_vehicles = models.JSONField(default=list, blank=True)  # GSA, SEWP, etc.
+
+    # Contact info
+    contact_name = models.CharField(max_length=300, blank=True)
+    contact_title = models.CharField(max_length=200, blank=True)
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=50, blank=True)
+    website = models.URLField(blank=True)
+
+    # Target customization
+    target_agency = models.CharField(max_length=500, blank=True)
+    target_naics = models.CharField(max_length=10, blank=True)
+
+    # Embedding for similarity matching
+    content_embedding = VectorField(dimensions=1536, null=True)
+
+    class Meta:
+        ordering = ['-version']
+        verbose_name = 'Capability Statement'
+
+    def __str__(self):
+        return f"{self.title} v{self.version} - {self.company_profile.name}"

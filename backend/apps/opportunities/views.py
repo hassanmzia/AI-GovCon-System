@@ -8,15 +8,21 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
     CompanyProfile,
     DailyDigest,
+    NAICSCode,
     Opportunity,
     OpportunitySource,
+    SAMRegistration,
+    SBACertification,
 )
 from .serializers import (
     CompanyProfileSerializer,
     DailyDigestDetailSerializer,
     DailyDigestListSerializer,
+    NAICSCodeSerializer,
     OpportunityDetailSerializer,
     OpportunityListSerializer,
+    SAMRegistrationSerializer,
+    SBACertificationSerializer,
 )
 
 
@@ -191,3 +197,51 @@ class DailyDigestViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == "retrieve":
             return DailyDigestDetailSerializer
         return DailyDigestListSerializer
+
+
+class SAMRegistrationViewSet(viewsets.ModelViewSet):
+    """CRUD ViewSet for SAM.gov registration tracking."""
+    serializer_class = SAMRegistrationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = {
+        "registration_status": ["exact"],
+        "company_profile": ["exact"],
+    }
+    search_fields = ["legal_business_name", "tracking_number"]
+
+    def get_queryset(self):
+        return SAMRegistration.objects.select_related("company_profile").all()
+
+
+class NAICSCodeViewSet(viewsets.ModelViewSet):
+    """CRUD ViewSet for NAICS code reference data."""
+    serializer_class = NAICSCodeSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        "code": ["exact", "startswith"],
+        "sector": ["exact"],
+        "size_standard_type": ["exact"],
+    }
+    search_fields = ["code", "title", "description"]
+    ordering_fields = ["code", "title"]
+    ordering = ["code"]
+
+    def get_queryset(self):
+        return NAICSCode.objects.all()
+
+
+class SBACertificationViewSet(viewsets.ModelViewSet):
+    """CRUD ViewSet for SBA certification tracking."""
+    serializer_class = SBACertificationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = {
+        "company_profile": ["exact"],
+        "certification_type": ["exact"],
+        "status": ["exact"],
+    }
+
+    def get_queryset(self):
+        return SBACertification.objects.select_related("company_profile").all()

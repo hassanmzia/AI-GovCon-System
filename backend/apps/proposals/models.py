@@ -30,6 +30,31 @@ class Proposal(BaseModel):
         ('submitted', 'Submitted'),
     ], default='draft')
 
+    # Solicitation details (per Bidvantage Template)
+    solicitation_number = models.CharField(max_length=255, blank=True)
+    project_title = models.CharField(max_length=500, blank=True)
+    issuing_agency = models.CharField(max_length=500, blank=True)
+    submission_date = models.DateTimeField(null=True, blank=True)
+
+    # Evaluation method awareness (per The Vault Ch. V)
+    evaluation_method = models.CharField(max_length=30, choices=[
+        ('lpta', 'Lowest Price Technically Acceptable'),
+        ('best_value', 'Best Value Trade-Off'),
+        ('price_evaluation', 'Price Evaluation'),
+        ('not_specified', 'Not Specified'),
+    ], default='not_specified')
+
+    # Contract type (per The Vault Ch. VI)
+    contract_type = models.CharField(max_length=30, choices=[
+        ('ffp', 'Firm-Fixed-Price'),
+        ('t_and_m', 'Time & Materials'),
+        ('cpff', 'Cost-Plus-Fixed-Fee'),
+        ('cpaf', 'Cost-Plus-Award-Fee'),
+        ('idiq', 'Indefinite Delivery / Indefinite Quantity'),
+        ('bpa', 'Blanket Purchase Agreement'),
+        ('other', 'Other'),
+    ], blank=True)
+
     # Metadata
     win_themes = models.JSONField(default=list)
     discriminators = models.JSONField(default=list)
@@ -39,6 +64,15 @@ class Proposal(BaseModel):
     total_requirements = models.IntegerField(default=0)
     compliant_count = models.IntegerField(default=0)
     compliance_percentage = models.FloatField(default=0.0)
+
+    # Submission tracking
+    submission_method = models.CharField(max_length=30, choices=[
+        ('email', 'Email'), ('portal', 'Online Portal'), ('mail', 'Physical Mail'),
+    ], blank=True)
+    submission_email = models.EmailField(blank=True)
+    submission_portal_url = models.URLField(max_length=2000, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    confirmation_number = models.CharField(max_length=200, blank=True)
 
     class Meta:
         ordering = ['-version']
@@ -204,6 +238,69 @@ class SolutionValidationReport(BaseModel):
         return f"Validation: {self.overall_quality} (pass={self.passed})"
     def __str__(self):
         return f"{self.review_type} Team - {self.proposal}"
+
+
+class SourcesSoughtResponse(BaseModel):
+    """Sources Sought / RFI response as a first-class document."""
+    deal = models.ForeignKey('deals.Deal', on_delete=models.CASCADE, related_name='sources_sought_responses')
+    opportunity = models.ForeignKey(
+        'opportunities.Opportunity', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sources_sought_responses'
+    )
+    title = models.CharField(max_length=500)
+    solicitation_number = models.CharField(max_length=255, blank=True)
+
+    # Response content sections
+    company_overview = models.TextField(blank=True)
+    relevant_experience = models.TextField(blank=True)
+    technical_approach_summary = models.TextField(blank=True)
+    capability_gaps = models.TextField(blank=True)
+    questions_for_government = models.JSONField(default=list, blank=True)
+    interest_level = models.CharField(max_length=20, choices=[
+        ('strong', 'Strongly Interested'),
+        ('moderate', 'Moderately Interested'),
+        ('low', 'Low Interest'),
+        ('info_only', 'Information Only'),
+    ], default='moderate')
+
+    # Status
+    status = models.CharField(max_length=20, choices=[
+        ('draft', 'Draft'), ('review', 'In Review'),
+        ('submitted', 'Submitted'), ('no_response', 'No Response'),
+    ], default='draft')
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Sources Sought: {self.title}"
+
+
+class SubmissionEmail(BaseModel):
+    """Email template for proposal/RFQ submissions per Bidvantage templates."""
+    proposal = models.ForeignKey(Proposal, on_delete=models.CASCADE, related_name='submission_emails', null=True, blank=True)
+    sources_sought = models.ForeignKey(SourcesSoughtResponse, on_delete=models.CASCADE, related_name='submission_emails', null=True, blank=True)
+
+    email_type = models.CharField(max_length=30, choices=[
+        ('proposal', 'Proposal Submission'),
+        ('rfq', 'RFQ Response'),
+        ('sources_sought', 'Sources Sought Response'),
+        ('capability_statement', 'Capability Statement'),
+    ])
+    recipient_email = models.EmailField(blank=True)
+    recipient_name = models.CharField(max_length=300, blank=True)
+    subject_line = models.CharField(max_length=500)
+    body = models.TextField()
+    attachments_list = models.JSONField(default=list, blank=True)  # [{name, description}]
+    is_sent = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_email_type_display()}: {self.subject_line}"
 
 
 class ReviewComment(BaseModel):

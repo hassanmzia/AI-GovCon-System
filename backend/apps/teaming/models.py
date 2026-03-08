@@ -42,11 +42,25 @@ class TeamingPartnership(BaseModel):
     description = models.TextField(blank=True)
     responsibilities = models.JSONField(default=list, blank=True)
     revenue_share_percentage = models.FloatField(null=True, blank=True)
+    percentage_of_work = models.FloatField(null=True, blank=True)  # % of total work scope
     signed_agreement = models.BooleanField(default=False)
     agreement_date = models.DateField(null=True, blank=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     terms_and_conditions = models.TextField(blank=True)
+
+    # Partner capabilities (per The Vault Ch. VII)
+    partner_naics_codes = models.JSONField(default=list, blank=True)
+    partner_certifications = models.JSONField(default=list, blank=True)  # SBA certs
+    partner_clearance_level = models.CharField(max_length=50, blank=True)
+    partner_past_performance = models.JSONField(default=list, blank=True)  # [{project, agency, relevance}]
+    partner_key_personnel = models.JSONField(default=list, blank=True)  # [{name, role, qualifications}]
+
+    # Teaming agreement specifics (per The Vault Ch. VII)
+    disclosure_sections = models.JSONField(default=list, blank=True)  # NDA/disclosure items
+    exclusivity = models.BooleanField(default=False)
+    ip_ownership = models.CharField(max_length=200, blank=True)
+    dispute_resolution = models.TextField(blank=True)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

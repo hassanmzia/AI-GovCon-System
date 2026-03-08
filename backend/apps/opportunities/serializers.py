@@ -3,9 +3,12 @@ from rest_framework import serializers
 from .models import (
     CompanyProfile,
     DailyDigest,
+    NAICSCode,
     Opportunity,
     OpportunityScore,
     OpportunitySource,
+    SAMRegistration,
+    SBACertification,
 )
 
 
@@ -44,6 +47,13 @@ class OpportunityScoreSerializer(serializers.ModelSerializer):
             "set_aside_match",
             "competition_intensity",
             "risk_factors",
+            "purchase_category",
+            "small_business_set_aside",
+            "set_aside_eligible",
+            "has_relevant_past_performance",
+            "within_size_standard",
+            "entry_strategy",
+            "entry_strategy_rationale",
             "score_explanation",
             "ai_rationale",
             "scored_at",
@@ -88,6 +98,8 @@ class OpportunityListSerializer(serializers.ModelSerializer):
             return {
                 "total_score": score.total_score,
                 "recommendation": score.recommendation,
+                "purchase_category": score.purchase_category,
+                "entry_strategy": score.entry_strategy,
             }
         except OpportunityScore.DoesNotExist:
             return None
@@ -143,6 +155,9 @@ class OpportunityDetailSerializer(serializers.ModelSerializer):
 
 
 class CompanyProfileSerializer(serializers.ModelSerializer):
+    sam_registration = serializers.SerializerMethodField()
+    sba_certifications = serializers.SerializerMethodField()
+
     class Meta:
         model = CompanyProfile
         fields = [
@@ -164,10 +179,24 @@ class CompanyProfileSerializer(serializers.ModelSerializer):
             "target_value_min",
             "target_value_max",
             "is_primary",
+            "search_keywords",
+            "sam_registration",
+            "sba_certifications",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_sam_registration(self, obj):
+        try:
+            reg = obj.sam_registration
+            return SAMRegistrationSerializer(reg).data
+        except SAMRegistration.DoesNotExist:
+            return None
+
+    def get_sba_certifications(self, obj):
+        certs = obj.sba_certifications.all()
+        return SBACertificationSerializer(certs, many=True).data
 
 
 class DailyDigestListSerializer(serializers.ModelSerializer):
@@ -205,3 +234,93 @@ class DailyDigestDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+# ── SAM Registration ─────────────────────────────────────────────────────────
+
+class SAMRegistrationSerializer(serializers.ModelSerializer):
+    validation_checklist_score = serializers.FloatField(read_only=True)
+    is_expiring_soon = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = SAMRegistration
+        fields = [
+            "id",
+            "company_profile",
+            "legal_business_name",
+            "physical_address",
+            "mailing_address",
+            "taxpayer_id_type",
+            "taxpayer_id_last_four",
+            "entity_type",
+            "ownership_details",
+            "banking_verified",
+            "registration_status",
+            "registration_date",
+            "expiration_date",
+            "tracking_number",
+            "renewal_reminder_sent",
+            "name_matches_irs",
+            "address_matches_irs",
+            "ein_verified",
+            "bank_info_business_account",
+            "correct_entity_type",
+            "naics_codes_added",
+            "reps_certs_complete",
+            "pocs_added",
+            "all_sections_complete",
+            "admin_poc",
+            "gov_business_poc",
+            "validation_checklist_score",
+            "is_expiring_soon",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "validation_checklist_score", "is_expiring_soon"]
+
+
+# ── NAICS Code ────────────────────────────────────────────────────────────────
+
+class NAICSCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NAICSCode
+        fields = [
+            "id",
+            "code",
+            "title",
+            "description",
+            "size_standard",
+            "size_standard_type",
+            "sector",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+# ── SBA Certification ────────────────────────────────────────────────────────
+
+class SBACertificationSerializer(serializers.ModelSerializer):
+    certification_type_display = serializers.CharField(
+        source="get_certification_type_display", read_only=True
+    )
+    status_display = serializers.CharField(
+        source="get_status_display", read_only=True
+    )
+
+    class Meta:
+        model = SBACertification
+        fields = [
+            "id",
+            "company_profile",
+            "certification_type",
+            "certification_type_display",
+            "status",
+            "status_display",
+            "certification_date",
+            "expiration_date",
+            "certification_number",
+            "eligibility_notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

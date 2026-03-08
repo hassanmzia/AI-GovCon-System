@@ -1,7 +1,14 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import CompanyProfileViewSet, DailyDigestViewSet, OpportunityViewSet
+from .views import (
+    CompanyProfileViewSet,
+    DailyDigestViewSet,
+    NAICSCodeViewSet,
+    OpportunityViewSet,
+    SAMRegistrationViewSet,
+    SBACertificationViewSet,
+)
 
 # Secondary viewsets only — OpportunityViewSet is mounted manually below
 # so that its list/detail sit at /api/opportunities/ rather than the
@@ -9,6 +16,9 @@ from .views import CompanyProfileViewSet, DailyDigestViewSet, OpportunityViewSet
 router = DefaultRouter()
 router.register(r"company-profiles", CompanyProfileViewSet, basename="company-profile")
 router.register(r"digests", DailyDigestViewSet, basename="daily-digest")
+router.register(r"sam-registrations", SAMRegistrationViewSet, basename="sam-registration")
+router.register(r"naics-codes", NAICSCodeViewSet, basename="naics-code")
+router.register(r"sba-certifications", SBACertificationViewSet, basename="sba-certification")
 
 urlpatterns = [
     # /api/opportunities/             → list
