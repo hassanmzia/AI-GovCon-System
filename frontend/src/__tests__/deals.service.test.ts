@@ -250,14 +250,14 @@ describe("completeTask", () => {
     const completedTask = {
       id: "t-1",
       title: "Review proposal",
-      completed: true,
+      completed_at: "2026-03-08T00:00:00Z",
     };
     mockApi.post.mockResolvedValueOnce({ data: completedTask });
 
     const result = await completeTask("t-1");
 
     expect(mockApi.post).toHaveBeenCalledWith("/deals/tasks/t-1/complete/");
-    expect(result.completed).toBe(true);
+    expect(result.completed_at).toBeTruthy();
   });
 });
 

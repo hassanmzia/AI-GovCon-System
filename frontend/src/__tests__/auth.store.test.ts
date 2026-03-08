@@ -6,10 +6,17 @@ import { renderHook, act } from "@testing-library/react";
 
 // Mock the api module before importing the store
 jest.mock("@/lib/api", () => ({
+  __esModule: true,
   default: {
     get: jest.fn(),
     post: jest.fn(),
   },
+}));
+
+// Mock the socket module to avoid side effects
+jest.mock("@/lib/socket", () => ({
+  __esModule: true,
+  disconnectAll: jest.fn(),
 }));
 
 import api from "@/lib/api";
@@ -106,7 +113,7 @@ describe("useAuthStore – logout", () => {
     expect(localStorage.getItem("auth-tokens")).toBeNull();
 
     // Restore
-    window.location = originalLocation;
+    window.location = originalLocation as unknown as string & Location;
   });
 });
 
