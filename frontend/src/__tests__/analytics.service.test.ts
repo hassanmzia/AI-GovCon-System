@@ -124,7 +124,7 @@ describe("computeKpis", () => {
 
   it("counts open proposals (non-submitted)", () => {
     const proposals = [
-      makeProposal({ status: "in_progress" }),
+      makeProposal({ status: "draft" }),
       makeProposal({ id: "p2", status: "submitted" }),
       makeProposal({ id: "p3", status: "draft" }),
     ];
