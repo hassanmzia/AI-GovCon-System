@@ -271,20 +271,26 @@ class TestEmbedText:
         mock_resp = MagicMock()
         mock_resp.data = [MagicMock(embedding=mock_embedding)]
 
-        mock_client = MagicMock()
-        mock_client.embeddings.create = AsyncMock(return_value=mock_resp)
+        mock_client_instance = MagicMock()
+        mock_client_instance.embeddings.create = AsyncMock(return_value=mock_resp)
+
+        mock_openai_module = MagicMock()
+        mock_openai_module.AsyncOpenAI = MagicMock(return_value=mock_client_instance)
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-key"}), \
-             patch("openai.AsyncOpenAI", return_value=mock_client):
+             patch.dict("sys.modules", {"openai": mock_openai_module}):
             vec = await embed_text("test query")
             assert vec == mock_embedding
-            mock_client.embeddings.create.assert_awaited_once()
+            mock_client_instance.embeddings.create.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_openai_failure_falls_through(self):
         """If OpenAI fails, should try Voyage or fall back to zero vector."""
+        mock_openai_module = MagicMock()
+        mock_openai_module.AsyncOpenAI = MagicMock(side_effect=Exception("API error"))
+
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-bad"}, clear=True), \
-             patch("openai.AsyncOpenAI", side_effect=Exception("API error")):
+             patch.dict("sys.modules", {"openai": mock_openai_module}):
             os.environ.pop("VOYAGE_API_KEY", None)
             vec = await embed_text("test")
             assert len(vec) == _EMBEDDING_DIM
@@ -313,11 +319,14 @@ class TestEmbedBatch:
         mock_resp = MagicMock()
         mock_resp.data = [MagicMock(embedding=mock_embedding)] * 2
 
-        mock_client = MagicMock()
-        mock_client.embeddings.create = AsyncMock(return_value=mock_resp)
+        mock_client_instance = MagicMock()
+        mock_client_instance.embeddings.create = AsyncMock(return_value=mock_resp)
+
+        mock_openai_module = MagicMock()
+        mock_openai_module.AsyncOpenAI = MagicMock(return_value=mock_client_instance)
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}), \
-             patch("openai.AsyncOpenAI", return_value=mock_client):
+             patch.dict("sys.modules", {"openai": mock_openai_module}):
             vecs = await embed_batch(["text1", "text2"], batch_size=50)
             assert len(vecs) == 2
 
