@@ -116,6 +116,7 @@ class SAMRegistrationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SAMRegistration
         fields = [
+            "id",
             "legal_business_name",
             "uei_number",
             "cage_code",
@@ -131,7 +132,4 @@ class SAMRegistrationCreateSerializer(serializers.ModelSerializer):
             "validation_items",
             "notes",
         ]
-
-    def create(self, validated_data):
-        validated_data["owner"] = self.context["request"].user
-        return super().create(validated_data)
+        read_only_fields = ["id"]

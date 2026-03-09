@@ -276,13 +276,13 @@ export default function SamRegistrationPage() {
   const handleCreateRegistration = async () => {
     try {
       setSaving(true);
-      const newReg = await createSAMRegistration({
+      // The create endpoint returns full detail (with id, contacts, progress)
+      const detail = await createSAMRegistration({
         legal_business_name: "My Organization",
         status: "not_started",
       });
-      const detail = await getSAMRegistration(newReg.id);
-      setRegistration(detail);
-      syncDetailsForm(detail);
+      setRegistration(detail as SAMRegistration);
+      syncDetailsForm(detail as SAMRegistration);
       setEditingDetails(true);
     } catch {
       setError("Failed to create registration. Please try again.");
