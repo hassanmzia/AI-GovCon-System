@@ -7,10 +7,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("opportunities", "0008_opportunityscore_purchase_and_strategy_fields"),
+        ("opportunities", "0007_companyprofile_search_keywords"),
     ]
 
     operations = [
+        # --- NAICSCode ---
+        migrations.CreateModel(
+            name="NAICSCode",
+            fields=[
+                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("code", models.CharField(max_length=6, unique=True)),
+                ("title", models.CharField(max_length=300)),
+                ("description", models.TextField(blank=True)),
+                ("size_standard", models.CharField(blank=True, max_length=100)),
+                ("size_standard_type", models.CharField(blank=True, choices=[("revenue", "Revenue"), ("employees", "Employees")], max_length=20)),
+                ("sector", models.CharField(blank=True, max_length=2)),
+            ],
+            options={
+                "ordering": ["code"],
+                "verbose_name": "NAICS Code",
+            },
+        ),
+        # --- SAMRegistration ---
         migrations.CreateModel(
             name="SAMRegistration",
             fields=[
@@ -47,24 +67,7 @@ class Migration(migrations.Migration):
                 "verbose_name": "SAM Registration",
             },
         ),
-        migrations.CreateModel(
-            name="NAICSCode",
-            fields=[
-                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
-                ("code", models.CharField(max_length=6, unique=True)),
-                ("title", models.CharField(max_length=300)),
-                ("description", models.TextField(blank=True)),
-                ("size_standard", models.CharField(blank=True, max_length=100)),
-                ("size_standard_type", models.CharField(blank=True, choices=[("revenue", "Revenue"), ("employees", "Employees")], max_length=20)),
-                ("sector", models.CharField(blank=True, max_length=2)),
-            ],
-            options={
-                "ordering": ["code"],
-                "verbose_name": "NAICS Code",
-            },
-        ),
+        # --- SBACertification ---
         migrations.CreateModel(
             name="SBACertification",
             fields=[
@@ -84,5 +87,61 @@ class Migration(migrations.Migration):
                 "verbose_name": "SBA Certification",
                 "unique_together": {("company_profile", "certification_type")},
             },
+        ),
+        # --- OpportunityScore new fields ---
+        migrations.AddField(
+            model_name="opportunityscore",
+            name="entry_strategy",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("prime", "Bid as Prime"),
+                    ("sub", "Pursue as Subcontractor"),
+                    ("team", "Form Teaming Arrangement"),
+                    ("jv", "Form Joint Venture"),
+                    ("sources_sought", "Respond to Sources Sought"),
+                    ("no_bid", "No Bid"),
+                ],
+                max_length=20,
+            ),
+        ),
+        migrations.AddField(
+            model_name="opportunityscore",
+            name="entry_strategy_rationale",
+            field=models.TextField(blank=True),
+        ),
+        migrations.AddField(
+            model_name="opportunityscore",
+            name="has_relevant_past_performance",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name="opportunityscore",
+            name="purchase_category",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("micro", "Micro-Purchase (< $10K)"),
+                    ("simplified", "Simplified Acquisition ($10K-$250K)"),
+                    ("commercial", "Commercial Items (< $10M)"),
+                    ("full_open", "Full & Open Competition"),
+                ],
+                max_length=20,
+            ),
+        ),
+        migrations.AddField(
+            model_name="opportunityscore",
+            name="set_aside_eligible",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name="opportunityscore",
+            name="small_business_set_aside",
+            field=models.BooleanField(default=False),
+        ),
+        migrations.AddField(
+            model_name="opportunityscore",
+            name="within_size_standard",
+            field=models.BooleanField(default=False),
         ),
     ]
