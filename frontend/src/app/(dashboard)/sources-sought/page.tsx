@@ -618,7 +618,7 @@ export default function SourcesSoughtPage() {
       setLoading(true);
       setError("");
       const data = await getSourcesSought();
-      setResponses(data);
+      setResponses(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load responses";
       setError(msg);
