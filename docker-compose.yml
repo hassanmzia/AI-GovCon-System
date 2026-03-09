@@ -70,7 +70,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     command: >
-      sh -c "python manage.py makemigrations --noinput accounts core opportunities deals rfp past_performance proposals pricing contracts strategy marketing research legal teaming security_compliance knowledge_vault communications policies analytics workforce &&
+      sh -c "python manage.py makemigrations --noinput accounts core opportunities deals rfp past_performance proposals pricing contracts strategy marketing research legal teaming security_compliance knowledge_vault communications policies analytics workforce sam_registration &&
       python manage.py migrate --noinput &&
       python manage.py setup_admin &&
       python manage.py collectstatic --noinput &&
