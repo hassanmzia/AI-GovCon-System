@@ -10,8 +10,8 @@ from apps.contracts.models import (
 
 @admin.register(ContractTemplate)
 class ContractTemplateAdmin(admin.ModelAdmin):
-    list_display = ["name", "contract_type", "is_active", "created_at"]
-    list_filter = ["contract_type", "is_active"]
+    list_display = ["name", "template_type", "is_active", "created_at"]
+    list_filter = ["template_type", "is_active"]
     search_fields = ["name"]
 
 
@@ -20,12 +20,12 @@ class ContractClauseAdmin(admin.ModelAdmin):
     list_display = [
         "clause_number",
         "title",
-        "clause_type",
+        "source",
         "risk_level",
-        "is_negotiable",
+        "is_mandatory",
     ]
-    list_filter = ["clause_type", "risk_level", "is_negotiable"]
-    search_fields = ["clause_number", "title", "clause_text"]
+    list_filter = ["source", "risk_level", "is_mandatory"]
+    search_fields = ["clause_number", "title", "full_text"]
 
 
 @admin.register(Contract)
@@ -49,9 +49,9 @@ class ContractVersionAdmin(admin.ModelAdmin):
     list_display = [
         "contract",
         "version_number",
-        "created_by",
-        "description",
+        "changed_by",
+        "change_summary",
         "created_at",
     ]
     list_filter = ["contract"]
-    search_fields = ["contract__title", "description"]
+    search_fields = ["contract__title", "change_summary"]
