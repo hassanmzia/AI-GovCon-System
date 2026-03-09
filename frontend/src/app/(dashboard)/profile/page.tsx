@@ -265,9 +265,9 @@ export default function ProfilePage() {
       )}
 
       {/* Avatar Section */}
-      <div className="p-6 border rounded-lg">
+      <div className="p-4 sm:p-6 border rounded-lg">
         <h2 className="text-xl font-semibold mb-4">Profile Picture</h2>
-        <div className="flex items-center space-x-6">
+        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
           <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
             {avatarPreview ? (
               <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
@@ -326,7 +326,7 @@ export default function ProfilePage() {
 
       {/* Profile Information Section */}
       <div className="p-6 border rounded-lg">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
           <h2 className="text-xl font-semibold">Profile Information</h2>
           <button
             onClick={() => setEditing(!editing)}
@@ -338,7 +338,7 @@ export default function ProfilePage() {
 
         {editing ? (
           <form onSubmit={handleProfileUpdate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">First Name</label>
                 <input
@@ -451,7 +451,7 @@ export default function ProfilePage() {
         <div className="space-y-4">
           {/* Password Change */}
           <div className="pb-4 border-b">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div>
                 <h3 className="font-semibold">Password</h3>
                 <p className="text-sm text-gray-600">
@@ -520,7 +520,7 @@ export default function ProfilePage() {
 
           {/* MFA */}
           <div className="pb-4 border-b">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div>
                 <h3 className="font-semibold">Two-Factor Authentication</h3>
                 <p className="text-sm text-gray-600">

@@ -300,16 +300,16 @@ function ComplianceReportsTab({
         <thead>
           <tr className="border-b text-left">
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Deal</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">
+            <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
               Framework
             </th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Score</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
               Controls
             </th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Gaps</th>
-            <th className="pb-3 font-medium text-muted-foreground">Created</th>
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Gaps</th>
+            <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">Created</th>
           </tr>
         </thead>
         <tbody>
@@ -343,7 +343,7 @@ function ComplianceReportsTab({
                 <td className="py-3 pr-4 font-medium">
                   {truncate(dealName, 35)}
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">
+                <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">
                   {truncate(frameworkName, 30)}
                 </td>
                 <td className="py-3 pr-4">
@@ -352,17 +352,17 @@ function ComplianceReportsTab({
                 <td className="py-3 pr-4">
                   <ScoreBar score={score} />
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">
+                <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground">
                   {compliantControls} / {totalControls || "--"}
                 </td>
-                <td className="py-3 pr-4">
+                <td className="hidden md:table-cell py-3 pr-4">
                   {gaps > 0 ? (
                     <span className="text-red-600 font-medium">{gaps}</span>
                   ) : (
                     <span className="text-muted-foreground">{gaps}</span>
                   )}
                 </td>
-                <td className="py-3 text-muted-foreground">
+                <td className="hidden lg:table-cell py-3 text-muted-foreground">
                   {formatDate(report.created_at)}
                 </td>
               </tr>
@@ -490,16 +490,16 @@ function ControlMappingsTab({
             <th className="pb-3 pr-4 font-medium text-muted-foreground">
               Control ID
             </th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">
+            <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
               Title
             </th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
               Framework
             </th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">
               Status
             </th>
-            <th className="pb-3 font-medium text-muted-foreground">Deal</th>
+            <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">Deal</th>
           </tr>
         </thead>
         <tbody>
@@ -531,16 +531,16 @@ function ControlMappingsTab({
                 <td className="py-3 pr-4 font-mono font-medium text-sm">
                   {controlId}
                 </td>
-                <td className="py-3 pr-4 max-w-xs">
+                <td className="hidden sm:table-cell py-3 pr-4 max-w-xs">
                   {truncate(controlTitle, 50)}
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">
+                <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground">
                   {truncate(frameworkName, 30)}
                 </td>
                 <td className="py-3 pr-4">
                   <ImplStatusBadge status={status as ImplementationStatus} />
                 </td>
-                <td className="py-3 text-muted-foreground">
+                <td className="hidden lg:table-cell py-3 text-muted-foreground">
                   {truncate(dealName, 35)}
                 </td>
               </tr>
@@ -594,19 +594,19 @@ function RequirementsTab({
         <thead>
           <tr className="border-b text-left">
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Deal</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">
+            <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
               Requirement
             </th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
               Framework Ref
             </th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
               Priority
             </th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">
               Status
             </th>
-            <th className="pb-3 font-medium text-muted-foreground">
+            <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">
               Assigned To
             </th>
           </tr>
@@ -630,13 +630,13 @@ function RequirementsTab({
                 <td className="py-3 pr-4 font-medium">
                   {truncate(dealName, 30)}
                 </td>
-                <td className="py-3 pr-4 max-w-xs text-muted-foreground">
+                <td className="hidden sm:table-cell py-3 pr-4 max-w-xs text-muted-foreground">
                   {truncate(req.requirement_text, 80)}
                 </td>
-                <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">
+                <td className="hidden md:table-cell py-3 pr-4 font-mono text-xs text-muted-foreground">
                   {req.framework_reference || "--"}
                 </td>
-                <td className="py-3 pr-4">
+                <td className="hidden md:table-cell py-3 pr-4">
                   <PriorityBadge priority={req.priority ?? "medium"} />
                 </td>
                 <td className="py-3 pr-4">
@@ -646,7 +646,7 @@ function RequirementsTab({
                     {statusLabel}
                   </span>
                 </td>
-                <td className="py-3 text-muted-foreground">
+                <td className="hidden lg:table-cell py-3 text-muted-foreground">
                   {truncate(
                     typeof req.assigned_to === "string"
                       ? req.assigned_to

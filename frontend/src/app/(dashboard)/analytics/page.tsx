@@ -530,9 +530,9 @@ export default function AnalyticsPage() {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">Agency</th>
+                    <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Agency</th>
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Score</th>
-                    <th className="pb-3 font-medium text-muted-foreground">Posted</th>
+                    <th className="hidden md:table-cell pb-3 font-medium text-muted-foreground">Posted</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -543,7 +543,7 @@ export default function AnalyticsPage() {
                           ? opp.title.slice(0, 60) + "..."
                           : opp.title}
                       </td>
-                      <td className="py-3 pr-4 text-muted-foreground">
+                      <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">
                         {opp.agency || "--"}
                       </td>
                       <td className="py-3 pr-4">
@@ -555,7 +555,7 @@ export default function AnalyticsPage() {
                           <span className="text-muted-foreground">--</span>
                         )}
                       </td>
-                      <td className="py-3 text-muted-foreground">
+                      <td className="hidden md:table-cell py-3 text-muted-foreground">
                         {formatDate(opp.posted_date)}
                       </td>
                     </tr>

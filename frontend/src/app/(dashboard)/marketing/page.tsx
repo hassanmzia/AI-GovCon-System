@@ -171,8 +171,8 @@ export default function MarketingPage() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b">
-        <div className="flex gap-0">
+      <div className="border-b overflow-x-auto">
+        <div className="flex gap-0 min-w-max">
           {tabs.map((tab) => (
             <button
               key={tab.id}

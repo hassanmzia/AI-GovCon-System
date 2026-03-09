@@ -285,15 +285,15 @@ export default function GovernancePage() {
   );
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-blue-100 rounded-lg">
             <Shield className="h-6 w-6 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               AI Governance & Autonomy Control
             </h1>
             <p className="text-sm text-gray-500">
@@ -369,7 +369,7 @@ export default function GovernancePage() {
       {/* 2. Risk Assessment Panel */}
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -383,7 +383,7 @@ export default function GovernancePage() {
               onClick={handleRunRiskAssessment}
               disabled={riskLoading}
               size="sm"
-              className="bg-amber-600 hover:bg-amber-700 text-white"
+              className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white"
             >
               {riskLoading ? (
                 <>
@@ -499,7 +499,7 @@ export default function GovernancePage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <th className="hidden sm:table-cell text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Timestamp
                     </th>
                     <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -511,7 +511,7 @@ export default function GovernancePage() {
                     <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Decision
                     </th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <th className="hidden md:table-cell text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Reason
                     </th>
                   </tr>
@@ -522,7 +522,7 @@ export default function GovernancePage() {
                       key={entry.id ?? i}
                       className="border-b border-gray-100 hover:bg-gray-50"
                     >
-                      <td className="py-2 px-3 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="hidden sm:table-cell py-2 px-3 text-xs text-gray-500 whitespace-nowrap">
                         {formatTs(entry.timestamp)}
                       </td>
                       <td className="py-2 px-3 text-xs font-medium text-gray-700">
@@ -538,7 +538,7 @@ export default function GovernancePage() {
                           {entry.decision?.replace(/_/g, " ")}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">
+                      <td className="hidden md:table-cell py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">
                         {entry.reason}
                       </td>
                     </tr>
@@ -553,7 +553,7 @@ export default function GovernancePage() {
       {/* 5. AI Incidents */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Bug className="h-4 w-4 text-red-500" />
               AI Incidents

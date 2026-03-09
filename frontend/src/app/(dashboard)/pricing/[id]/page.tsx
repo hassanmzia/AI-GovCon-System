@@ -244,7 +244,7 @@ export default function PricingDetailPage() {
           </Button>
         </Link>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold">{scenario.name}</h1>
             {scenario.is_recommended && (
               <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-green-100 text-green-700">
@@ -392,24 +392,24 @@ export default function PricingDetailPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="grid grid-cols-4 gap-1 text-xs text-muted-foreground pb-1 border-b">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-xs text-muted-foreground pb-1 border-b">
                   <span>Category</span>
-                  <span className="text-right">Hours/Mo</span>
-                  <span className="text-right">Months</span>
+                  <span className="hidden sm:block text-right">Hours/Mo</span>
+                  <span className="hidden sm:block text-right">Months</span>
                   <span className="text-right">Total Cost</span>
                 </div>
                 {loeEstimates.map((e) => (
-                  <div key={e.id} className="grid grid-cols-4 gap-1 text-sm py-1 border-b last:border-0">
+                  <div key={e.id} className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-sm py-1 border-b last:border-0">
                     <span className="truncate">{e.labor_category}</span>
-                    <span className="text-right">{e.hours_per_month}</span>
-                    <span className="text-right">{e.months}</span>
+                    <span className="hidden sm:block text-right">{e.hours_per_month}</span>
+                    <span className="hidden sm:block text-right">{e.months}</span>
                     <span className="text-right font-medium">{formatCurrency(e.total_cost)}</span>
                   </div>
                 ))}
-                <div className="grid grid-cols-4 gap-1 text-sm pt-2 font-bold">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-sm pt-2 font-bold">
                   <span>Total</span>
-                  <span></span>
-                  <span></span>
+                  <span className="hidden sm:block"></span>
+                  <span className="hidden sm:block"></span>
                   <span className="text-right text-blue-700">
                     {formatCurrency(loeEstimates.reduce((s, e) => s + e.total_cost, 0))}
                   </span>

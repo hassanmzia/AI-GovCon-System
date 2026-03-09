@@ -397,7 +397,7 @@ export default function ExecutiveDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="rounded-lg border p-3 text-center">
                 <p className="text-xs text-muted-foreground">Active Deals</p>
                 <p className="text-2xl font-bold">{pipelineLoad.active_deal_count ?? pipelineLoad.total_active_deals ?? 0}</p>

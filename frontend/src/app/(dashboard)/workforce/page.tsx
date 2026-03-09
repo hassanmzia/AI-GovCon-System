@@ -188,7 +188,7 @@ export default function WorkforcePage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -242,7 +242,7 @@ export default function WorkforcePage() {
 
       {/* Tabs */}
       <div className="border-b">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -332,12 +332,12 @@ export default function WorkforcePage() {
                     <thead>
                       <tr className="border-b text-left">
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Name</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Department</th>
+                        <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Title</th>
+                        <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Department</th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Clearance</th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Labor Category</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Skills</th>
+                        <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">Labor Category</th>
+                        <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">Skills</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -349,8 +349,8 @@ export default function WorkforcePage() {
                               <span className="text-xs text-muted-foreground block">{emp.email}</span>
                             </div>
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground">{emp.title || "--"}</td>
-                          <td className="py-3 pr-4 text-muted-foreground">{emp.department || "--"}</td>
+                          <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">{emp.title || "--"}</td>
+                          <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground">{emp.department || "--"}</td>
                           <td className="py-3 pr-4">
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLEARANCE_COLORS[emp.clearance_type] || "bg-gray-100 text-gray-600"}`}>
                               {CLEARANCE_LABELS[emp.clearance_type] || emp.clearance_type}
@@ -366,8 +366,8 @@ export default function WorkforcePage() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground text-xs">{emp.labor_category || "--"}</td>
-                          <td className="py-3">
+                          <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground text-xs">{emp.labor_category || "--"}</td>
+                          <td className="hidden lg:table-cell py-3">
                             <div className="flex flex-wrap gap-1 max-w-[200px]">
                               {(emp.skills || []).slice(0, 3).map((skill) => (
                                 <span key={skill} className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
@@ -412,17 +412,17 @@ export default function WorkforcePage() {
                   <thead>
                     <tr className="border-b text-left">
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Employee</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Role</th>
+                      <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Role</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Allocation</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Start Date</th>
-                      <th className="pb-3 font-medium text-muted-foreground">End Date</th>
+                      <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Start Date</th>
+                      <th className="hidden md:table-cell pb-3 font-medium text-muted-foreground">End Date</th>
                     </tr>
                   </thead>
                   <tbody>
                     {assignments.map((a) => (
                       <tr key={a.id} className="border-b transition-colors hover:bg-muted/50">
                         <td className="py-3 pr-4 font-medium">{a.employee_name || a.employee}</td>
-                        <td className="py-3 pr-4 text-muted-foreground">{a.role || "--"}</td>
+                        <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">{a.role || "--"}</td>
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-2 rounded-full bg-muted overflow-hidden">
@@ -434,8 +434,8 @@ export default function WorkforcePage() {
                             <span className="text-xs text-muted-foreground">{a.allocation_percentage}%</span>
                           </div>
                         </td>
-                        <td className="py-3 pr-4 text-muted-foreground text-xs">{formatDate(a.start_date)}</td>
-                        <td className="py-3 text-muted-foreground text-xs">{formatDate(a.end_date)}</td>
+                        <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground text-xs">{formatDate(a.start_date)}</td>
+                        <td className="hidden md:table-cell py-3 text-muted-foreground text-xs">{formatDate(a.end_date)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -475,11 +475,11 @@ export default function WorkforcePage() {
                   <thead>
                     <tr className="border-b text-left">
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Department</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Clearance Req.</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Priority</th>
+                      <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Department</th>
+                      <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Clearance Req.</th>
+                      <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Priority</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
-                      <th className="pb-3 font-medium text-muted-foreground">Target Start</th>
+                      <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">Target Start</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -491,13 +491,13 @@ export default function WorkforcePage() {
                             <span className="text-xs text-muted-foreground block">{req.labor_category}</span>
                           </div>
                         </td>
-                        <td className="py-3 pr-4 text-muted-foreground">{req.department || "--"}</td>
-                        <td className="py-3 pr-4">
+                        <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">{req.department || "--"}</td>
+                        <td className="hidden md:table-cell py-3 pr-4">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLEARANCE_COLORS[req.clearance_required] || "bg-gray-100 text-gray-600"}`}>
                             {CLEARANCE_LABELS[req.clearance_required] || req.clearance_required}
                           </span>
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="hidden md:table-cell py-3 pr-4">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_COLORS[req.priority] || "bg-gray-100 text-gray-600"}`}>
                             {PRIORITY_LABELS[req.priority] || `P${req.priority}`}
                           </span>
@@ -507,7 +507,7 @@ export default function WorkforcePage() {
                             {req.status_display || req.status}
                           </span>
                         </td>
-                        <td className="py-3 text-muted-foreground text-xs">{formatDate(req.target_start_date)}</td>
+                        <td className="hidden lg:table-cell py-3 text-muted-foreground text-xs">{formatDate(req.target_start_date)}</td>
                       </tr>
                     ))}
                   </tbody>

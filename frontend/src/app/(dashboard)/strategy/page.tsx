@@ -194,7 +194,7 @@ function NewStrategyModal({ onClose, onCreated }: NewStrategyModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-lg rounded-lg border bg-background shadow-lg">
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 sm:px-6 py-4">
           <h2 className="text-lg font-semibold">New Strategy</h2>
           <button
             onClick={onClose}
@@ -203,7 +203,7 @@ function NewStrategyModal({ onClose, onCreated }: NewStrategyModalProps) {
             <X className="h-4 w-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
               Mission Statement <span className="text-red-500">*</span>
@@ -235,7 +235,7 @@ function NewStrategyModal({ onClose, onCreated }: NewStrategyModalProps) {
               onChange={(e) => setEffectiveDate(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Target Revenue ($)</label>
               <Input
@@ -270,11 +270,11 @@ function NewStrategyModal({ onClose, onCreated }: NewStrategyModalProps) {
             </div>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
               {submitting ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</>
               ) : (
@@ -338,8 +338,8 @@ export default function StrategyPage() {
             Active strategic plan driving bid decisions and portfolio management
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={fetchData} disabled={loading}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={fetchData} disabled={loading} className="flex-1 sm:flex-initial">
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -347,7 +347,7 @@ export default function StrategyPage() {
             )}
             Refresh
           </Button>
-          <Button onClick={() => setShowNewModal(true)}>
+          <Button onClick={() => setShowNewModal(true)} className="flex-1 sm:flex-initial">
             <Plus className="mr-2 h-4 w-4" />
             New Strategy
           </Button>
@@ -549,12 +549,12 @@ export default function StrategyPage() {
                     <thead>
                       <tr className="border-b text-left">
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Goal</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Category</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Metric</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground min-w-[200px]">
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">Category</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden lg:table-cell">Metric</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground min-w-[200px] hidden md:table-cell">
                           Progress
                         </th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Deadline</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">Deadline</th>
                         <th className="pb-3 font-medium text-muted-foreground">Status</th>
                       </tr>
                     </thead>
@@ -562,11 +562,11 @@ export default function StrategyPage() {
                       {goals.map((goal) => (
                         <tr key={goal.id} className="border-b">
                           <td className="py-3 pr-4 font-medium">{goal.name}</td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 hidden sm:table-cell">
                             <CategoryBadge category={goal.category} />
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground">{goal.metric}</td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 text-muted-foreground hidden lg:table-cell">{goal.metric}</td>
+                          <td className="py-3 pr-4 hidden md:table-cell">
                             <ProgressBar
                               value={goal.current_value}
                               max={goal.target_value}
@@ -579,7 +579,7 @@ export default function StrategyPage() {
                               }
                             />
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground">
+                          <td className="py-3 pr-4 text-muted-foreground hidden sm:table-cell">
                             {formatDate(goal.deadline)}
                           </td>
                           <td className="py-3">
@@ -610,7 +610,7 @@ export default function StrategyPage() {
                   ) : (
                     <div className="space-y-5">
                       {/* Stats row */}
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="rounded-lg bg-muted/40 p-3 text-center">
                           <p className="text-2xl font-bold">{snapshot.active_deals}</p>
                           <p className="text-xs text-muted-foreground">Active Deals</p>

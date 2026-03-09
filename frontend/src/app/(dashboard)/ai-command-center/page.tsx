@@ -319,9 +319,9 @@ export default function AICommandCenterPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* 1. Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-indigo-100 rounded-lg">
             <Brain className="h-6 w-6 text-indigo-600" />
@@ -336,7 +336,7 @@ export default function AICommandCenterPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh}>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handleRefresh}>
           <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
           Refresh All
         </Button>
@@ -626,7 +626,7 @@ export default function AICommandCenterPage() {
               No enforcement events recorded
             </p>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="flex flex-col items-center rounded-xl border border-green-200 bg-green-50 py-6 px-4">
                 <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
                 <p className="text-4xl font-bold text-green-700">
@@ -854,7 +854,7 @@ export default function AICommandCenterPage() {
           </div>
 
           {/* Summary row */}
-          <div className="grid grid-cols-3 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             {[
               {
                 year: "Year 1",

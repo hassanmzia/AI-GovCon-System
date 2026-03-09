@@ -353,7 +353,7 @@ export default function SettingsPage() {
             administrator to update key values.
           </p>
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-3 gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">SAM.gov API Key</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -381,7 +381,7 @@ export default function SettingsPage() {
                 Active
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-lg border p-3 opacity-60">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-3 opacity-60 gap-3">
               <div>
                 <p className="text-sm font-medium">USASpending.gov API</p>
                 <p className="text-xs text-muted-foreground mt-0.5">

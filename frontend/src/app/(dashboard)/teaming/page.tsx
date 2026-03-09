@@ -246,12 +246,12 @@ function PartnershipsTable({
         <thead>
           <tr className="border-b text-left">
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Partner</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Deal</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Role</th>
+            <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Deal</th>
+            <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">Role</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Work Share</th>
-            <th className="pb-3 font-medium text-muted-foreground">Agreement Date</th>
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Work Share</th>
+            <th className="hidden md:table-cell pb-3 font-medium text-muted-foreground">Agreement Date</th>
           </tr>
         </thead>
         <tbody>
@@ -268,10 +268,10 @@ function PartnershipsTable({
                   </div>
                 )}
               </td>
-              <td className="py-3 pr-4 text-muted-foreground">
+              <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">
                 {truncate(getDealName(p.deal) !== "--" ? getDealName(p.deal) : p.deal_name, 35)}
               </td>
-              <td className="py-3 pr-4 text-muted-foreground">
+              <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground">
                 {truncate(p.role || p.description, 30)}
               </td>
               <td className="py-3 pr-4">
@@ -280,10 +280,10 @@ function PartnershipsTable({
               <td className="py-3 pr-4">
                 <AgreementStatusBadge status={getAgreementStatus(p)} />
               </td>
-              <td className="py-3 pr-4">
+              <td className="hidden md:table-cell py-3 pr-4">
                 <WorkShareBar percentage={getWorkShare(p)} />
               </td>
-              <td className="py-3 text-muted-foreground">
+              <td className="hidden md:table-cell py-3 text-muted-foreground">
                 {formatDate(p.agreement_date)}
               </td>
             </tr>
@@ -435,13 +435,13 @@ function AddPartnerModal({ onClose, onCreated }: AddPartnerModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-lg border bg-background shadow-lg">
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 sm:px-6 py-4">
           <h2 className="text-lg font-semibold">Add Teaming Partner</h2>
           <button onClick={onClose} className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Partner Company <span className="text-red-500">*</span></label>
             <Input value={partnerCompany} onChange={(e) => setPartnerCompany(e.target.value)} placeholder="e.g. Acme Defense Solutions" autoFocus />
@@ -515,8 +515,8 @@ export default function TeamingPage() {
             Manage teaming partners and track agreement status
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={fetchPartnerships} disabled={loading}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={fetchPartnerships} disabled={loading} className="w-full sm:w-auto">
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -524,7 +524,7 @@ export default function TeamingPage() {
             )}
             Refresh
           </Button>
-          <Button onClick={() => setShowAddModal(true)}>
+          <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Partner
           </Button>

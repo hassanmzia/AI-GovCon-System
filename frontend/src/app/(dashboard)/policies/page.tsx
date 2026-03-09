@@ -243,7 +243,7 @@ export default function PoliciesPage() {
 
       {/* Tabs */}
       <div className="border-b">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -354,19 +354,19 @@ export default function PoliciesPage() {
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${POLICY_TYPE_COLORS[policy.policy_type] || "bg-gray-100 text-gray-600"}`}>
                               {POLICY_TYPE_LABELS[policy.policy_type] || policy.policy_type}
                             </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="hidden sm:inline text-xs text-muted-foreground">
                               {SCOPE_LABELS[policy.scope] || policy.scope}
                             </span>
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${policy.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                               {policy.is_active ? "Active" : "Inactive"}
                             </span>
-                            <span className="text-xs text-muted-foreground">P{policy.priority}</span>
+                            <span className="hidden sm:inline text-xs text-muted-foreground">P{policy.priority}</span>
                           </div>
                         </button>
 
                         {isExpanded && (
                           <div className="border-t px-4 pb-4 pt-3 space-y-3">
-                            <div className="grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
                               <div>
                                 <span className="font-medium text-foreground">Effective:</span>{" "}
                                 <span className="text-muted-foreground">{formatDate(policy.effective_date)}</span>
@@ -456,8 +456,8 @@ export default function PoliciesPage() {
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Policy</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Deal</th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">Outcome</th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">Rules Triggered</th>
-                      <th className="pb-3 font-medium text-muted-foreground">Evaluated</th>
+                      <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Rules Triggered</th>
+                      <th className="hidden md:table-cell pb-3 font-medium text-muted-foreground">Evaluated</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -476,14 +476,14 @@ export default function PoliciesPage() {
                               {ev.outcome.charAt(0).toUpperCase() + ev.outcome.slice(1)}
                             </span>
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="hidden sm:table-cell py-3 pr-4">
                             {failedRules > 0 ? (
                               <span className="text-xs text-red-600 font-medium">{failedRules} failed</span>
                             ) : (
                               <span className="text-xs text-green-600">All passed</span>
                             )}
                           </td>
-                          <td className="py-3 text-xs text-muted-foreground">
+                          <td className="hidden md:table-cell py-3 text-xs text-muted-foreground">
                             {formatDateTime(ev.evaluated_at)}
                           </td>
                         </tr>
@@ -536,7 +536,7 @@ export default function PoliciesPage() {
 
                     <p className="text-xs text-muted-foreground">{exc.reason}</p>
 
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-muted-foreground">
                       <span>Requested by: {exc.requested_by_username || "--"}</span>
                       <span>Created: {formatDate(exc.created_at)}</span>
                       {exc.expires_at && <span>Expires: {formatDate(exc.expires_at)}</span>}

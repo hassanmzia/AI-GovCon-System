@@ -258,21 +258,21 @@ export default function ProposalSubmitPage() {
       {/* Readiness Score */}
       <Card className={readyToSubmit ? "border-green-300 bg-green-50" : "border-yellow-300 bg-yellow-50"}>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
             <div className="text-center">
               <div className={`text-5xl font-bold ${readyToSubmit ? "text-green-600" : "text-yellow-600"}`}>
                 {readinessPct}%
               </div>
               <div className="text-sm text-muted-foreground mt-1">Ready</div>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               <div className="h-3 bg-white rounded-full overflow-hidden mb-2">
                 <div
                   className={`h-full rounded-full ${readyToSubmit ? "bg-green-500" : "bg-yellow-500"}`}
                   style={{ width: `${readinessPct}%` }}
                 />
               </div>
-              <div className="flex gap-4 text-sm">
+              <div className="flex flex-wrap gap-4 text-sm">
                 <span className="flex items-center gap-1 text-green-700">
                   <CheckCircle className="h-4 w-4" /> {passed} passed
                 </span>

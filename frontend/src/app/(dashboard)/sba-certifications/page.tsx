@@ -319,7 +319,7 @@ function AddNAICSModal({
             </button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 p-4 sm:p-6">
           <div>
             <label className="text-xs font-medium text-muted-foreground">NAICS Code *</label>
             <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. 541512" />
@@ -574,12 +574,12 @@ export default function SBACertificationsPage() {
 
       {/* NAICS Code Manager Section */}
       <div>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-xl font-semibold">NAICS Code Manager</h2>
           </div>
-          <Button size="sm" onClick={() => setShowAddNaics(true)}>
+          <Button size="sm" className="w-full sm:w-auto" onClick={() => setShowAddNaics(true)}>
             <Plus className="mr-1 h-4 w-4" />
             Add NAICS Code
           </Button>
@@ -620,9 +620,9 @@ export default function SBACertificationsPage() {
                       <tr className="border-b border-border text-left">
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">NAICS Code</th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Size Standard</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Primary</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Small</th>
+                        <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Size Standard</th>
+                        <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Primary</th>
+                        <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">Small</th>
                         <th className="pb-3 font-medium text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
@@ -640,10 +640,10 @@ export default function SBACertificationsPage() {
                             </span>
                           </td>
                           <td className="py-3 pr-4 font-medium">{naics.title}</td>
-                          <td className="py-3 pr-4">
+                          <td className="hidden md:table-cell py-3 pr-4">
                             <span className="font-medium">{naics.size_standard || "--"}</span>
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="hidden sm:table-cell py-3 pr-4">
                             {naics.is_primary ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                                 <Star className="h-3 w-3" />
@@ -658,7 +658,7 @@ export default function SBACertificationsPage() {
                               </button>
                             )}
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="hidden lg:table-cell py-3 pr-4">
                             {naics.qualifies_small ? (
                               <CheckCircle className="h-4 w-4 text-green-600" />
                             ) : (
@@ -686,7 +686,7 @@ export default function SBACertificationsPage() {
                   </table>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-sm text-muted-foreground">
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-t border-border pt-4 text-sm text-muted-foreground">
                   <p>
                     Showing {filteredNaics.length} of {naicsCodes.length} codes
                   </p>

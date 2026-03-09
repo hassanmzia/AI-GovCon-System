@@ -199,21 +199,21 @@ function CapturePlanDisplay({ plan }: { plan: CapturePlan }) {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground pb-2 border-b">
-                <span className="col-span-2">Action</span>
-                <span>Owner</span>
-                <span>Due</span>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs text-muted-foreground pb-2 border-b">
+                <span className="sm:col-span-2">Action</span>
+                <span className="hidden sm:block">Owner</span>
+                <span className="hidden sm:block">Due</span>
               </div>
               {plan.action_items.map((a, i) => (
-                <div key={i} className="grid grid-cols-4 gap-2 text-sm py-2 border-b last:border-0 items-center">
-                  <div className="col-span-2 flex items-start gap-2">
+                <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-sm py-2 border-b last:border-0 items-center">
+                  <div className="sm:col-span-2 flex items-start gap-2">
                     <span className={`px-1.5 py-0.5 rounded text-xs flex-shrink-0 ${ACTION_STATUS_COLORS[a.status] || "bg-gray-100 text-gray-600"}`}>
                       {a.status}
                     </span>
                     <span className="text-sm">{a.action}</span>
                   </div>
-                  <span className="text-muted-foreground">{a.owner || "--"}</span>
-                  <span className="text-muted-foreground">{formatDate(a.due_date)}</span>
+                  <span className="hidden sm:block text-muted-foreground">{a.owner || "--"}</span>
+                  <span className="hidden sm:block text-muted-foreground">{formatDate(a.due_date)}</span>
                 </div>
               ))}
             </div>

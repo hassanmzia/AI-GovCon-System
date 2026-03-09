@@ -174,7 +174,7 @@ function ComplianceMatrixPanel({
         </CardHeader>
         {!loading && !error && totalItems > 0 && (
           <CardContent className="pt-0">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="rounded-lg border bg-muted/30 p-3 text-center">
                 <p className="text-2xl font-bold tabular-nums">{totalItems}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -237,16 +237,16 @@ function ComplianceMatrixPanel({
                     <th className="pb-3 pr-3 font-medium text-muted-foreground">
                       Requirement
                     </th>
-                    <th className="pb-3 pr-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <th className="hidden sm:table-cell pb-3 pr-3 font-medium text-muted-foreground whitespace-nowrap">
                       Type
                     </th>
                     <th className="pb-3 pr-3 font-medium text-muted-foreground whitespace-nowrap">
                       Compliance
                     </th>
-                    <th className="pb-3 pr-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <th className="hidden md:table-cell pb-3 pr-3 font-medium text-muted-foreground whitespace-nowrap">
                       Owner
                     </th>
-                    <th className="pb-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <th className="hidden md:table-cell pb-3 font-medium text-muted-foreground whitespace-nowrap">
                       Response
                     </th>
                   </tr>
@@ -268,7 +268,7 @@ function ComplianceMatrixPanel({
                           {truncate(item.requirement_text || "", 80)}
                         </span>
                       </td>
-                      <td className="py-3 pr-3 whitespace-nowrap">
+                      <td className="hidden sm:table-cell py-3 pr-3 whitespace-nowrap">
                         {item.requirement_type ? (
                           <span className="text-xs capitalize text-muted-foreground">
                             {item.requirement_type}
@@ -284,7 +284,7 @@ function ComplianceMatrixPanel({
                           status={item.compliance_status}
                         />
                       </td>
-                      <td className="py-3 pr-3 whitespace-nowrap">
+                      <td className="hidden md:table-cell py-3 pr-3 whitespace-nowrap">
                         {item.response_owner_name ? (
                           <span className="text-xs">{item.response_owner_name}</span>
                         ) : (
@@ -293,7 +293,7 @@ function ComplianceMatrixPanel({
                           </span>
                         )}
                       </td>
-                      <td className="py-3 whitespace-nowrap">
+                      <td className="hidden md:table-cell py-3 whitespace-nowrap">
                         <span className="text-xs text-muted-foreground">
                           {RESPONSE_STATUS_LABELS[item.response_status] ||
                             item.response_status}
@@ -626,22 +626,22 @@ export default function RFPPage() {
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">
                         Title
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                         Deal
                       </th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">
                         Type
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                         Amendment
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                         Status
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                         Parsing
                       </th>
-                      <th className="pb-3 font-medium text-muted-foreground">
+                      <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">
                         Uploaded
                       </th>
                     </tr>
@@ -663,7 +663,7 @@ export default function RFPPage() {
                           <td className="py-3 pr-4 font-medium">
                             {truncate(doc.title, 45)}
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="hidden sm:table-cell py-3 pr-4">
                             {doc.deal_name ? (
                               <span className="text-primary hover:underline cursor-pointer">
                                 {truncate(doc.deal_name, 30)}
@@ -680,18 +680,18 @@ export default function RFPPage() {
                                 doc.document_type}
                             </span>
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground">
+                          <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground">
                             {doc.amendment_number != null
                               ? `#${doc.amendment_number}`
                               : "--"}
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground text-xs capitalize">
+                          <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground text-xs capitalize">
                             {doc.status || "active"}
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="hidden lg:table-cell py-3 pr-4">
                             <ParsingStatusBadge status={parsingStatus} />
                           </td>
-                          <td className="py-3 text-muted-foreground">
+                          <td className="hidden lg:table-cell py-3 text-muted-foreground">
                             {formatDate(doc.uploaded_at || doc.created_at)}
                           </td>
                         </tr>

@@ -514,7 +514,7 @@ export default function CompliancePage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -531,7 +531,7 @@ export default function CompliancePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border bg-gray-50 p-1">
+      <div className="flex flex-col sm:flex-row gap-1 rounded-lg border bg-gray-50 p-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -539,7 +539,7 @@ export default function CompliancePage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors w-full sm:w-auto ${
                 isActive
                   ? "bg-white text-blue-700 shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
@@ -558,7 +558,7 @@ export default function CompliancePage() {
       {activeTab === "matrix" && (
         <div className="space-y-6">
           {/* Top stats row */}
-          <div className="grid gap-6 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
             {/* Circular progress */}
             <Card className="lg:col-span-2">
               <CardContent className="flex flex-col items-center justify-center gap-4 py-8">
@@ -618,7 +618,7 @@ export default function CompliancePage() {
                 <div className="relative">
                   <Button
                     variant="outline"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 w-full sm:w-auto"
                     onClick={() => setProposalDropdownOpen(!proposalDropdownOpen)}
                   >
                     <Filter className="h-4 w-4" />
@@ -668,9 +668,9 @@ export default function CompliancePage() {
                       <th className="px-4 py-3">Req ID</th>
                       <th className="px-4 py-3">Description</th>
                       <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Severity</th>
-                      <th className="px-4 py-3">Section Ref</th>
-                      <th className="px-4 py-3">Recommendation</th>
+                      <th className="hidden sm:table-cell px-4 py-3">Severity</th>
+                      <th className="hidden md:table-cell px-4 py-3">Section Ref</th>
+                      <th className="hidden lg:table-cell px-4 py-3">Recommendation</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -698,13 +698,13 @@ export default function CompliancePage() {
                         <td className="whitespace-nowrap px-4 py-3">
                           <StatusBadge status={req.status} />
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3">
+                        <td className="hidden sm:table-cell whitespace-nowrap px-4 py-3">
                           <SeverityBadge severity={req.severity} />
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                        <td className="hidden md:table-cell whitespace-nowrap px-4 py-3 text-gray-600">
                           {req.sectionRef}
                         </td>
-                        <td className="max-w-xs px-4 py-3 text-gray-600">
+                        <td className="hidden lg:table-cell max-w-xs px-4 py-3 text-gray-600">
                           {req.recommendation}
                         </td>
                       </tr>

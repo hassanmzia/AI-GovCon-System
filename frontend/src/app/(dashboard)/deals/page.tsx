@@ -247,7 +247,7 @@ function PipelineColumn({ stage, deals, onCardClick }: PipelineColumnProps) {
   }, 0);
 
   return (
-    <div className="flex flex-col w-64 flex-shrink-0">
+    <div className="flex flex-col w-[72vw] min-w-[240px] sm:w-64 flex-shrink-0">
       {/* Column header */}
       <div className={`${STAGE_COLORS[stage]} rounded-t-lg px-3 py-2`}>
         <div className="flex items-center justify-between">
@@ -673,11 +673,11 @@ function ClosedDealsTable({ deals, onCardClick }: ClosedDealsTableProps) {
           <tr className="border-b text-left">
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Stage</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Owner</th>
+            <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">Owner</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Value</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Win %</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Priority</th>
-            <th className="pb-3 font-medium text-muted-foreground">Updated</th>
+            <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">Win %</th>
+            <th className="pb-3 pr-4 font-medium text-muted-foreground hidden md:table-cell">Priority</th>
+            <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Updated</th>
           </tr>
         </thead>
         <tbody>
@@ -697,23 +697,23 @@ function ClosedDealsTable({ deals, onCardClick }: ClosedDealsTableProps) {
                   {deal.stage_display || STAGE_LABELS[deal.stage]}
                 </span>
               </td>
-              <td className="py-3 pr-4 text-muted-foreground">
+              <td className="py-3 pr-4 text-muted-foreground hidden sm:table-cell">
                 {deal.owner_name || "--"}
               </td>
               <td className="py-3 pr-4 font-medium">
                 {formatCurrency(deal.estimated_value)}
               </td>
-              <td className="py-3 pr-4 text-muted-foreground">
+              <td className="py-3 pr-4 text-muted-foreground hidden sm:table-cell">
                 {deal.win_probability}%
               </td>
-              <td className="py-3 pr-4">
+              <td className="py-3 pr-4 hidden md:table-cell">
                 <span
                   className={`text-xs font-medium px-1.5 py-0.5 rounded ${PRIORITY_COLORS[deal.priority]}`}
                 >
                   {deal.priority_display}
                 </span>
               </td>
-              <td className="py-3 text-muted-foreground">
+              <td className="py-3 text-muted-foreground hidden md:table-cell">
                 {formatDate(deal.updated_at)}
               </td>
             </tr>

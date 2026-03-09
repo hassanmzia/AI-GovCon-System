@@ -674,12 +674,12 @@ export default function PastPerformancePage() {
             Manage and search your contract history for proposals
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={load}>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={load} className="w-full sm:w-auto">
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={() => setShowForm(true)} disabled={showForm}>
+          <Button onClick={() => setShowForm(true)} disabled={showForm} className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Record
           </Button>
@@ -723,7 +723,7 @@ export default function PastPerformancePage() {
       <Card>
         <CardContent className="pt-5">
           <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search records..."

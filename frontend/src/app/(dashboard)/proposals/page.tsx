@@ -499,7 +499,7 @@ export default function ProposalsPage() {
 
       {/* Main content: table + optional detail panel */}
       <div
-        className={`grid gap-6 ${selectedProposal ? "lg:grid-cols-[1fr_400px]" : "grid-cols-1"}`}
+        className={`grid gap-6 ${selectedProposal ? "grid-cols-1 lg:grid-cols-[1fr_400px]" : "grid-cols-1"}`}
       >
         {/* Proposals Table */}
         <Card>
@@ -548,22 +548,22 @@ export default function ProposalsPage() {
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">
                         Title
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">
                         Deal
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground hidden lg:table-cell">
                         Version
                       </th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">
                         Status
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground hidden md:table-cell">
                         Compliance
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground hidden lg:table-cell">
                         Win Themes
                       </th>
-                      <th className="pb-3 font-medium text-muted-foreground">
+                      <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">
                         Last Updated
                       </th>
                     </tr>
@@ -591,7 +591,7 @@ export default function ProposalsPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 hidden sm:table-cell">
                             {proposal.deal_name ? (
                               <span className="text-primary hover:underline cursor-pointer">
                                 {truncate(proposal.deal_name, 30)}
@@ -604,21 +604,21 @@ export default function ProposalsPage() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground">
+                          <td className="py-3 pr-4 text-muted-foreground hidden lg:table-cell">
                             v{proposal.version}
                           </td>
                           <td className="py-3 pr-4">
                             <StatusBadge status={proposal.status} />
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 hidden md:table-cell">
                             <ComplianceMeter
                               percentage={proposal.compliance_percentage}
                             />
                           </td>
-                          <td className="py-3 pr-4 text-muted-foreground">
+                          <td className="py-3 pr-4 text-muted-foreground hidden lg:table-cell">
                             {proposal.win_themes?.length ?? 0}
                           </td>
-                          <td className="py-3 text-muted-foreground">
+                          <td className="py-3 text-muted-foreground hidden md:table-cell">
                             {formatDate(proposal.updated_at)}
                           </td>
                         </tr>

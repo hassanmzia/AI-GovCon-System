@@ -293,11 +293,11 @@ export default function AdminUsersPage() {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Name</th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">Email</th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">Username</th>
+                    <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Email</th>
+                    <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">Username</th>
                     <th className="pb-3 pr-4 font-medium text-muted-foreground">Role</th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">MFA</th>
+                    <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Status</th>
+                    <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">MFA</th>
                     <th className="pb-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -305,19 +305,19 @@ export default function AdminUsersPage() {
                   {filteredUsers.map((u) => (
                     <tr key={u.id} className="border-b hover:bg-muted/50">
                       <td className="py-3 pr-4 font-medium">{u.first_name} {u.last_name}</td>
-                      <td className="py-3 pr-4 text-muted-foreground">{u.email}</td>
-                      <td className="py-3 pr-4 text-muted-foreground">{u.username}</td>
+                      <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground">{u.email}</td>
+                      <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground">{u.username}</td>
                       <td className="py-3 pr-4">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getRoleColor(u.role)}`}>
                           {ROLES.find((r) => r.value === u.role)?.label || u.role}
                         </span>
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="hidden sm:table-cell py-3 pr-4">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${u.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                           {u.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-muted-foreground">
+                      <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground">
                         {u.is_mfa_enabled ? "✓ Enabled" : "Disabled"}
                       </td>
                       <td className="py-3 flex gap-2">
@@ -350,7 +350,7 @@ export default function AdminUsersPage() {
 
       {/* Create / Edit User Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>{formMode === "edit" ? "Edit User" : "Add New User"}</CardTitle>

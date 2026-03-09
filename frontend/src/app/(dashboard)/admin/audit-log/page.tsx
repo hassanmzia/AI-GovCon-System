@@ -193,7 +193,7 @@ export default function AuditLogPage() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Activity className="h-6 w-6" /> Audit Log
@@ -218,7 +218,7 @@ export default function AuditLogPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4 flex items-center gap-3">
             <Activity className="h-8 w-8 text-muted-foreground" />
@@ -251,8 +251,8 @@ export default function AuditLogPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-48">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+            <div className="relative w-full sm:flex-1 sm:min-w-48">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search activities..."
@@ -264,7 +264,7 @@ export default function AuditLogPage() {
                 className="pl-9"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <select
                 value={filterAction}
@@ -338,7 +338,7 @@ export default function AuditLogPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4 pt-4 border-t">
               <span className="text-sm text-muted-foreground">
                 Page {page} of {totalPages} ({total.toLocaleString()} total)
               </span>

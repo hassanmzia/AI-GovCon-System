@@ -170,7 +170,7 @@ function DeliverablesTimeline({ contract }: { contract: Contract }) {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="text-center">
           <p className="text-xs text-muted-foreground">Total Duration</p>
           <p className="font-semibold">{totalDays} days</p>
@@ -419,20 +419,20 @@ export default function ContractDetailPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground pb-2 border-b">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground pb-2 border-b">
                 <span>Version</span>
                 <span>Change Type</span>
-                <span>Effective Date</span>
-                <span>Description</span>
+                <span className="hidden sm:block">Effective Date</span>
+                <span className="hidden sm:block">Description</span>
               </div>
               {versions.map((v) => (
-                <div key={v.id} className="grid grid-cols-4 gap-2 text-sm py-2 border-b last:border-0">
+                <div key={v.id} className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm py-2 border-b last:border-0">
                   <span className="font-mono font-medium">v{v.version_number}</span>
                   <span className="text-muted-foreground">
                     {CHANGE_TYPE_LABELS[v.change_type] || v.change_type}
                   </span>
-                  <span>{formatDate(v.effective_date)}</span>
-                  <span className="text-muted-foreground truncate">{v.description || "--"}</span>
+                  <span className="hidden sm:block">{formatDate(v.effective_date)}</span>
+                  <span className="hidden sm:block text-muted-foreground truncate">{v.description || "--"}</span>
                 </div>
               ))}
             </div>

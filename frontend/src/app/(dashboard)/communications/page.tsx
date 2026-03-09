@@ -151,13 +151,13 @@ function NewThreadModal({ onClose, onCreated }: NewThreadModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-lg border bg-background shadow-lg">
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 sm:px-6 py-4">
           <h2 className="text-lg font-semibold">New Thread</h2>
           <button onClick={onClose} className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Subject <span className="text-red-500">*</span></label>
             <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Technical Questions – RFP Section L" autoFocus />
@@ -587,19 +587,19 @@ export default function CommunicationsPage() {
                           <th className="pb-3 pr-4 font-medium text-muted-foreground">
                             Question
                           </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                          <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                             Section
                           </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                          <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                             Source
                           </th>
                           <th className="pb-3 pr-4 font-medium text-muted-foreground">
                             Status
                           </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                          <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                             Submitted
                           </th>
-                          <th className="pb-3 font-medium text-muted-foreground">
+                          <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">
                             Due Date
                           </th>
                         </tr>
@@ -618,10 +618,10 @@ export default function CommunicationsPage() {
                             <td className="py-3 pr-4 font-medium max-w-[280px]">
                               {truncate(q.question_text, 80)}
                             </td>
-                            <td className="py-3 pr-4 text-muted-foreground text-xs">
+                            <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground text-xs">
                               {q.rfp_section || "--"}
                             </td>
-                            <td className="py-3 pr-4">
+                            <td className="hidden md:table-cell py-3 pr-4">
                               <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">
                                 {QUESTION_SOURCE_LABELS[q.source] || q.source}
                               </span>
@@ -637,10 +637,10 @@ export default function CommunicationsPage() {
                                   q.status.slice(1)}
                               </span>
                             </td>
-                            <td className="py-3 pr-4 text-muted-foreground text-xs">
+                            <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground text-xs">
                               {formatFullDate(q.submitted_at)}
                             </td>
-                            <td className="py-3 text-muted-foreground text-xs">
+                            <td className="hidden lg:table-cell py-3 text-muted-foreground text-xs">
                               {formatFullDate(q.due_date)}
                             </td>
                           </tr>

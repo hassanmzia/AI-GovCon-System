@@ -115,13 +115,13 @@ function NewScenarioModal({ onClose, onCreated }: NewScenarioModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-lg border bg-background shadow-lg">
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 sm:px-6 py-4">
           <h2 className="text-lg font-semibold">New Pricing Scenario</h2>
           <button onClick={onClose} className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Scenario Name <span className="text-red-500">*</span></label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Base Scenario – FFP" autoFocus />
@@ -144,9 +144,9 @@ function NewScenarioModal({ onClose, onCreated }: NewScenarioModalProps) {
             )}
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-            <Button type="submit" disabled={submitting || dealsLoading}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="w-full sm:w-auto">Cancel</Button>
+            <Button type="submit" disabled={submitting || dealsLoading} className="w-full sm:w-auto">
               {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : "Create Scenario"}
             </Button>
           </div>
@@ -351,7 +351,7 @@ export default function PricingPage() {
 
       {/* Tabs */}
       <div className="border-b">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -412,22 +412,22 @@ export default function PricingPage() {
                               <th className="pb-3 pr-4 font-medium text-muted-foreground">
                                 Name
                               </th>
-                              <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                              <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                                 Type
                               </th>
                               <th className="pb-3 pr-4 font-medium text-muted-foreground">
                                 Total Price
                               </th>
-                              <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                              <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                                 Margin %
                               </th>
                               <th className="pb-3 pr-4 font-medium text-muted-foreground">
                                 Status
                               </th>
-                              <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                              <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                                 Approval
                               </th>
-                              <th className="pb-3 font-medium text-muted-foreground">
+                              <th className="hidden md:table-cell pb-3 font-medium text-muted-foreground">
                                 Date
                               </th>
                             </tr>
@@ -452,7 +452,7 @@ export default function PricingPage() {
                                   <td className="py-3 pr-4 font-medium">
                                     {scenario.name || "--"}
                                   </td>
-                                  <td className="py-3 pr-4 text-muted-foreground">
+                                  <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">
                                     {STRATEGY_TYPE_LABELS[
                                       scenario.strategy_type
                                     ] || scenario.strategy_type || "--"}
@@ -460,7 +460,7 @@ export default function PricingPage() {
                                   <td className="py-3 pr-4 font-medium">
                                     {formatCurrency(scenario.total_price)}
                                   </td>
-                                  <td className="py-3 pr-4">
+                                  <td className="hidden md:table-cell py-3 pr-4">
                                     {scenario.margin_pct != null
                                       ? `${Number(scenario.margin_pct).toFixed(1)}%`
                                       : "--"}
@@ -476,7 +476,7 @@ export default function PricingPage() {
                                       </span>
                                     )}
                                   </td>
-                                  <td className="py-3 pr-4">
+                                  <td className="hidden lg:table-cell py-3 pr-4">
                                     {approvalStatus ? (
                                       <span
                                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -498,7 +498,7 @@ export default function PricingPage() {
                                       </span>
                                     )}
                                   </td>
-                                  <td className="py-3 text-muted-foreground text-xs">
+                                  <td className="hidden md:table-cell py-3 text-muted-foreground text-xs">
                                     {formatDate(scenario.created_at)}
                                   </td>
                                 </tr>
@@ -703,7 +703,7 @@ export default function PricingPage() {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
                               <span
                                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                                   card.is_active
@@ -713,7 +713,7 @@ export default function PricingPage() {
                               >
                                 {card.is_active ? "Active" : "Inactive"}
                               </span>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="hidden sm:inline text-xs text-muted-foreground">
                                 {card.rates?.length || 0} rates
                               </span>
                             </div>
@@ -727,16 +727,16 @@ export default function PricingPage() {
                                     <th className="pb-2 pr-4 font-medium text-muted-foreground">
                                       Labor Category
                                     </th>
-                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">
+                                    <th className="hidden sm:table-cell pb-2 pr-4 font-medium text-muted-foreground">
                                       Level
                                     </th>
                                     <th className="pb-2 pr-4 font-medium text-muted-foreground">
                                       Hourly Rate
                                     </th>
-                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">
+                                    <th className="hidden md:table-cell pb-2 pr-4 font-medium text-muted-foreground">
                                       Indirect Rate
                                     </th>
-                                    <th className="pb-2 font-medium text-muted-foreground">
+                                    <th className="hidden md:table-cell pb-2 font-medium text-muted-foreground">
                                       Escalation
                                     </th>
                                   </tr>
@@ -750,7 +750,7 @@ export default function PricingPage() {
                                       <td className="py-2 pr-4 font-medium">
                                         {rate.labor_category || "--"}
                                       </td>
-                                      <td className="py-2 pr-4 text-muted-foreground">
+                                      <td className="hidden sm:table-cell py-2 pr-4 text-muted-foreground">
                                         {rate.level || "--"}
                                       </td>
                                       <td className="py-2 pr-4">
@@ -758,12 +758,12 @@ export default function PricingPage() {
                                         {Number(rate.hourly_rate).toFixed(2)}
                                         /hr
                                       </td>
-                                      <td className="py-2 pr-4 text-muted-foreground">
+                                      <td className="hidden md:table-cell py-2 pr-4 text-muted-foreground">
                                         {rate.indirect_rate != null
                                           ? `${(Number(rate.indirect_rate) * 100).toFixed(1)}%`
                                           : "--"}
                                       </td>
-                                      <td className="py-2 text-muted-foreground">
+                                      <td className="hidden md:table-cell py-2 text-muted-foreground">
                                         {rate.escalation_rate != null
                                           ? `${(Number(rate.escalation_rate) * 100).toFixed(1)}%`
                                           : "--"}
@@ -818,19 +818,19 @@ export default function PricingPage() {
                           <th className="pb-3 pr-4 font-medium text-muted-foreground">
                             Labor Category
                           </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                          <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                             Level
                           </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                          <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                             Hrs/Month
                           </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                          <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                             Months
                           </th>
                           <th className="pb-3 pr-4 font-medium text-muted-foreground">
                             Total Hours
                           </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                          <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                             Hourly Rate
                           </th>
                           <th className="pb-3 font-medium text-muted-foreground">
@@ -847,19 +847,19 @@ export default function PricingPage() {
                             <td className="py-3 pr-4 font-medium">
                               {loe.labor_category || "--"}
                             </td>
-                            <td className="py-3 pr-4 text-muted-foreground">
+                            <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground">
                               {loe.level || "--"}
                             </td>
-                            <td className="py-3 pr-4 text-muted-foreground">
+                            <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground">
                               {loe.hours_per_month?.toLocaleString() || "--"}
                             </td>
-                            <td className="py-3 pr-4 text-muted-foreground">
+                            <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground">
                               {loe.months || "--"}
                             </td>
                             <td className="py-3 pr-4 font-medium">
                               {loe.total_hours?.toLocaleString() || "--"}
                             </td>
-                            <td className="py-3 pr-4 text-muted-foreground">
+                            <td className="hidden md:table-cell py-3 pr-4 text-muted-foreground">
                               {loe.hourly_rate != null
                                 ? `$${Number(loe.hourly_rate).toFixed(2)}/hr`
                                 : "--"}

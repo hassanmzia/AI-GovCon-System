@@ -179,7 +179,7 @@ function NewResearchModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-background rounded-xl shadow-xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
           <h2 className="text-lg font-semibold">New Research Project</h2>
           <button
             onClick={onClose}
@@ -189,7 +189,7 @@ function NewResearchModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-5 space-y-4">
           {formError && (
             <p className="text-sm text-red-600 rounded-md bg-red-50 px-3 py-2">
               {formError}
@@ -607,12 +607,12 @@ export default function ResearchPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b gap-1">
+      <div className="flex border-b gap-1 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"

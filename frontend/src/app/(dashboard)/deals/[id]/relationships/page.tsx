@@ -164,7 +164,7 @@ function ContactCard({ contact, interactions }: { contact: AgencyContact; intera
 
       {expanded && (
         <div className="border-t bg-gray-50 p-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-1">Role</p>
               <p>{contact.role || "--"}</p>

@@ -608,13 +608,13 @@ export default function ContractsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b text-left">
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden md:table-cell">
                           Contract #
                         </th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">
                           Title
                         </th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">
                           Type
                         </th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">
@@ -623,10 +623,10 @@ export default function ContractsPage() {
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">
                           Total Value
                         </th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden lg:table-cell">
                           Period of Performance
                         </th>
-                        <th className="pb-3 font-medium text-muted-foreground">
+                        <th className="pb-3 font-medium text-muted-foreground hidden lg:table-cell">
                           Contracting Officer
                         </th>
                       </tr>
@@ -641,7 +641,7 @@ export default function ContractsPage() {
                             key={contract.id}
                             className="border-b cursor-pointer transition-colors hover:bg-muted/50"
                           >
-                            <td className="py-3 pr-4">
+                            <td className="py-3 pr-4 hidden md:table-cell">
                               <span className="font-mono text-xs font-medium">
                                 {contract.contract_number || "--"}
                               </span>
@@ -658,7 +658,7 @@ export default function ContractsPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="py-3 pr-4">
+                            <td className="py-3 pr-4 hidden sm:table-cell">
                               <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                                   CONTRACT_TYPE_COLORS[contract.contract_type] ||
@@ -682,7 +682,7 @@ export default function ContractsPage() {
                             <td className="py-3 pr-4 font-medium">
                               {formatCurrency(contract.total_value)}
                             </td>
-                            <td className="py-3 pr-4">
+                            <td className="py-3 pr-4 hidden lg:table-cell">
                               <div className="text-xs">
                                 <span className="text-muted-foreground">
                                   {formatDate(
@@ -710,7 +710,7 @@ export default function ContractsPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="py-3 text-muted-foreground text-xs">
+                            <td className="py-3 text-muted-foreground text-xs hidden lg:table-cell">
                               {contract.contracting_officer || "--"}
                             </td>
                           </tr>
@@ -818,10 +818,10 @@ export default function ContractsPage() {
                     <thead>
                       <tr className="border-b text-left">
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">Type</th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Due Date</th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Amount</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden md:table-cell">Amount</th>
                         <th className="pb-3 font-medium text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
@@ -834,7 +834,7 @@ export default function ContractsPage() {
                               <span className="font-medium">{m.title}</span>
                               {m.deliverable_description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{m.deliverable_description}</p>}
                             </td>
-                            <td className="py-3 pr-4">
+                            <td className="py-3 pr-4 hidden sm:table-cell">
                               <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                                 {m.milestone_type_display || m.milestone_type}
                               </span>
@@ -861,7 +861,7 @@ export default function ContractsPage() {
                                 <option value="waived">Waived</option>
                               </select>
                             </td>
-                            <td className="py-3 pr-4 font-medium">{m.amount ? formatCurrency(m.amount) : "--"}</td>
+                            <td className="py-3 pr-4 font-medium hidden md:table-cell">{m.amount ? formatCurrency(m.amount) : "--"}</td>
                             <td className="py-3">
                               <button onClick={() => handleDeleteMilestone(m.id)} className="text-muted-foreground hover:text-destructive">
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -972,18 +972,18 @@ export default function ContractsPage() {
                     <thead>
                       <tr className="border-b text-left">
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Mod #</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">Type</th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Description</th>
                         <th className="pb-3 pr-4 font-medium text-muted-foreground">Impact</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Effective Date</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground hidden md:table-cell">Status</th>
+                        <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">Effective Date</th>
                       </tr>
                     </thead>
                     <tbody>
                       {modifications.map((mod) => (
                         <tr key={mod.id} className="border-b hover:bg-muted/50">
                           <td className="py-3 pr-4 font-mono text-xs font-medium">{mod.modification_number}</td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 hidden sm:table-cell">
                             <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
                               {mod.modification_type_display || mod.modification_type}
                             </span>
@@ -998,7 +998,7 @@ export default function ContractsPage() {
                               </span>
                             ) : "--"}
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 hidden md:table-cell">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                               mod.status === "executed" ? "bg-green-100 text-green-700" :
                               mod.status === "approved" ? "bg-blue-100 text-blue-700" :
@@ -1008,7 +1008,7 @@ export default function ContractsPage() {
                               {mod.status_display || mod.status}
                             </span>
                           </td>
-                          <td className="py-3 text-muted-foreground text-xs">{formatDate(mod.effective_date)}</td>
+                          <td className="py-3 text-muted-foreground text-xs hidden md:table-cell">{formatDate(mod.effective_date)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1059,16 +1059,16 @@ export default function ContractsPage() {
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">
                         Title
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground hidden sm:table-cell">
                         Source / Type
                       </th>
                       <th className="pb-3 pr-4 font-medium text-muted-foreground">
                         Risk
                       </th>
-                      <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground hidden md:table-cell">
                         Mandatory
                       </th>
-                      <th className="pb-3 font-medium text-muted-foreground">
+                      <th className="pb-3 font-medium text-muted-foreground hidden md:table-cell">
                         Negotiable
                       </th>
                     </tr>
@@ -1103,7 +1103,7 @@ export default function ContractsPage() {
                               )}
                             </div>
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 hidden sm:table-cell">
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                                 CLAUSE_SOURCE_COLORS[sourceKey] ||
@@ -1128,7 +1128,7 @@ export default function ContractsPage() {
                                 : "--"}
                             </span>
                           </td>
-                          <td className="py-3 pr-4">
+                          <td className="py-3 pr-4 hidden md:table-cell">
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                                 isMandatory
@@ -1139,7 +1139,7 @@ export default function ContractsPage() {
                               {isMandatory ? "Mandatory" : "Optional"}
                             </span>
                           </td>
-                          <td className="py-3">
+                          <td className="py-3 hidden md:table-cell">
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                                 clause.is_negotiable

@@ -244,12 +244,12 @@ function LegalRisksTab({ risks, loading }: { risks: LegalRisk[]; loading: boolea
         <thead>
           <tr className="border-b text-left">
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Deal</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Risk Type</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Description</th>
+            <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Risk Type</th>
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Description</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Severity</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Probability</th>
+            <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">Probability</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
-            <th className="pb-3 font-medium text-muted-foreground">Mitigation</th>
+            <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">Mitigation</th>
           </tr>
         </thead>
         <tbody>
@@ -263,22 +263,22 @@ function LegalRisksTab({ risks, loading }: { risks: LegalRisk[]; loading: boolea
                   ? getDealName(risk.deal)
                   : risk.deal_name ?? "--"}
               </td>
-              <td className="py-3 pr-4 text-muted-foreground capitalize">
+              <td className="hidden sm:table-cell py-3 pr-4 text-muted-foreground capitalize">
                 {risk.risk_type?.replace(/_/g, " ") ?? "--"}
               </td>
-              <td className="py-3 pr-4 max-w-xs text-muted-foreground">
+              <td className="hidden md:table-cell py-3 pr-4 max-w-xs text-muted-foreground">
                 {truncate(risk.description, 80)}
               </td>
               <td className="py-3 pr-4">
                 <SeverityBadge severity={risk.severity} />
               </td>
-              <td className="py-3 pr-4 text-muted-foreground capitalize">
+              <td className="hidden lg:table-cell py-3 pr-4 text-muted-foreground capitalize">
                 {risk.probability ?? "--"}
               </td>
               <td className="py-3 pr-4">
                 <StatusBadge status={risk.status} />
               </td>
-              <td className="py-3 max-w-xs text-muted-foreground">
+              <td className="hidden lg:table-cell py-3 max-w-xs text-muted-foreground">
                 {truncate(risk.mitigation_strategy, 60)}
               </td>
             </tr>
@@ -348,13 +348,13 @@ function FARClausesTab({
                 <th className="pb-3 pr-4 font-medium text-muted-foreground">
                   Title
                 </th>
-                <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                   Source
                 </th>
-                <th className="pb-3 pr-4 font-medium text-muted-foreground">
+                <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">
                   Mandatory
                 </th>
-                <th className="pb-3 font-medium text-muted-foreground">
+                <th className="hidden lg:table-cell pb-3 font-medium text-muted-foreground">
                   Applicability
                 </th>
               </tr>
@@ -371,10 +371,10 @@ function FARClausesTab({
                   <td className="py-3 pr-4 max-w-sm">
                     {truncate(clause.title, 70)}
                   </td>
-                  <td className="py-3 pr-4">
+                  <td className="hidden sm:table-cell py-3 pr-4">
                     <SourceBadge source={clause.source ?? ""} />
                   </td>
-                  <td className="py-3 pr-4">
+                  <td className="hidden md:table-cell py-3 pr-4">
                     {clause.is_mandatory ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                         Mandatory
@@ -385,7 +385,7 @@ function FARClausesTab({
                       </span>
                     )}
                   </td>
-                  <td className="py-3">
+                  <td className="hidden lg:table-cell py-3">
                     {clause.applicability ? (
                       <div className="flex flex-wrap gap-1">
                         {clause.applicability.split(",").map((a, i) => (
@@ -533,9 +533,9 @@ function ContractReviewsTab({
         <thead>
           <tr className="border-b text-left">
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Section</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Concern</th>
-            <th className="pb-3 pr-4 font-medium text-muted-foreground">Recommendation</th>
+            <th className="hidden sm:table-cell pb-3 pr-4 font-medium text-muted-foreground">Type</th>
+            <th className="hidden md:table-cell pb-3 pr-4 font-medium text-muted-foreground">Concern</th>
+            <th className="hidden lg:table-cell pb-3 pr-4 font-medium text-muted-foreground">Recommendation</th>
             <th className="pb-3 pr-4 font-medium text-muted-foreground">Severity</th>
             <th className="pb-3 font-medium text-muted-foreground">Resolved</th>
           </tr>
@@ -552,13 +552,13 @@ function ContractReviewsTab({
                   40
                 )}
               </td>
-              <td className="py-3 pr-4">
+              <td className="hidden sm:table-cell py-3 pr-4">
                 <NoteTypeBadge noteType={note.note_type} />
               </td>
-              <td className="py-3 pr-4 max-w-xs text-muted-foreground">
+              <td className="hidden md:table-cell py-3 pr-4 max-w-xs text-muted-foreground">
                 {truncate(note.concern || note.note_text, 80)}
               </td>
-              <td className="py-3 pr-4 max-w-xs text-muted-foreground">
+              <td className="hidden lg:table-cell py-3 pr-4 max-w-xs text-muted-foreground">
                 {truncate(note.recommendation, 80)}
               </td>
               <td className="py-3 pr-4">
@@ -681,7 +681,7 @@ export default function LegalPage() {
 
       {/* Tabs */}
       <div className="border-b">
-        <nav className="-mb-px flex space-x-6 overflow-x-auto">
+        <nav className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}

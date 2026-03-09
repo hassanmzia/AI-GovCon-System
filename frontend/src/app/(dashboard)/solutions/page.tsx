@@ -218,7 +218,7 @@ function TechnicalVolumeTab({ volume }: { volume: TechnicalVolume }) {
   }
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
         <span>{sections.length} sections</span>
         <span>·</span>
         <span>{volume.diagram_count} diagrams referenced</span>
@@ -424,8 +424,8 @@ export default function SolutionsPage() {
       {/* Deal selector + run */}
       <Card>
         <CardContent className="pt-5">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[260px]">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-4">
+            <div className="flex-1 min-w-0 sm:min-w-[260px]">
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                 Select Deal
               </label>
@@ -456,7 +456,7 @@ export default function SolutionsPage() {
             <Button
               onClick={handleRun}
               disabled={!selectedDealId || running}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto"
             >
               {running ? (
                 <>
@@ -569,19 +569,20 @@ export default function SolutionsPage() {
           </div>
 
           {/* Tab navigation */}
-          <div className="flex gap-1 border-b">
+          <div className="flex gap-1 border-b overflow-x-auto">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
                   activeTab === id
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{label.split(" ")[0]}</span>
               </button>
             ))}
           </div>

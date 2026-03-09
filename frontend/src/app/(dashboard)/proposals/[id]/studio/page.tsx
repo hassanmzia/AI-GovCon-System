@@ -147,10 +147,10 @@ function SectionRow({ section }: { section: ProposalSection }) {
           {SECTION_STATUS_LABELS[section.status]}
         </span>
         {section.page_limit && (
-          <span className="text-xs text-muted-foreground">{section.word_count}w / {section.page_limit}pg</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground">{section.word_count}w / {section.page_limit}pg</span>
         )}
         {section.assigned_to && (
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <span className="hidden md:flex text-xs text-muted-foreground items-center gap-1">
             <Users className="h-3 w-3" />
             Assigned
           </span>
@@ -280,8 +280,11 @@ export default function ProposalStudioPage() {
           )}
         </div>
         <Link href={`/proposals/${id}/submit`}>
-          <Button>
+          <Button className="hidden sm:inline-flex">
             <CheckCircle className="h-4 w-4 mr-2" /> Submission Readiness
+          </Button>
+          <Button size="sm" className="sm:hidden">
+            <CheckCircle className="h-4 w-4" />
           </Button>
         </Link>
       </div>

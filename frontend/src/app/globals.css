@@ -148,5 +148,48 @@
   body {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ── Mobile table improvements ───────────────────────────────────────────── */
+
+  /* Hide less-important table columns on small screens */
+  @media (max-width: 767px) {
+    .hide-mobile {
+      display: none !important;
+    }
+
+    /* Make tables more readable on mobile */
+    table {
+      font-size: 0.8125rem;
+    }
+
+    /* Reduce card padding on mobile */
+    .space-y-6 > * {
+      scroll-margin-top: 1rem;
+    }
+  }
+
+  /* ── Mobile tab improvements ─────────────────────────────────────────────── */
+
+  @media (max-width: 767px) {
+    /* Allow tabs to scroll horizontally on mobile */
+    nav.-mb-px,
+    .flex.border-b > .flex {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    nav.-mb-px::-webkit-scrollbar,
+    .flex.border-b > .flex::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  /* ── Prevent horizontal overflow on mobile ───────────────────────────────── */
+  @media (max-width: 767px) {
+    .overflow-x-auto {
+      -webkit-overflow-scrolling: touch;
+    }
   }
 }
