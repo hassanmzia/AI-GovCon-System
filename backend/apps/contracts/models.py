@@ -9,7 +9,7 @@ from apps.core.models import BaseModel
 class ContractTemplate(BaseModel):
     """Reusable contract templates by contract type."""
 
-    CONTRACT_TYPE_CHOICES = [
+    TEMPLATE_TYPE_CHOICES = [
         ('FFP', 'Firm Fixed Price'),
         ('T&M', 'Time & Materials'),
         ('CPFF', 'Cost Plus Fixed Fee'),
@@ -20,27 +20,24 @@ class ContractTemplate(BaseModel):
     ]
 
     name = models.CharField(max_length=300)
-    contract_type = models.CharField(max_length=10, choices=CONTRACT_TYPE_CHOICES)
+    template_type = models.CharField(max_length=10, choices=TEMPLATE_TYPE_CHOICES)
     description = models.TextField(blank=True)
-    template_content = models.TextField()
-    required_clauses = models.JSONField(default=list)
-    optional_clauses = models.JSONField(default=list)
-    version = models.CharField(max_length=20, default='1.0')
+    content = models.TextField()
+    variables = models.JSONField(default=list)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.name} ({self.get_contract_type_display()})"
+        return f"{self.name} ({self.get_template_type_display()})"
 
 
 class ContractClause(BaseModel):
     """Library of contract clauses (FAR, DFARS, custom, etc.)."""
 
-    CLAUSE_TYPE_CHOICES = [
-        ('standard', 'Standard'),
-        ('special', 'Special'),
+    SOURCE_CHOICES = [
+        ('far', 'FAR'),
+        ('dfars', 'DFARS'),
+        ('agency', 'Agency Specific'),
         ('custom', 'Custom'),
-        ('far_reference', 'FAR Reference'),
-        ('dfars_reference', 'DFARS Reference'),
     ]
 
     RISK_LEVEL_CHOICES = [
@@ -51,14 +48,15 @@ class ContractClause(BaseModel):
 
     clause_number = models.CharField(max_length=50)
     title = models.CharField(max_length=500)
-    clause_text = models.TextField()
-    clause_type = models.CharField(max_length=20, choices=CLAUSE_TYPE_CHOICES)
+    full_text = models.TextField()
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='far')
     category = models.CharField(max_length=100, blank=True)
-    is_negotiable = models.BooleanField(default=True)
+    is_mandatory = models.BooleanField(default=False)
+    flow_down_required = models.BooleanField(default=False)
     risk_level = models.CharField(
         max_length=10, choices=RISK_LEVEL_CHOICES, default='medium'
     )
-    notes = models.TextField(blank=True)
+    negotiation_guidance = models.TextField(blank=True)
 
     class Meta:
         ordering = ['clause_number']
@@ -145,11 +143,11 @@ class ContractVersion(BaseModel):
     change_type = models.CharField(
         max_length=20, choices=CHANGE_TYPE_CHOICES, default='initial'
     )
-    description = models.TextField(blank=True)
-    changes = models.JSONField(default=dict)
-    document_file = models.FileField(upload_to='contract_versions/', blank=True)
+    content = models.TextField(blank=True)
+    change_summary = models.TextField(blank=True)
+    redlines = models.JSONField(default=dict)
     effective_date = models.DateField(null=True, blank=True)
-    created_by = models.ForeignKey(
+    changed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
     )
 
