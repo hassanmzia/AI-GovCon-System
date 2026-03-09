@@ -45,7 +45,7 @@ const BASE = '/proposals/sources-sought';
 
 export async function getSourcesSought(): Promise<SourcesSoughtResponse[]> {
   const res = await api.get(`${BASE}/`);
-  return res.data;
+  return res.data.results || res.data;
 }
 
 export async function getSourcesSoughtById(id: string): Promise<SourcesSoughtResponse> {

@@ -66,7 +66,7 @@ const BASE = '/sba-certifications';
 // Certifications
 export async function getCertifications(): Promise<SBACertification[]> {
   const res = await api.get(`${BASE}/certifications/`);
-  return res.data;
+  return res.data.results || res.data;
 }
 
 export async function getCertification(id: string): Promise<SBACertification> {
@@ -119,7 +119,7 @@ export async function getCertSummary(): Promise<CertSummary> {
 // NAICS Codes
 export async function getNAICSCodes(): Promise<NAICSCode[]> {
   const res = await api.get(`${BASE}/naics-codes/`);
-  return res.data;
+  return res.data.results || res.data;
 }
 
 export async function createNAICSCode(
