@@ -31,6 +31,7 @@ urlpatterns = [
     path("api/analytics/", include("apps.analytics.urls")),
     path("api/workforce/", include("apps.workforce.urls")),
     path("api/sam-registration/", include("apps.sam_registration.urls")),
+    path("api/sba-certifications/", include("apps.sba_certifications.urls")),
 ]
 
 # Serve uploaded media files in development (DEBUG=True).

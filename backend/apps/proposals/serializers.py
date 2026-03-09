@@ -230,14 +230,19 @@ class ProposalDetailSerializer(serializers.ModelSerializer):
 # ── Sources Sought ────────────────────────────────────────────────────────────
 
 class SourcesSoughtResponseSerializer(serializers.ModelSerializer):
-    deal_title = serializers.CharField(source="deal.title", read_only=True)
+    interest_level_display = serializers.CharField(
+        source="get_interest_level_display", read_only=True
+    )
+    status_display = serializers.CharField(
+        source="get_status_display", read_only=True
+    )
 
     class Meta:
         model = SourcesSoughtResponse
         fields = [
             "id",
             "deal",
-            "deal_title",
+            "deal_name",
             "opportunity",
             "title",
             "solicitation_number",
@@ -247,7 +252,9 @@ class SourcesSoughtResponseSerializer(serializers.ModelSerializer):
             "capability_gaps",
             "questions_for_government",
             "interest_level",
+            "interest_level_display",
             "status",
+            "status_display",
             "submitted_at",
             "created_at",
             "updated_at",

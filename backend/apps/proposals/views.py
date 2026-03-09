@@ -180,7 +180,12 @@ class SourcesSoughtResponseViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return SourcesSoughtResponse.objects.select_related("deal", "opportunity").all()
+        return SourcesSoughtResponse.objects.filter(
+            owner=self.request.user
+        ).select_related("deal", "opportunity")
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 
 class SubmissionEmailViewSet(viewsets.ModelViewSet):

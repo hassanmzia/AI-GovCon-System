@@ -8,8 +8,14 @@ import {
   getContracts,
   getContractClauses,
   createContract,
+  getContractMilestones,
+  createMilestone,
+  updateMilestone,
+  deleteMilestone,
+  getContractModifications,
+  createModification,
 } from "@/services/contracts";
-import { Contract, ContractClause, ContractType, ContractStatus } from "@/types/contract";
+import { Contract, ContractClause, ContractType, ContractStatus, ContractMilestone, MilestoneType, MilestoneStatus, ContractModification, ModificationType } from "@/types/contract";
 import { fetchAllDeals } from "@/services/analytics";
 import { Deal } from "@/types/deal";
 import {
@@ -21,9 +27,13 @@ import {
   CheckCircle,
   AlertTriangle,
   X,
+  Target,
+  Trash2,
+  Calendar,
+  ChevronDown,
 } from "lucide-react";
 
-type ActiveTab = "contracts" | "clauses";
+type ActiveTab = "contracts" | "clauses" | "milestones" | "modifications";
 
 const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
   FFP: "Firm Fixed Price",
@@ -299,8 +309,110 @@ export default function ContractsPage() {
     new Set(contracts.map((c) => c.status).filter(Boolean))
   ).sort() as ContractStatus[];
 
+  // Milestones state
+  const [milestones, setMilestones] = useState<ContractMilestone[]>([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(false);
+  const [selectedContractId, setSelectedContractId] = useState<string>("");
+  const [showMilestoneForm, setShowMilestoneForm] = useState(false);
+  const [milestoneForm, setMilestoneForm] = useState({
+    title: "", milestone_type: "deliverable" as MilestoneType, due_date: "",
+    deliverable_description: "", amount: "",
+  });
+
+  // Modifications state
+  const [modifications, setModifications] = useState<ContractModification[]>([]);
+  const [modificationsLoading, setModificationsLoading] = useState(false);
+  const [selectedModContractId, setSelectedModContractId] = useState<string>("");
+  const [showModForm, setShowModForm] = useState(false);
+  const [modForm, setModForm] = useState({
+    modification_number: "", modification_type: "bilateral" as ModificationType,
+    description: "", impact_value: "", effective_date: "",
+  });
+
+  const fetchMilestones = useCallback(async (contractId: string) => {
+    if (!contractId) return;
+    setMilestonesLoading(true);
+    try {
+      const data = await getContractMilestones(contractId);
+      setMilestones(data);
+    } catch { setMilestones([]); }
+    finally { setMilestonesLoading(false); }
+  }, []);
+
+  const fetchModifications = useCallback(async (contractId: string) => {
+    if (!contractId) return;
+    setModificationsLoading(true);
+    try {
+      const data = await getContractModifications(contractId);
+      setModifications(data);
+    } catch { setModifications([]); }
+    finally { setModificationsLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "milestones" && selectedContractId) fetchMilestones(selectedContractId);
+  }, [activeTab, selectedContractId, fetchMilestones]);
+
+  useEffect(() => {
+    if (activeTab === "modifications" && selectedModContractId) fetchModifications(selectedModContractId);
+  }, [activeTab, selectedModContractId, fetchModifications]);
+
+  const handleCreateMilestone = async () => {
+    if (!selectedContractId || !milestoneForm.title || !milestoneForm.due_date) return;
+    try {
+      const created = await createMilestone({
+        contract: selectedContractId,
+        title: milestoneForm.title,
+        milestone_type: milestoneForm.milestone_type,
+        due_date: milestoneForm.due_date,
+        deliverable_description: milestoneForm.deliverable_description,
+        amount: milestoneForm.amount ? parseFloat(milestoneForm.amount) : null,
+      });
+      setMilestones((prev) => [...prev, created]);
+      setShowMilestoneForm(false);
+      setMilestoneForm({ title: "", milestone_type: "deliverable", due_date: "", deliverable_description: "", amount: "" });
+    } catch { /* handle */ }
+  };
+
+  const handleUpdateMilestoneStatus = async (id: string, status: MilestoneStatus) => {
+    try {
+      const updated = await updateMilestone(id, {
+        status,
+        completed_date: status === "completed" ? new Date().toISOString().split("T")[0] : null,
+      });
+      setMilestones((prev) => prev.map((m) => m.id === id ? updated : m));
+    } catch { /* handle */ }
+  };
+
+  const handleDeleteMilestone = async (id: string) => {
+    if (!confirm("Delete this milestone?")) return;
+    try {
+      await deleteMilestone(id);
+      setMilestones((prev) => prev.filter((m) => m.id !== id));
+    } catch { /* handle */ }
+  };
+
+  const handleCreateModification = async () => {
+    if (!selectedModContractId || !modForm.modification_number || !modForm.description) return;
+    try {
+      const created = await createModification({
+        contract: selectedModContractId,
+        modification_number: modForm.modification_number,
+        modification_type: modForm.modification_type,
+        description: modForm.description,
+        impact_value: modForm.impact_value ? parseFloat(modForm.impact_value) : null,
+        effective_date: modForm.effective_date || null,
+      });
+      setModifications((prev) => [created, ...prev]);
+      setShowModForm(false);
+      setModForm({ modification_number: "", modification_type: "bilateral", description: "", impact_value: "", effective_date: "" });
+    } catch { /* handle */ }
+  };
+
   const tabs: { key: ActiveTab; label: string }[] = [
     { key: "contracts", label: "Contracts" },
+    { key: "milestones", label: "Milestones & Deliverables" },
+    { key: "modifications", label: "Modifications" },
     { key: "clauses", label: "Clause Library" },
   ];
 
@@ -611,6 +723,301 @@ export default function ContractsPage() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* Milestones & Deliverables Tab */}
+      {activeTab === "milestones" && (
+        <div className="space-y-4">
+          {/* Contract selector */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium mb-1 block">Select Contract</label>
+                  <select
+                    value={selectedContractId}
+                    onChange={(e) => { setSelectedContractId(e.target.value); if (e.target.value) fetchMilestones(e.target.value); }}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="">Choose a contract...</option>
+                    {contracts.map((c) => (
+                      <option key={c.id} value={c.id}>{c.contract_number || c.title}</option>
+                    ))}
+                  </select>
+                </div>
+                {selectedContractId && (
+                  <Button size="sm" onClick={() => setShowMilestoneForm(true)} className="mt-5">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add Milestone
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Add milestone form */}
+          {showMilestoneForm && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">New Milestone / Deliverable</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Title *</label>
+                    <Input value={milestoneForm.title} onChange={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Monthly Status Report" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Type</label>
+                    <select value={milestoneForm.milestone_type} onChange={(e) => setMilestoneForm((f) => ({ ...f, milestone_type: e.target.value as MilestoneType }))} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="deliverable">Deliverable</option>
+                      <option value="payment">Payment</option>
+                      <option value="review">Review</option>
+                      <option value="option">Option</option>
+                      <option value="transition">Transition</option>
+                      <option value="closeout">Closeout</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Due Date *</label>
+                    <Input type="date" value={milestoneForm.due_date} onChange={(e) => setMilestoneForm((f) => ({ ...f, due_date: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Amount ($)</label>
+                    <Input type="number" value={milestoneForm.amount} onChange={(e) => setMilestoneForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0.00" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Description</label>
+                  <textarea value={milestoneForm.deliverable_description} onChange={(e) => setMilestoneForm((f) => ({ ...f, deliverable_description: e.target.value }))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-y" placeholder="Describe the deliverable or milestone..." />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setShowMilestoneForm(false)}>Cancel</Button>
+                  <Button size="sm" onClick={handleCreateMilestone} disabled={!milestoneForm.title || !milestoneForm.due_date}>Create</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Milestones list */}
+          {!selectedContractId ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Target className="h-10 w-10 text-muted-foreground" />
+              <p className="text-muted-foreground">Select a contract to view milestones and deliverables.</p>
+            </div>
+          ) : milestonesLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          ) : milestones.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Target className="h-10 w-10 text-muted-foreground" />
+              <p className="text-muted-foreground">No milestones yet. Add your first one.</p>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Due Date</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Amount</th>
+                        <th className="pb-3 font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {milestones.map((m) => {
+                        const isOverdue = new Date(m.due_date) < new Date() && m.status !== "completed" && m.status !== "waived";
+                        return (
+                          <tr key={m.id} className="border-b hover:bg-muted/50">
+                            <td className="py-3 pr-4">
+                              <span className="font-medium">{m.title}</span>
+                              {m.deliverable_description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{m.deliverable_description}</p>}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                {m.milestone_type_display || m.milestone_type}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span className={isOverdue ? "text-red-600 font-medium" : ""}>{formatDate(m.due_date)}</span>
+                              {isOverdue && <span className="ml-1 text-xs text-red-500">Overdue</span>}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <select
+                                value={m.status}
+                                onChange={(e) => handleUpdateMilestoneStatus(m.id, e.target.value as MilestoneStatus)}
+                                className={`h-7 rounded border text-xs px-2 ${
+                                  m.status === "completed" ? "bg-green-100 text-green-700 border-green-200" :
+                                  m.status === "overdue" ? "bg-red-100 text-red-700 border-red-200" :
+                                  m.status === "in_progress" ? "bg-blue-100 text-blue-700 border-blue-200" :
+                                  "bg-gray-100 text-gray-700 border-gray-200"
+                                }`}
+                              >
+                                <option value="upcoming">Upcoming</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="waived">Waived</option>
+                              </select>
+                            </td>
+                            <td className="py-3 pr-4 font-medium">{m.amount ? formatCurrency(m.amount) : "--"}</td>
+                            <td className="py-3">
+                              <button onClick={() => handleDeleteMilestone(m.id)} className="text-muted-foreground hover:text-destructive">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Modifications Tab */}
+      {activeTab === "modifications" && (
+        <div className="space-y-4">
+          {/* Contract selector */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium mb-1 block">Select Contract</label>
+                  <select
+                    value={selectedModContractId}
+                    onChange={(e) => { setSelectedModContractId(e.target.value); if (e.target.value) fetchModifications(e.target.value); }}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="">Choose a contract...</option>
+                    {contracts.map((c) => (
+                      <option key={c.id} value={c.id}>{c.contract_number || c.title}</option>
+                    ))}
+                  </select>
+                </div>
+                {selectedModContractId && (
+                  <Button size="sm" onClick={() => setShowModForm(true)} className="mt-5">
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add Modification
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Add modification form */}
+          {showModForm && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">New Contract Modification</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Mod Number *</label>
+                    <Input value={modForm.modification_number} onChange={(e) => setModForm((f) => ({ ...f, modification_number: e.target.value }))} placeholder="e.g. P00001" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Type</label>
+                    <select value={modForm.modification_type} onChange={(e) => setModForm((f) => ({ ...f, modification_type: e.target.value as ModificationType }))} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="bilateral">Bilateral</option>
+                      <option value="unilateral">Unilateral</option>
+                      <option value="administrative">Administrative</option>
+                      <option value="funding">Funding</option>
+                      <option value="scope">Scope</option>
+                      <option value="period_extension">Period Extension</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Effective Date</label>
+                    <Input type="date" value={modForm.effective_date} onChange={(e) => setModForm((f) => ({ ...f, effective_date: e.target.value }))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Impact Value ($)</label>
+                  <Input type="number" value={modForm.impact_value} onChange={(e) => setModForm((f) => ({ ...f, impact_value: e.target.value }))} placeholder="e.g. 50000 or -10000" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Description *</label>
+                  <textarea value={modForm.description} onChange={(e) => setModForm((f) => ({ ...f, description: e.target.value }))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-y" placeholder="Describe the modification..." />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setShowModForm(false)}>Cancel</Button>
+                  <Button size="sm" onClick={handleCreateModification} disabled={!modForm.modification_number || !modForm.description}>Create</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Modifications list */}
+          {!selectedModContractId ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <FileText className="h-10 w-10 text-muted-foreground" />
+              <p className="text-muted-foreground">Select a contract to view modifications.</p>
+            </div>
+          ) : modificationsLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          ) : modifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <FileText className="h-10 w-10 text-muted-foreground" />
+              <p className="text-muted-foreground">No modifications yet.</p>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Mod #</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Type</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Description</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Impact</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Status</th>
+                        <th className="pb-3 font-medium text-muted-foreground">Effective Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {modifications.map((mod) => (
+                        <tr key={mod.id} className="border-b hover:bg-muted/50">
+                          <td className="py-3 pr-4 font-mono text-xs font-medium">{mod.modification_number}</td>
+                          <td className="py-3 pr-4">
+                            <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                              {mod.modification_type_display || mod.modification_type}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4 max-w-[300px]">
+                            <p className="line-clamp-2">{mod.description}</p>
+                          </td>
+                          <td className="py-3 pr-4 font-medium">
+                            {mod.impact_value != null ? (
+                              <span className={mod.impact_value >= 0 ? "text-green-600" : "text-red-600"}>
+                                {mod.impact_value >= 0 ? "+" : ""}{formatCurrency(mod.impact_value)}
+                              </span>
+                            ) : "--"}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                              mod.status === "executed" ? "bg-green-100 text-green-700" :
+                              mod.status === "approved" ? "bg-blue-100 text-blue-700" :
+                              mod.status === "rejected" ? "bg-red-100 text-red-700" :
+                              "bg-yellow-100 text-yellow-700"
+                            }`}>
+                              {mod.status_display || mod.status}
+                            </span>
+                          </td>
+                          <td className="py-3 text-muted-foreground text-xs">{formatDate(mod.effective_date)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Clause Library Tab */}
