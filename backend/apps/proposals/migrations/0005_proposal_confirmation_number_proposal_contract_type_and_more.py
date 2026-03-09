@@ -7,6 +7,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
+        ("deals", "0001_initial"),
+        ("opportunities", "0001_initial"),
         ("proposals", "0004_redteamfinding_submissionchecklist"),
     ]
 
@@ -47,6 +49,18 @@ class Migration(migrations.Migration):
                     max_length=20,
                 )),
                 ("submitted_at", models.DateTimeField(blank=True, null=True)),
+                ("deal", models.ForeignKey(
+                    blank=True, null=True,
+                    on_delete=django.db.models.deletion.SET_NULL,
+                    related_name="sources_sought_responses",
+                    to="deals.deal",
+                )),
+                ("opportunity", models.ForeignKey(
+                    blank=True, null=True,
+                    on_delete=django.db.models.deletion.SET_NULL,
+                    related_name="sources_sought_responses",
+                    to="opportunities.opportunity",
+                )),
             ],
             options={
                 "ordering": ["-created_at"],
