@@ -236,8 +236,6 @@ class SolutionValidationReport(BaseModel):
 
     def __str__(self):
         return f"Validation: {self.overall_quality} (pass={self.passed})"
-    def __str__(self):
-        return f"{self.review_type} Team - {self.proposal}"
 
 
 class SourcesSoughtResponse(BaseModel):
