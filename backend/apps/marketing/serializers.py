@@ -29,6 +29,26 @@ class MarketingCampaignSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
+class CapabilityStatementListSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company_profile.name", read_only=True)
+
+    class Meta:
+        model = CapabilityStatement
+        fields = [
+            "id",
+            "company_profile",
+            "company_name",
+            "title",
+            "version",
+            "is_primary",
+            "target_agency",
+            "target_naics",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
 class CapabilityStatementSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source="company_profile.name", read_only=True)
 
