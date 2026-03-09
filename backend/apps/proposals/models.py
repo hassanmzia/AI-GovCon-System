@@ -242,13 +242,21 @@ class SolutionValidationReport(BaseModel):
 
 class SourcesSoughtResponse(BaseModel):
     """Sources Sought / RFI response as a first-class document."""
-    deal = models.ForeignKey('deals.Deal', on_delete=models.CASCADE, related_name='sources_sought_responses')
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='sources_sought_responses', null=True, blank=True,
+    )
+    deal = models.ForeignKey(
+        'deals.Deal', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sources_sought_responses',
+    )
     opportunity = models.ForeignKey(
         'opportunities.Opportunity', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='sources_sought_responses'
     )
     title = models.CharField(max_length=500)
     solicitation_number = models.CharField(max_length=255, blank=True)
+    deal_name = models.CharField(max_length=500, blank=True, default="")
 
     # Response content sections
     company_overview = models.TextField(blank=True)
@@ -256,16 +264,16 @@ class SourcesSoughtResponse(BaseModel):
     technical_approach_summary = models.TextField(blank=True)
     capability_gaps = models.TextField(blank=True)
     questions_for_government = models.JSONField(default=list, blank=True)
-    interest_level = models.CharField(max_length=20, choices=[
-        ('strong', 'Strongly Interested'),
-        ('moderate', 'Moderately Interested'),
-        ('low', 'Low Interest'),
+    interest_level = models.CharField(max_length=30, choices=[
+        ('strongly_interested', 'Strongly Interested'),
+        ('moderately_interested', 'Moderately Interested'),
+        ('low_interest', 'Low Interest'),
         ('info_only', 'Information Only'),
-    ], default='moderate')
+    ], default='moderately_interested')
 
     # Status
     status = models.CharField(max_length=20, choices=[
-        ('draft', 'Draft'), ('review', 'In Review'),
+        ('draft', 'Draft'), ('in_review', 'In Review'),
         ('submitted', 'Submitted'), ('no_response', 'No Response'),
     ], default='draft')
     submitted_at = models.DateTimeField(null=True, blank=True)

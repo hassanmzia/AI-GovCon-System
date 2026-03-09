@@ -4,15 +4,21 @@ from django_filters.rest_framework import DjangoFilterBackend
 from apps.contracts.models import (
     Contract,
     ContractClause,
+    ContractMilestone,
+    ContractModification,
     ContractTemplate,
     ContractVersion,
+    OptionYear,
 )
 from apps.contracts.serializers import (
     ContractClauseSerializer,
     ContractDetailSerializer,
     ContractListSerializer,
+    ContractMilestoneSerializer,
+    ContractModificationSerializer,
     ContractTemplateSerializer,
     ContractVersionSerializer,
+    OptionYearSerializer,
 )
 
 
@@ -64,3 +70,40 @@ class ContractVersionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(changed_by=self.request.user)
+
+
+class ContractMilestoneViewSet(viewsets.ModelViewSet):
+    """CRUD for contract milestones and deliverables."""
+    queryset = ContractMilestone.objects.select_related("contract", "assigned_to").all()
+    serializer_class = ContractMilestoneSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["contract", "milestone_type", "status"]
+    search_fields = ["title", "deliverable_description"]
+    ordering_fields = ["due_date", "status", "created_at"]
+    ordering = ["due_date"]
+
+
+class ContractModificationViewSet(viewsets.ModelViewSet):
+    """CRUD for contract modifications."""
+    queryset = ContractModification.objects.select_related(
+        "contract", "requested_by", "approved_by"
+    ).all()
+    serializer_class = ContractModificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["contract", "modification_type", "status"]
+    search_fields = ["modification_number", "description"]
+    ordering_fields = ["created_at", "effective_date"]
+    ordering = ["-created_at"]
+
+
+class OptionYearViewSet(viewsets.ModelViewSet):
+    """CRUD for contract option years."""
+    queryset = OptionYear.objects.select_related("contract").all()
+    serializer_class = OptionYearSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["contract", "status"]
+    ordering_fields = ["year_number", "decision_deadline"]
+    ordering = ["year_number"]

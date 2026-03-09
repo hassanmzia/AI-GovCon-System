@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Shield,
   ShieldCheck,
-  Award,
   Search,
   Plus,
   CheckCircle,
@@ -21,180 +20,45 @@ import {
   Star,
   X,
   FileText,
-  CalendarDays,
+  Loader2,
+  Trash2,
 } from "lucide-react";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type CertStatus =
-  | "not_applicable"
-  | "eligible"
-  | "applied"
-  | "certified"
-  | "expired";
-
-interface Certification {
-  id: string;
-  name: string;
-  abbreviation: string;
-  status: CertStatus;
-  certificationDate: string | null;
-  expirationDate: string | null;
-  certificationNumber: string | null;
-  eligibilityNotes: string;
-}
-
-type SizeStandardType = "revenue" | "employees";
-
-interface NaicsCode {
-  code: string;
-  title: string;
-  sizeStandard: string;
-  sizeStandardType: SizeStandardType;
-  selected: boolean;
-}
+import {
+  type SBACertification,
+  type CertStatus,
+  type NAICSCode,
+  getCertifications,
+  initializeCertifications,
+  updateCertification as apiUpdateCert,
+  getNAICSCodes,
+  createNAICSCode,
+  deleteNAICSCode,
+  setNAICSPrimary,
+} from "@/services/sba-certifications";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS: { value: CertStatus; label: string }[] = [
   { value: "not_applicable", label: "Not Applicable" },
   { value: "eligible", label: "Eligible" },
+  { value: "in_progress", label: "In Progress" },
   { value: "applied", label: "Applied" },
+  { value: "under_review", label: "Under Review" },
   { value: "certified", label: "Certified" },
   { value: "expired", label: "Expired" },
+  { value: "denied", label: "Denied" },
 ];
 
 const STATUS_STYLES: Record<CertStatus, string> = {
   not_applicable: "bg-gray-100 text-gray-600",
   eligible: "bg-blue-100 text-blue-700",
+  in_progress: "bg-cyan-100 text-cyan-700",
   applied: "bg-yellow-100 text-yellow-700",
+  under_review: "bg-orange-100 text-orange-700",
   certified: "bg-green-100 text-green-700",
   expired: "bg-red-100 text-red-700",
+  denied: "bg-red-100 text-red-600",
 };
-
-const STATUS_LABELS: Record<CertStatus, string> = {
-  not_applicable: "Not Applicable",
-  eligible: "Eligible",
-  applied: "Applied",
-  certified: "Certified",
-  expired: "Expired",
-};
-
-// ── Mock Data ──────────────────────────────────────────────────────────────
-
-const INITIAL_CERTIFICATIONS: Certification[] = [
-  {
-    id: "sb",
-    name: "Small Business",
-    abbreviation: "SB",
-    status: "certified",
-    certificationDate: "2024-01-15",
-    expirationDate: "2027-01-15",
-    certificationNumber: "SB-2024-00487",
-    eligibilityNotes:
-      "Meets revenue threshold under primary NAICS 541512. Annual re-certification required via SAM.gov.",
-  },
-  {
-    id: "sdb",
-    name: "Small Disadvantaged Business",
-    abbreviation: "SDB",
-    status: "eligible",
-    certificationDate: null,
-    expirationDate: null,
-    certificationNumber: null,
-    eligibilityNotes:
-      "Owner qualifies under socially and economically disadvantaged criteria. Documentation prepared for application.",
-  },
-  {
-    id: "8a",
-    name: "8(a) Business Development",
-    abbreviation: "8(a)",
-    status: "applied",
-    certificationDate: null,
-    expirationDate: null,
-    certificationNumber: null,
-    eligibilityNotes:
-      "Application submitted to SBA on 2025-11-20. 9-year program eligibility. Awaiting review (est. 90 days).",
-  },
-  {
-    id: "wosb",
-    name: "Woman-Owned Small Business",
-    abbreviation: "WOSB",
-    status: "certified",
-    certificationDate: "2024-06-01",
-    expirationDate: "2027-06-01",
-    certificationNumber: "WOSB-2024-01293",
-    eligibilityNotes:
-      "Certified through SBA WOSB Federal Contracting Program. 51% owned/controlled by women.",
-  },
-  {
-    id: "edwosb",
-    name: "Economically Disadvantaged WOSB",
-    abbreviation: "EDWOSB",
-    status: "certified",
-    certificationDate: "2024-06-01",
-    expirationDate: "2027-06-01",
-    certificationNumber: "EDWOSB-2024-01294",
-    eligibilityNotes:
-      "Qualifies under EDWOSB economic thresholds. Linked to WOSB certification. Personal net worth under $750K.",
-  },
-  {
-    id: "vosb",
-    name: "Veteran-Owned Small Business",
-    abbreviation: "VOSB",
-    status: "not_applicable",
-    certificationDate: null,
-    expirationDate: null,
-    certificationNumber: null,
-    eligibilityNotes:
-      "Not applicable — no veteran ownership stake in current organizational structure.",
-  },
-  {
-    id: "sdvosb",
-    name: "Service-Disabled Veteran-Owned",
-    abbreviation: "SDVOSB",
-    status: "not_applicable",
-    certificationDate: null,
-    expirationDate: null,
-    certificationNumber: null,
-    eligibilityNotes:
-      "Not applicable — requires 51% ownership by service-disabled veteran.",
-  },
-  {
-    id: "hubzone",
-    name: "HUBZone",
-    abbreviation: "HUBZone",
-    status: "expired",
-    certificationDate: "2021-03-10",
-    expirationDate: "2024-03-10",
-    certificationNumber: "HZ-2021-05582",
-    eligibilityNotes:
-      "Previously certified. Expired due to principal office relocation outside designated HUBZone. Re-evaluation pending.",
-  },
-];
-
-const INITIAL_NAICS_CODES: NaicsCode[] = [
-  { code: "541511", title: "Custom Computer Programming Services", sizeStandard: "$34M", sizeStandardType: "revenue", selected: true },
-  { code: "541512", title: "Computer Systems Design Services", sizeStandard: "$34M", sizeStandardType: "revenue", selected: true },
-  { code: "541513", title: "Computer Facilities Management Services", sizeStandard: "$34M", sizeStandardType: "revenue", selected: true },
-  { code: "541519", title: "Other Computer Related Services", sizeStandard: "$34M", sizeStandardType: "revenue", selected: true },
-  { code: "541611", title: "Administrative Management Consulting Services", sizeStandard: "$24.5M", sizeStandardType: "revenue", selected: false },
-  { code: "541612", title: "Human Resources Consulting Services", sizeStandard: "$24.5M", sizeStandardType: "revenue", selected: false },
-  { code: "541613", title: "Marketing Consulting Services", sizeStandard: "$19M", sizeStandardType: "revenue", selected: false },
-  { code: "541614", title: "Process, Physical Distribution, & Logistics Consulting", sizeStandard: "$19M", sizeStandardType: "revenue", selected: false },
-  { code: "541618", title: "Other Management Consulting Services", sizeStandard: "$19M", sizeStandardType: "revenue", selected: false },
-  { code: "541690", title: "Other Scientific & Technical Consulting Services", sizeStandard: "$19M", sizeStandardType: "revenue", selected: false },
-  { code: "541715", title: "Research & Development in the Physical, Engineering, & Life Sciences", sizeStandard: "1,000 employees", sizeStandardType: "employees", selected: true },
-  { code: "541990", title: "All Other Professional, Scientific, & Technical Services", sizeStandard: "$19M", sizeStandardType: "revenue", selected: false },
-  { code: "518210", title: "Data Processing, Hosting, & Related Services", sizeStandard: "$40M", sizeStandardType: "revenue", selected: true },
-  { code: "511210", title: "Software Publishers", sizeStandard: "$47M", sizeStandardType: "revenue", selected: false },
-  { code: "561110", title: "Office Administrative Services", sizeStandard: "$12.5M", sizeStandardType: "revenue", selected: false },
-  { code: "611420", title: "Computer Training", sizeStandard: "$15M", sizeStandardType: "revenue", selected: false },
-  { code: "561210", title: "Facilities Support Services", sizeStandard: "$47M", sizeStandardType: "revenue", selected: false },
-  { code: "334111", title: "Electronic Computer Manufacturing", sizeStandard: "1,250 employees", sizeStandardType: "employees", selected: false },
-  { code: "423430", title: "Computer & Peripheral Equipment Merchant Wholesalers", sizeStandard: "250 employees", sizeStandardType: "employees", selected: false },
-  { code: "541330", title: "Engineering Services", sizeStandard: "$25.5M", sizeStandardType: "revenue", selected: false },
-];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -220,13 +84,17 @@ function isExpiringSoon(dateStr: string | null): boolean {
 function StatusBadge({ status }: { status: CertStatus }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[status]}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[status] || "bg-gray-100 text-gray-600"}`}
     >
       {status === "certified" && <ShieldCheck className="h-3 w-3" />}
-      {status === "applied" && <Clock className="h-3 w-3" />}
+      {(status === "applied" || status === "under_review" || status === "in_progress") && (
+        <Clock className="h-3 w-3" />
+      )}
       {status === "eligible" && <Star className="h-3 w-3" />}
-      {status === "expired" && <AlertTriangle className="h-3 w-3" />}
-      {STATUS_LABELS[status]}
+      {(status === "expired" || status === "denied") && (
+        <AlertTriangle className="h-3 w-3" />
+      )}
+      {STATUS_OPTIONS.find((o) => o.value === status)?.label || status}
     </span>
   );
 }
@@ -237,21 +105,36 @@ function CertificationCard({
   cert,
   onUpdate,
 }: {
-  cert: Certification;
-  onUpdate: (id: string, updates: Partial<Certification>) => void;
+  cert: SBACertification;
+  onUpdate: (id: string, updates: Partial<SBACertification>) => void;
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [editingDates, setEditingDates] = useState(false);
+  const [certNumber, setCertNumber] = useState(cert.certification_number);
+  const [certDate, setCertDate] = useState(cert.certification_date || "");
+  const [expDate, setExpDate] = useState(cert.expiration_date || "");
+  const [notes, setNotes] = useState(cert.notes);
 
   const borderColor =
     cert.status === "certified"
       ? "border-l-green-500"
-      : cert.status === "applied"
+      : cert.status === "applied" || cert.status === "under_review" || cert.status === "in_progress"
         ? "border-l-yellow-500"
         : cert.status === "eligible"
           ? "border-l-blue-500"
-          : cert.status === "expired"
+          : cert.status === "expired" || cert.status === "denied"
             ? "border-l-red-500"
             : "border-l-gray-300";
+
+  const saveDates = () => {
+    onUpdate(cert.id, {
+      certification_number: certNumber,
+      certification_date: certDate || null,
+      expiration_date: expDate || null,
+      notes,
+    });
+    setEditingDates(false);
+  };
 
   return (
     <Card className={`border-l-4 ${borderColor} relative`}>
@@ -259,10 +142,10 @@ function CertificationCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <CardTitle className="text-base font-semibold leading-tight">
-              {cert.name}
+              {cert.cert_type_display}
             </CardTitle>
             <p className="mt-0.5 text-xs font-medium text-muted-foreground">
-              {cert.abbreviation}
+              {cert.cert_type.toUpperCase()}
             </p>
           </div>
           <StatusBadge status={cert.status} />
@@ -278,7 +161,7 @@ function CertificationCard({
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-accent"
           >
-            {STATUS_LABELS[cert.status]}
+            {STATUS_OPTIONS.find((o) => o.value === cert.status)?.label || cert.status}
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
           {dropdownOpen && (
@@ -291,9 +174,7 @@ function CertificationCard({
                     setDropdownOpen(false);
                   }}
                   className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-accent ${
-                    cert.status === opt.value
-                      ? "bg-accent font-medium"
-                      : ""
+                    cert.status === opt.value ? "bg-accent font-medium" : ""
                   }`}
                 >
                   {opt.label}
@@ -304,72 +185,227 @@ function CertificationCard({
         </div>
 
         {/* Details grid */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <div>
-            <p className="text-xs text-muted-foreground">Cert Date</p>
-            <p className="font-medium">{formatDate(cert.certificationDate)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Expiration</p>
-            <p
-              className={`font-medium ${
-                cert.expirationDate && isExpiringSoon(cert.expirationDate)
-                  ? "text-amber-600"
-                  : ""
-              }`}
-            >
-              {formatDate(cert.expirationDate)}
-              {cert.expirationDate && isExpiringSoon(cert.expirationDate) && (
-                <AlertTriangle className="ml-1 inline h-3 w-3 text-amber-500" />
-              )}
-            </p>
-          </div>
-          <div className="col-span-2">
-            <p className="text-xs text-muted-foreground">Cert Number</p>
-            <p className="font-mono text-xs font-medium">
-              {cert.certificationNumber ?? "--"}
-            </p>
-          </div>
-        </div>
+        {!editingDates ? (
+          <>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Cert Date</p>
+                <p className="font-medium">{formatDate(cert.certification_date)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Expiration</p>
+                <p
+                  className={`font-medium ${
+                    cert.expiration_date && isExpiringSoon(cert.expiration_date)
+                      ? "text-amber-600"
+                      : ""
+                  }`}
+                >
+                  {formatDate(cert.expiration_date)}
+                  {cert.expiration_date && isExpiringSoon(cert.expiration_date) && (
+                    <AlertTriangle className="ml-1 inline h-3 w-3 text-amber-500" />
+                  )}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Cert Number</p>
+                <p className="font-mono text-xs font-medium">
+                  {cert.certification_number || "--"}
+                </p>
+              </div>
+            </div>
 
-        {/* Notes */}
-        <div>
-          <p className="mb-1 text-xs text-muted-foreground">
-            Eligibility Notes
-          </p>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {cert.eligibilityNotes || "--"}
-          </p>
-        </div>
+            {cert.notes && (
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Notes</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {cert.notes}
+                </p>
+              </div>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => setEditingDates(true)}
+            >
+              Edit Details
+            </Button>
+          </>
+        ) : (
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs text-muted-foreground">Cert Number</label>
+              <Input
+                value={certNumber}
+                onChange={(e) => setCertNumber(e.target.value)}
+                placeholder="e.g. SB-2024-00487"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">Cert Date</label>
+                <Input
+                  type="date"
+                  value={certDate}
+                  onChange={(e) => setCertDate(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Expiration</label>
+                <Input
+                  type="date"
+                  value={expDate}
+                  onChange={(e) => setExpDate(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs min-h-[60px] resize-y"
+                placeholder="Eligibility notes..."
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1 h-7 text-xs" onClick={saveDates}>
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-7 text-xs"
+                onClick={() => setEditingDates(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+// ── Add NAICS Modal ────────────────────────────────────────────────────────
+
+function AddNAICSModal({
+  onSave,
+  onClose,
+}: {
+  onSave: (data: { code: string; title: string; size_standard: string; is_primary: boolean; qualifies_small: boolean }) => void;
+  onClose: () => void;
+}) {
+  const [code, setCode] = useState("");
+  const [title, setTitle] = useState("");
+  const [sizeStandard, setSizeStandard] = useState("");
+  const [isPrimary, setIsPrimary] = useState(false);
+  const [qualifiesSmall, setQualifiesSmall] = useState(true);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Add NAICS Code</CardTitle>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">NAICS Code *</label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. 541512" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Title *</label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Computer Systems Design Services" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Size Standard</label>
+            <Input value={sizeStandard} onChange={(e) => setSizeStandard(e.target.value)} placeholder="e.g. $34M or 1,000 employees" />
+          </div>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={isPrimary} onChange={(e) => setIsPrimary(e.target.checked)} className="rounded" />
+              Primary NAICS
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={qualifiesSmall} onChange={(e) => setQualifiesSmall(e.target.checked)} className="rounded" />
+              Qualifies as Small
+            </label>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button
+              className="flex-1"
+              disabled={!code.trim() || !title.trim()}
+              onClick={() => onSave({ code, title, size_standard: sizeStandard, is_primary: isPrimary, qualifies_small: qualifiesSmall })}
+            >
+              Add Code
+            </Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function SBACertificationsPage() {
-  const [certifications, setCertifications] = useState<Certification[]>(
-    INITIAL_CERTIFICATIONS
-  );
-  const [naicsCodes, setNaicsCodes] = useState<NaicsCode[]>(
-    INITIAL_NAICS_CODES
-  );
+  const [certifications, setCertifications] = useState<SBACertification[]>([]);
+  const [naicsCodes, setNaicsCodes] = useState<NAICSCode[]>([]);
   const [naicsSearch, setNaicsSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showAddNaics, setShowAddNaics] = useState(false);
+
+  // ── Load data ──────────────────────────────────────────────────────────
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const [certs, codes] = await Promise.all([getCertifications(), getNAICSCodes()]);
+
+      if (certs.length === 0) {
+        const result = await initializeCertifications();
+        setCertifications(result.certifications);
+      } else {
+        setCertifications(certs);
+      }
+      setNaicsCodes(codes);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load data";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // ── Derived stats ──────────────────────────────────────────────────────
 
   const stats = useMemo(() => {
-    const total = certifications.filter(
-      (c) => c.status !== "not_applicable"
-    ).length;
-    const active = certifications.filter(
-      (c) => c.status === "certified"
-    ).length;
+    const total = certifications.filter((c) => c.status !== "not_applicable").length;
+    const active = certifications.filter((c) => c.status === "certified").length;
     const expiringSoon = certifications.filter(
-      (c) => c.status === "certified" && isExpiringSoon(c.expirationDate)
+      (c) => c.status === "certified" && isExpiringSoon(c.expiration_date)
     ).length;
-    const selectedNaics = naicsCodes.filter((n) => n.selected).length;
+    const selectedNaics = naicsCodes.length;
     return { total, active, expiringSoon, selectedNaics };
   }, [certifications, naicsCodes]);
 
@@ -382,23 +418,75 @@ export default function SBACertificationsPage() {
       (n) =>
         n.code.includes(q) ||
         n.title.toLowerCase().includes(q) ||
-        n.sizeStandard.toLowerCase().includes(q)
+        n.size_standard.toLowerCase().includes(q)
     );
   }, [naicsCodes, naicsSearch]);
 
   // ── Handlers ──────────────────────────────────────────────────────────
 
-  function updateCertification(id: string, updates: Partial<Certification>) {
-    setCertifications((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+  async function handleUpdateCert(id: string, updates: Partial<SBACertification>) {
+    try {
+      const updated = await apiUpdateCert(id, updates);
+      setCertifications((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    } catch {
+      // keep simple
+    }
+  }
+
+  async function handleAddNaics(data: {
+    code: string;
+    title: string;
+    size_standard: string;
+    is_primary: boolean;
+    qualifies_small: boolean;
+  }) {
+    try {
+      const created = await createNAICSCode(data);
+      setNaicsCodes((prev) => [...prev, created]);
+      setShowAddNaics(false);
+    } catch {
+      // handle error
+    }
+  }
+
+  async function handleDeleteNaics(id: string) {
+    if (!confirm("Delete this NAICS code?")) return;
+    try {
+      await deleteNAICSCode(id);
+      setNaicsCodes((prev) => prev.filter((n) => n.id !== id));
+    } catch {
+      // handle error
+    }
+  }
+
+  async function handleSetPrimary(id: string) {
+    try {
+      await setNAICSPrimary(id);
+      setNaicsCodes((prev) =>
+        prev.map((n) => ({ ...n, is_primary: n.id === id }))
+      );
+    } catch {
+      // handle error
+    }
+  }
+
+  // ── Loading / Error ───────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
-  function toggleNaicsSelection(code: string) {
-    setNaicsCodes((prev) =>
-      prev.map((n) =>
-        n.code === code ? { ...n, selected: !n.selected } : n
-      )
+  if (error) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center gap-4">
+        <AlertTriangle className="h-10 w-10 text-destructive" />
+        <p className="text-muted-foreground">{error}</p>
+        <Button onClick={loadData}>Retry</Button>
+      </div>
     );
   }
 
@@ -424,9 +512,7 @@ export default function SBACertificationsPage() {
               <FileText className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">
-                Total Certifications
-              </p>
+              <p className="text-sm text-muted-foreground">Total Certifications</p>
               <p className="text-2xl font-bold">{stats.total}</p>
             </div>
           </CardContent>
@@ -438,9 +524,7 @@ export default function SBACertificationsPage() {
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">
-                Active Certifications
-              </p>
+              <p className="text-sm text-muted-foreground">Active Certifications</p>
               <p className="text-2xl font-bold">{stats.active}</p>
             </div>
           </CardContent>
@@ -482,7 +566,7 @@ export default function SBACertificationsPage() {
             <CertificationCard
               key={cert.id}
               cert={cert}
-              onUpdate={updateCertification}
+              onUpdate={handleUpdateCert}
             />
           ))}
         </div>
@@ -490,9 +574,15 @@ export default function SBACertificationsPage() {
 
       {/* NAICS Code Manager Section */}
       <div>
-        <div className="mb-4 flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-xl font-semibold">NAICS Code Manager</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-xl font-semibold">NAICS Code Manager</h2>
+          </div>
+          <Button size="sm" onClick={() => setShowAddNaics(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add NAICS Code
+          </Button>
         </div>
 
         <Card>
@@ -513,118 +603,115 @@ export default function SBACertificationsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                      Selected
-                    </th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                      NAICS Code
-                    </th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                      Title
-                    </th>
-                    <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                      Size Standard
-                    </th>
-                    <th className="pb-3 font-medium text-muted-foreground">
-                      Type
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredNaics.map((naics) => (
-                    <tr
-                      key={naics.code}
-                      className={`border-b border-border/50 transition-colors hover:bg-accent/50 ${
-                        naics.selected ? "bg-primary/5" : ""
-                      }`}
-                    >
-                      <td className="py-3 pr-4">
-                        <button
-                          onClick={() => toggleNaicsSelection(naics.code)}
-                          className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
-                            naics.selected
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border hover:border-primary"
-                          }`}
-                        >
-                          {naics.selected && (
-                            <CheckCircle className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      </td>
-                      <td className="py-3 pr-4">
-                        <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
-                          {naics.code}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4 font-medium">{naics.title}</td>
-                      <td className="py-3 pr-4">
-                        <span className="font-medium">
-                          {naics.sizeStandard}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                            naics.sizeStandardType === "revenue"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-indigo-100 text-indigo-700"
-                          }`}
-                        >
-                          {naics.sizeStandardType === "revenue" ? (
-                            <DollarSign className="h-3 w-3" />
-                          ) : (
-                            <Users className="h-3 w-3" />
-                          )}
-                          {naics.sizeStandardType === "revenue"
-                            ? "Revenue"
-                            : "Employees"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredNaics.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="py-8 text-center text-muted-foreground"
-                      >
-                        No NAICS codes match your search.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-sm text-muted-foreground">
-              <p>
-                Showing {filteredNaics.length} of {naicsCodes.length} codes
-                {" | "}
-                <span className="font-medium text-foreground">
-                  {naicsCodes.filter((n) => n.selected).length}
-                </span>{" "}
-                selected
-              </p>
-              {naicsSearch && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setNaicsSearch("")}
-                  className="gap-1"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Clear filter
+            {naicsCodes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Hash className="h-10 w-10 text-muted-foreground" />
+                <p className="text-muted-foreground">No NAICS codes yet. Add your first one.</p>
+                <Button size="sm" onClick={() => setShowAddNaics(true)}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add NAICS Code
                 </Button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left">
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">NAICS Code</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Title</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Size Standard</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Primary</th>
+                        <th className="pb-3 pr-4 font-medium text-muted-foreground">Small</th>
+                        <th className="pb-3 font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredNaics.map((naics) => (
+                        <tr
+                          key={naics.id}
+                          className={`border-b border-border/50 transition-colors hover:bg-accent/50 ${
+                            naics.is_primary ? "bg-primary/5" : ""
+                          }`}
+                        >
+                          <td className="py-3 pr-4">
+                            <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
+                              {naics.code}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4 font-medium">{naics.title}</td>
+                          <td className="py-3 pr-4">
+                            <span className="font-medium">{naics.size_standard || "--"}</span>
+                          </td>
+                          <td className="py-3 pr-4">
+                            {naics.is_primary ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                <Star className="h-3 w-3" />
+                                Primary
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleSetPrimary(naics.id)}
+                                className="text-xs text-muted-foreground hover:text-blue-600 hover:underline"
+                              >
+                                Set Primary
+                              </button>
+                            )}
+                          </td>
+                          <td className="py-3 pr-4">
+                            {naics.qualifies_small ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <X className="h-4 w-4 text-red-500" />
+                            )}
+                          </td>
+                          <td className="py-3">
+                            <button
+                              onClick={() => handleDeleteNaics(naics.id)}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredNaics.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                            No NAICS codes match your search.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-sm text-muted-foreground">
+                  <p>
+                    Showing {filteredNaics.length} of {naicsCodes.length} codes
+                  </p>
+                  {naicsSearch && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setNaicsSearch("")}
+                      className="gap-1"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Clear filter
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Add NAICS Modal */}
+      {showAddNaics && (
+        <AddNAICSModal onSave={handleAddNaics} onClose={() => setShowAddNaics(false)} />
+      )}
     </div>
   );
 }

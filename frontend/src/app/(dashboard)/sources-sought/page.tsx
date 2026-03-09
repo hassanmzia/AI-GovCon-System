@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,35 +16,24 @@ import {
   Trash2,
   Copy,
   CheckCircle,
-  Eye,
   Mail,
   X,
   Edit3,
   AlertCircle,
   Briefcase,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
-
-// ── Types ───────────────────────────────────────────────────────────────────
-
-type InterestLevel = "strongly_interested" | "moderately_interested" | "low_interest" | "info_only";
-type ResponseStatus = "draft" | "in_review" | "submitted" | "no_response";
-
-interface SourcesSoughtResponse {
-  id: string;
-  title: string;
-  solicitationNumber: string;
-  interestLevel: InterestLevel;
-  status: ResponseStatus;
-  dealName: string;
-  submittedDate: string | null;
-  companyOverview: string;
-  relevantExperience: string;
-  technicalApproach: string;
-  capabilityGaps: string;
-  questionsForGovernment: string[];
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  type SourcesSoughtResponse,
+  type InterestLevel,
+  type ResponseStatus,
+  type SourcesSoughtPayload,
+  getSourcesSought,
+  createSourcesSought,
+  updateSourcesSought,
+  deleteSourcesSought,
+} from "@/services/sources-sought";
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -61,79 +50,6 @@ const STATUS_CONFIG: Record<ResponseStatus, { label: string; color: string }> = 
   submitted: { label: "Submitted", color: "bg-green-100 text-green-700" },
   no_response: { label: "No Response", color: "bg-red-100 text-red-600" },
 };
-
-// ── Mock Data ───────────────────────────────────────────────────────────────
-
-const INITIAL_RESPONSES: SourcesSoughtResponse[] = [
-  {
-    id: "ss-001",
-    title: "Enterprise Cloud Migration Services",
-    solicitationNumber: "W911NF-26-SS-0042",
-    interestLevel: "strongly_interested",
-    status: "submitted",
-    dealName: "Army Cloud Modernization",
-    submittedDate: "2026-02-28",
-    companyOverview:
-      "Acme Federal Solutions is a Service-Disabled Veteran-Owned Small Business (SDVOSB) with over 12 years of experience delivering enterprise IT modernization solutions to DoD and civilian agencies. We hold a FedRAMP High ATO and maintain AWS GovCloud and Azure Government competencies.",
-    relevantExperience:
-      "We have successfully delivered three cloud migration programs for DoD customers totaling over $45M in contract value, including the Army ITES-3S Cloud Migration Task Order where we migrated 200+ applications to AWS GovCloud within 18 months. Our CPARS ratings across these efforts average Very Good to Exceptional.",
-    technicalApproach:
-      "Our approach leverages our proprietary Cloud Migration Assessment Framework (CMAF) to evaluate workload readiness, identify dependencies, and sequence migrations for minimal operational disruption. We employ a factory model with automated tooling for repeatable, efficient migrations at scale.",
-    capabilityGaps:
-      "We would seek a teaming partner with specialized Oracle database migration expertise for legacy ERP systems. We are currently pursuing Oracle Cloud Infrastructure (OCI) certifications to address this gap organically.",
-    questionsForGovernment: [
-      "Is the Government open to a phased migration approach that prioritizes mission-critical applications?",
-      "What is the current state of the network infrastructure between on-premise data centers and the target cloud environment?",
-      "Will the Government provide access to existing application documentation and architecture diagrams?",
-    ],
-    createdAt: "2026-02-15",
-    updatedAt: "2026-02-28",
-  },
-  {
-    id: "ss-002",
-    title: "Cybersecurity Operations Center Support",
-    solicitationNumber: "FA8771-26-RFI-0103",
-    interestLevel: "moderately_interested",
-    status: "in_review",
-    dealName: "USAF SOC Modernization",
-    submittedDate: null,
-    companyOverview:
-      "Acme Federal Solutions maintains a robust cybersecurity practice with 85+ cleared professionals holding CISSP, CEH, and GIAC certifications. We operate a 24/7 Security Operations Center supporting multiple federal agencies.",
-    relevantExperience:
-      "Currently performing Tier 1-3 SOC support for DHS CISA under a $12M IDIQ task order. Previously provided MDR services to DISA under the ENCORE III vehicle. Our team has direct experience with Splunk, CrowdStrike, and Palo Alto XSOAR in federal environments.",
-    technicalApproach:
-      "We propose a modern SOC architecture built on SOAR automation, AI-driven threat detection, and zero-trust principles. Our approach reduces mean-time-to-detect (MTTD) by 60% through automated triage and correlation of security events.",
-    capabilityGaps:
-      "No significant gaps identified. We may augment our team with additional TS/SCI-cleared analysts depending on the scope and location requirements.",
-    questionsForGovernment: [
-      "What is the anticipated contract vehicle for this requirement (new standalone or existing IDIQ)?",
-      "Are there existing SIEM/SOAR tools deployed that the contractor must integrate with?",
-    ],
-    createdAt: "2026-02-20",
-    updatedAt: "2026-03-05",
-  },
-  {
-    id: "ss-003",
-    title: "Data Analytics Platform for VA Health Systems",
-    solicitationNumber: "36C10X-26-SS-0087",
-    interestLevel: "low_interest",
-    status: "draft",
-    dealName: "VA Data Analytics",
-    submittedDate: null,
-    companyOverview:
-      "Acme Federal Solutions provides advanced data analytics and AI/ML solutions to federal health agencies. We are a verified SDVOSB with VA CVE certification and extensive experience with VistA and VA health data systems.",
-    relevantExperience:
-      "Limited direct experience with VA health data systems. Our primary health IT experience is with MHS GENESIS (DoD) where we developed clinical data dashboards and predictive analytics models for patient flow optimization.",
-    technicalApproach: "",
-    capabilityGaps:
-      "Significant gaps in VA-specific domain knowledge, VistA integration, and HIPAA compliance frameworks specific to VA. Would require substantial teaming or subcontracting to be competitive.",
-    questionsForGovernment: [
-      "Is the Government considering set-aside categories for this procurement?",
-    ],
-    createdAt: "2026-03-01",
-    updatedAt: "2026-03-01",
-  },
-];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -160,7 +76,7 @@ function ResponseCard({
   onViewEmail: (r: SourcesSoughtResponse) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const interest = INTEREST_LEVEL_CONFIG[response.interestLevel];
+  const interest = INTEREST_LEVEL_CONFIG[response.interest_level];
   const status = STATUS_CONFIG[response.status];
 
   return (
@@ -176,7 +92,7 @@ function ResponseCard({
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                {response.solicitationNumber}
+                {response.solicitation_number}
               </span>
               <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${interest.color}`}>
                 {interest.label}
@@ -210,91 +126,93 @@ function ResponseCard({
 
         {/* Meta row */}
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Briefcase className="h-3 w-3" />
-            {response.dealName}
-          </span>
-          {response.submittedDate && (
+          {response.deal_name && (
+            <span className="flex items-center gap-1">
+              <Briefcase className="h-3 w-3" />
+              {response.deal_name}
+            </span>
+          )}
+          {response.submitted_at && (
             <span className="flex items-center gap-1">
               <Send className="h-3 w-3" />
-              Submitted {formatDate(response.submittedDate)}
+              Submitted {formatDate(response.submitted_at)}
             </span>
           )}
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            Updated {formatDate(response.updatedAt)}
+            Updated {formatDate(response.updated_at)}
           </span>
         </div>
 
         {/* Company overview preview */}
-        {!expanded && response.companyOverview && (
+        {!expanded && response.company_overview && (
           <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
-            {response.companyOverview}
+            {response.company_overview}
           </p>
         )}
 
         {/* Questions count */}
-        {!expanded && response.questionsForGovernment.length > 0 && (
+        {!expanded && response.questions_for_government.length > 0 && (
           <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
             <AlertCircle className="h-3 w-3" />
-            {response.questionsForGovernment.length} question{response.questionsForGovernment.length !== 1 ? "s" : ""} for Government
+            {response.questions_for_government.length} question{response.questions_for_government.length !== 1 ? "s" : ""} for Government
           </div>
         )}
 
         {/* Expanded detail */}
         {expanded && (
           <div className="mt-4 space-y-4 border-t pt-4">
-            {response.companyOverview && (
+            {response.company_overview && (
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Company Overview
                 </p>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {response.companyOverview}
+                  {response.company_overview}
                 </p>
               </div>
             )}
 
-            {response.relevantExperience && (
+            {response.relevant_experience && (
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Relevant Experience
                 </p>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {response.relevantExperience}
+                  {response.relevant_experience}
                 </p>
               </div>
             )}
 
-            {response.technicalApproach && (
+            {response.technical_approach_summary && (
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Technical Approach Summary
                 </p>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {response.technicalApproach}
+                  {response.technical_approach_summary}
                 </p>
               </div>
             )}
 
-            {response.capabilityGaps && (
+            {response.capability_gaps && (
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Capability Gaps
                 </p>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {response.capabilityGaps}
+                  {response.capability_gaps}
                 </p>
               </div>
             )}
 
-            {response.questionsForGovernment.length > 0 && (
+            {response.questions_for_government.length > 0 && (
               <div>
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Questions for Government
                 </p>
                 <ol className="space-y-1.5 list-decimal list-inside">
-                  {response.questionsForGovernment.map((q, i) => (
+                  {response.questions_for_government.map((q, i) => (
                     <li key={i} className="text-sm text-muted-foreground">
                       {q}
                     </li>
@@ -313,38 +231,40 @@ function ResponseCard({
 
 interface FormData {
   title: string;
-  solicitationNumber: string;
-  interestLevel: InterestLevel;
+  solicitation_number: string;
+  interest_level: InterestLevel;
   status: ResponseStatus;
-  dealName: string;
-  companyOverview: string;
-  relevantExperience: string;
-  technicalApproach: string;
-  capabilityGaps: string;
-  questionsForGovernment: string[];
+  deal_name: string;
+  company_overview: string;
+  relevant_experience: string;
+  technical_approach_summary: string;
+  capability_gaps: string;
+  questions_for_government: string[];
 }
 
 const EMPTY_FORM: FormData = {
   title: "",
-  solicitationNumber: "",
-  interestLevel: "strongly_interested",
+  solicitation_number: "",
+  interest_level: "strongly_interested",
   status: "draft",
-  dealName: "",
-  companyOverview: "",
-  relevantExperience: "",
-  technicalApproach: "",
-  capabilityGaps: "",
-  questionsForGovernment: [],
+  deal_name: "",
+  company_overview: "",
+  relevant_experience: "",
+  technical_approach_summary: "",
+  capability_gaps: "",
+  questions_for_government: [],
 };
 
 function ResponseForm({
   initialData,
   onSave,
   onCancel,
+  saving,
 }: {
   initialData: FormData | null;
   onSave: (data: FormData) => void;
   onCancel: () => void;
+  saving: boolean;
 }) {
   const [form, setForm] = useState<FormData>(initialData ?? EMPTY_FORM);
   const [questionInput, setQuestionInput] = useState("");
@@ -356,20 +276,20 @@ function ResponseForm({
 
   const addQuestion = () => {
     if (!questionInput.trim()) return;
-    set("questionsForGovernment", [...form.questionsForGovernment, questionInput.trim()]);
+    set("questions_for_government", [...form.questions_for_government, questionInput.trim()]);
     setQuestionInput("");
   };
 
   const removeQuestion = (idx: number) => {
     set(
-      "questionsForGovernment",
-      form.questionsForGovernment.filter((_, i) => i !== idx)
+      "questions_for_government",
+      form.questions_for_government.filter((_, i) => i !== idx)
     );
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.solicitationNumber.trim()) return;
+    if (!form.title.trim() || !form.solicitation_number.trim()) return;
     onSave(form);
   };
 
@@ -405,8 +325,8 @@ function ResponseForm({
                 Solicitation Number <span className="text-red-500">*</span>
               </label>
               <Input
-                value={form.solicitationNumber}
-                onChange={(e) => set("solicitationNumber", e.target.value)}
+                value={form.solicitation_number}
+                onChange={(e) => set("solicitation_number", e.target.value)}
                 placeholder="e.g. W911NF-26-SS-0042"
               />
             </div>
@@ -418,8 +338,8 @@ function ResponseForm({
               <label className={labelCls}>Interest Level</label>
               <select
                 className={selectCls}
-                value={form.interestLevel}
-                onChange={(e) => set("interestLevel", e.target.value as InterestLevel)}
+                value={form.interest_level}
+                onChange={(e) => set("interest_level", e.target.value as InterestLevel)}
               >
                 <option value="strongly_interested">Strongly Interested</option>
                 <option value="moderately_interested">Moderately Interested</option>
@@ -443,8 +363,8 @@ function ResponseForm({
             <div>
               <label className={labelCls}>Deal Association</label>
               <Input
-                value={form.dealName}
-                onChange={(e) => set("dealName", e.target.value)}
+                value={form.deal_name}
+                onChange={(e) => set("deal_name", e.target.value)}
                 placeholder="e.g. Army Cloud Modernization"
               />
             </div>
@@ -455,8 +375,8 @@ function ResponseForm({
             <label className={labelCls}>Company Overview</label>
             <textarea
               className={textareaCls}
-              value={form.companyOverview}
-              onChange={(e) => set("companyOverview", e.target.value)}
+              value={form.company_overview}
+              onChange={(e) => set("company_overview", e.target.value)}
               placeholder="Provide a brief company overview including business size, certifications, and core competencies relevant to this opportunity..."
             />
           </div>
@@ -466,8 +386,8 @@ function ResponseForm({
             <label className={labelCls}>Relevant Experience</label>
             <textarea
               className={textareaCls}
-              value={form.relevantExperience}
-              onChange={(e) => set("relevantExperience", e.target.value)}
+              value={form.relevant_experience}
+              onChange={(e) => set("relevant_experience", e.target.value)}
               placeholder="Describe 2-3 relevant past performance examples demonstrating your capability to perform similar work..."
             />
           </div>
@@ -477,8 +397,8 @@ function ResponseForm({
             <label className={labelCls}>Technical Approach Summary</label>
             <textarea
               className={textareaCls}
-              value={form.technicalApproach}
-              onChange={(e) => set("technicalApproach", e.target.value)}
+              value={form.technical_approach_summary}
+              onChange={(e) => set("technical_approach_summary", e.target.value)}
               placeholder="Outline your proposed technical approach, methodology, and key differentiators..."
             />
           </div>
@@ -488,8 +408,8 @@ function ResponseForm({
             <label className={labelCls}>Capability Gaps</label>
             <textarea
               className={`${textareaCls} min-h-[80px]`}
-              value={form.capabilityGaps}
-              onChange={(e) => set("capabilityGaps", e.target.value)}
+              value={form.capability_gaps}
+              onChange={(e) => set("capability_gaps", e.target.value)}
               placeholder="Identify any capability gaps and describe your mitigation strategy (e.g., teaming partners, hiring plans)..."
             />
           </div>
@@ -514,9 +434,9 @@ function ResponseForm({
                 Add
               </Button>
             </div>
-            {form.questionsForGovernment.length > 0 && (
+            {form.questions_for_government.length > 0 && (
               <ol className="mt-3 space-y-2">
-                {form.questionsForGovernment.map((q, i) => (
+                {form.questions_for_government.map((q, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm rounded-md border bg-muted/30 px-3 py-2">
                     <span className="text-muted-foreground font-mono text-xs mt-0.5 shrink-0">
                       {i + 1}.
@@ -540,7 +460,8 @@ function ResponseForm({
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!form.title.trim() || !form.solicitationNumber.trim()}>
+            <Button type="submit" disabled={!form.title.trim() || !form.solicitation_number.trim() || saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? "Update Response" : "Create Response"}
             </Button>
           </div>
@@ -561,22 +482,22 @@ function EmailTemplateModal({
 }) {
   const [copied, setCopied] = useState(false);
 
-  const interest = INTEREST_LEVEL_CONFIG[response.interestLevel];
+  const interest = INTEREST_LEVEL_CONFIG[response.interest_level];
 
-  const questionsBlock = response.questionsForGovernment.length > 0
-    ? `\n\nQUESTIONS FOR THE GOVERNMENT:\n${response.questionsForGovernment.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
+  const questionsBlock = response.questions_for_government.length > 0
+    ? `\n\nQUESTIONS FOR THE GOVERNMENT:\n${response.questions_for_government.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
     : "";
 
-  const emailTemplate = `Subject: Response to Sources Sought / RFI - ${response.solicitationNumber} - ${response.title}
+  const emailTemplate = `Subject: Response to Sources Sought / RFI - ${response.solicitation_number} - ${response.title}
 
 To Whom It May Concern,
 
-Please find below our response to the subject Sources Sought Notice / Request for Information (${response.solicitationNumber}) for ${response.title}.
+Please find below our response to the subject Sources Sought Notice / Request for Information (${response.solicitation_number}) for ${response.title}.
 
 INTEREST LEVEL: ${interest.label}
 
 1. COMPANY OVERVIEW
-${response.companyOverview || "[Company overview not yet provided]"}
+${response.company_overview || "[Company overview not yet provided]"}
 
 DUNS Number: [INSERT DUNS]
 CAGE Code: [INSERT CAGE CODE]
@@ -586,13 +507,13 @@ Socioeconomic Categories: [INSERT CATEGORIES - e.g., SDVOSB, 8(a), HUBZone]
 GSA Schedule / Contract Vehicles: [INSERT APPLICABLE VEHICLES]
 
 2. RELEVANT EXPERIENCE
-${response.relevantExperience || "[Relevant experience not yet provided]"}
+${response.relevant_experience || "[Relevant experience not yet provided]"}
 
 3. TECHNICAL APPROACH SUMMARY
-${response.technicalApproach || "[Technical approach not yet provided]"}
+${response.technical_approach_summary || "[Technical approach not yet provided]"}
 
 4. CAPABILITY GAPS & TEAMING CONSIDERATIONS
-${response.capabilityGaps || "[Capability gaps assessment not yet provided]"}${questionsBlock}
+${response.capability_gaps || "[Capability gaps assessment not yet provided]"}${questionsBlock}
 
 We appreciate the opportunity to respond to this Sources Sought notice and look forward to the potential to support this important mission. Please do not hesitate to contact us with any additional questions.
 
@@ -624,7 +545,7 @@ Respectfully,
               Email Template
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Pre-formatted submission email for {response.solicitationNumber}
+              Pre-formatted submission email for {response.solicitation_number}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -679,23 +600,46 @@ Respectfully,
 // ── Main Page ───────────────────────────────────────────────────────────────
 
 export default function SourcesSoughtPage() {
-  const [responses, setResponses] = useState<SourcesSoughtResponse[]>(INITIAL_RESPONSES);
+  const [responses, setResponses] = useState<SourcesSoughtResponse[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ResponseStatus | "">("");
   const [interestFilter, setInterestFilter] = useState<InterestLevel | "">("");
   const [showForm, setShowForm] = useState(false);
   const [editingResponse, setEditingResponse] = useState<SourcesSoughtResponse | null>(null);
   const [emailResponse, setEmailResponse] = useState<SourcesSoughtResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // ── Load data ─────────────────────────────────────────────────────────
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await getSourcesSought();
+      setResponses(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to load responses";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Filtering
   const filtered = responses.filter((r) => {
     const matchesSearch =
       !search ||
       r.title.toLowerCase().includes(search.toLowerCase()) ||
-      r.solicitationNumber.toLowerCase().includes(search.toLowerCase()) ||
-      r.dealName.toLowerCase().includes(search.toLowerCase());
+      r.solicitation_number.toLowerCase().includes(search.toLowerCase()) ||
+      r.deal_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || r.status === statusFilter;
-    const matchesInterest = !interestFilter || r.interestLevel === interestFilter;
+    const matchesInterest = !interestFilter || r.interest_level === interestFilter;
     return matchesSearch && matchesStatus && matchesInterest;
   });
 
@@ -703,37 +647,37 @@ export default function SourcesSoughtPage() {
   const totalResponses = responses.length;
   const submitted = responses.filter((r) => r.status === "submitted").length;
   const inDraft = responses.filter((r) => r.status === "draft").length;
-  const strongInterest = responses.filter((r) => r.interestLevel === "strongly_interested").length;
+  const strongInterest = responses.filter((r) => r.interest_level === "strongly_interested").length;
 
-  const handleSave = (data: FormData) => {
-    if (editingResponse) {
-      // Update existing
-      setResponses((prev) =>
-        prev.map((r) =>
-          r.id === editingResponse.id
-            ? {
-                ...r,
-                ...data,
-                updatedAt: new Date().toISOString().split("T")[0],
-                submittedDate: data.status === "submitted" && !r.submittedDate
-                  ? new Date().toISOString().split("T")[0]
-                  : r.submittedDate,
-              }
-            : r
-        )
-      );
-      setEditingResponse(null);
-    } else {
-      // Create new
-      const newResponse: SourcesSoughtResponse = {
-        id: `ss-${Date.now()}`,
-        ...data,
-        submittedDate: data.status === "submitted" ? new Date().toISOString().split("T")[0] : null,
-        createdAt: new Date().toISOString().split("T")[0],
-        updatedAt: new Date().toISOString().split("T")[0],
+  const handleSave = async (data: FormData) => {
+    setSaving(true);
+    try {
+      const payload: SourcesSoughtPayload = {
+        title: data.title,
+        solicitation_number: data.solicitation_number,
+        deal_name: data.deal_name,
+        interest_level: data.interest_level,
+        status: data.status,
+        company_overview: data.company_overview,
+        relevant_experience: data.relevant_experience,
+        technical_approach_summary: data.technical_approach_summary,
+        capability_gaps: data.capability_gaps,
+        questions_for_government: data.questions_for_government,
       };
-      setResponses((prev) => [newResponse, ...prev]);
-      setShowForm(false);
+
+      if (editingResponse) {
+        const updated = await updateSourcesSought(editingResponse.id, payload);
+        setResponses((prev) => prev.map((r) => (r.id === editingResponse.id ? updated : r)));
+        setEditingResponse(null);
+      } else {
+        const created = await createSourcesSought(payload);
+        setResponses((prev) => [created, ...prev]);
+        setShowForm(false);
+      }
+    } catch {
+      // handle error
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -742,10 +686,15 @@ export default function SourcesSoughtPage() {
     setShowForm(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this response?")) return;
-    setResponses((prev) => prev.filter((r) => r.id !== id));
-    if (editingResponse?.id === id) setEditingResponse(null);
+    try {
+      await deleteSourcesSought(id);
+      setResponses((prev) => prev.filter((r) => r.id !== id));
+      if (editingResponse?.id === id) setEditingResponse(null);
+    } catch {
+      // handle error
+    }
   };
 
   const handleCancel = () => {
@@ -755,6 +704,26 @@ export default function SourcesSoughtPage() {
 
   const selectCls =
     "h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:h-9 sm:w-auto";
+
+  // ── Loading / Error ───────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center gap-4">
+        <AlertTriangle className="h-10 w-10 text-destructive" />
+        <p className="text-muted-foreground">{error}</p>
+        <Button onClick={loadData}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -777,30 +746,10 @@ export default function SourcesSoughtPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          {
-            label: "Total Responses",
-            value: String(totalResponses),
-            icon: FileText,
-            iconColor: "text-blue-600",
-          },
-          {
-            label: "Submitted",
-            value: String(submitted),
-            icon: Send,
-            iconColor: "text-green-600",
-          },
-          {
-            label: "In Draft",
-            value: String(inDraft),
-            icon: Clock,
-            iconColor: "text-amber-600",
-          },
-          {
-            label: "Strong Interest",
-            value: String(strongInterest),
-            icon: Star,
-            iconColor: "text-purple-600",
-          },
+          { label: "Total Responses", value: String(totalResponses), icon: FileText, iconColor: "text-blue-600" },
+          { label: "Submitted", value: String(submitted), icon: Send, iconColor: "text-green-600" },
+          { label: "In Draft", value: String(inDraft), icon: Clock, iconColor: "text-amber-600" },
+          { label: "Strong Interest", value: String(strongInterest), icon: Star, iconColor: "text-purple-600" },
         ].map(({ label, value, icon: Icon, iconColor }) => (
           <Card key={label}>
             <CardContent className="pt-5">
@@ -825,20 +774,21 @@ export default function SourcesSoughtPage() {
             editingResponse
               ? {
                   title: editingResponse.title,
-                  solicitationNumber: editingResponse.solicitationNumber,
-                  interestLevel: editingResponse.interestLevel,
+                  solicitation_number: editingResponse.solicitation_number,
+                  interest_level: editingResponse.interest_level,
                   status: editingResponse.status,
-                  dealName: editingResponse.dealName,
-                  companyOverview: editingResponse.companyOverview,
-                  relevantExperience: editingResponse.relevantExperience,
-                  technicalApproach: editingResponse.technicalApproach,
-                  capabilityGaps: editingResponse.capabilityGaps,
-                  questionsForGovernment: editingResponse.questionsForGovernment,
+                  deal_name: editingResponse.deal_name,
+                  company_overview: editingResponse.company_overview,
+                  relevant_experience: editingResponse.relevant_experience,
+                  technical_approach_summary: editingResponse.technical_approach_summary,
+                  capability_gaps: editingResponse.capability_gaps,
+                  questions_for_government: editingResponse.questions_for_government,
                 }
               : null
           }
           onSave={handleSave}
           onCancel={handleCancel}
+          saving={saving}
         />
       )}
 

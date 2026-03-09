@@ -3,8 +3,11 @@ from rest_framework import serializers
 from apps.contracts.models import (
     Contract,
     ContractClause,
+    ContractMilestone,
+    ContractModification,
     ContractTemplate,
     ContractVersion,
+    OptionYear,
 )
 
 
@@ -160,3 +163,95 @@ class ContractVersionSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "changed_by", "created_at", "updated_at"]
+
+
+# ── ContractMilestone ─────────────────────────────────
+
+
+class ContractMilestoneSerializer(serializers.ModelSerializer):
+    milestone_type_display = serializers.CharField(
+        source="get_milestone_type_display", read_only=True
+    )
+    status_display = serializers.CharField(
+        source="get_status_display", read_only=True
+    )
+
+    class Meta:
+        model = ContractMilestone
+        fields = [
+            "id",
+            "contract",
+            "title",
+            "milestone_type",
+            "milestone_type_display",
+            "due_date",
+            "status",
+            "status_display",
+            "completed_date",
+            "amount",
+            "deliverable_description",
+            "assigned_to",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+# ── ContractModification ──────────────────────────────
+
+
+class ContractModificationSerializer(serializers.ModelSerializer):
+    modification_type_display = serializers.CharField(
+        source="get_modification_type_display", read_only=True
+    )
+    status_display = serializers.CharField(
+        source="get_status_display", read_only=True
+    )
+
+    class Meta:
+        model = ContractModification
+        fields = [
+            "id",
+            "contract",
+            "modification_number",
+            "modification_type",
+            "modification_type_display",
+            "description",
+            "impact_value",
+            "new_total_value",
+            "effective_date",
+            "status",
+            "status_display",
+            "requested_by",
+            "approved_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+# ── OptionYear ────────────────────────────────────────
+
+
+class OptionYearSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(
+        source="get_status_display", read_only=True
+    )
+
+    class Meta:
+        model = OptionYear
+        fields = [
+            "id",
+            "contract",
+            "year_number",
+            "start_date",
+            "end_date",
+            "value",
+            "status",
+            "status_display",
+            "exercised_date",
+            "decision_deadline",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
