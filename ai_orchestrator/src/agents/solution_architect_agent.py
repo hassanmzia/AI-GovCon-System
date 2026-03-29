@@ -555,8 +555,11 @@ async def generate_volume(state: SolutionArchitectState) -> dict:
             "Technical risk register with mitigations. Present as a structured narrative "
             "demonstrating proactive risk management.\n\n"
             "## Section 6: Technical Compliance Matrix\n"
-            "For each major technical requirement, state: Requirement | How Addressed | "
-            "Evidence/Section Reference. Format as a pipe-delimited table."
+            "For each major technical requirement, create a proper markdown table with these columns:\n"
+            "| Requirement | How Addressed | Evidence/Section Reference |\n"
+            "| --- | --- | --- |\n"
+            "| Example requirement | Description of how it's met | Section 2, Section 3 |\n\n"
+            "IMPORTANT: Use proper markdown table syntax with | pipes and a --- separator row after the header."
         ),
         max_tokens=4096,
     )
