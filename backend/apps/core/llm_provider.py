@@ -260,16 +260,29 @@ async def _ollama_chat(
         all_messages.append({"role": "system", "content": system})
     all_messages.extend(messages)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            f"{base_url}/v1/chat/completions",
-            json={
-                "model": model,
-                "messages": all_messages,
-                "max_tokens": max_tokens,
-                "stream": False,
-            },
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                f"{base_url}/v1/chat/completions",
+                json={
+                    "model": model,
+                    "messages": all_messages,
+                    "max_tokens": max_tokens,
+                    "stream": False,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"] or ""
+    except httpx.ConnectError:
+        raise RuntimeError(
+            f"Cannot connect to Ollama at {base_url}. "
+            f"Make sure Ollama is running on port 12434 and the model '{model}' is pulled. "
+            f"Start Ollama and run: ollama pull {model}"
         )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"] or ""
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise RuntimeError(
+                f"Ollama model '{model}' not found. Pull it first: ollama pull {model}"
+            )
+        raise
