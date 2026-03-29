@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { runSolutionArchitect } from "@/services/architecture";
 import { getDeals } from "@/services/deals";
 import { Deal } from "@/types/deal";
@@ -23,7 +23,6 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  ExternalLink,
   Layers,
   FileText,
   ShieldCheck,
@@ -46,21 +45,73 @@ function copyToClipboard(text: string) {
 
 // ── Mermaid diagram viewer ─────────────────────────────────────────────────
 
-function DiagramCard({ diagram }: { diagram: ArchitectureDiagram }) {
+function MermaidRenderer({ code, id }: { code: string; id: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState<string>("");
+  const [renderError, setRenderError] = useState(false);
+
+  useEffect(() => {
+    if (!code) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const mermaid = (await import("mermaid")).default;
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "neutral",
+          securityLevel: "loose",
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+        });
+        const { svg: rendered } = await mermaid.render(`mermaid-${id}`, code);
+        if (!cancelled) {
+          setSvg(rendered);
+          setRenderError(false);
+        }
+      } catch {
+        if (!cancelled) setRenderError(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [code, id]);
+
+  if (renderError) {
+    return (
+      <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+        <p className="font-medium mb-1">Diagram render failed — showing Mermaid source code:</p>
+        <pre className="overflow-x-auto rounded bg-white p-3 text-xs leading-relaxed text-foreground border">
+          <code>{code}</code>
+        </pre>
+      </div>
+    );
+  }
+
+  if (!svg) {
+    return (
+      <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin mr-2" /> Rendering diagram...
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="rounded-lg border bg-white p-4 overflow-x-auto"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+
+function DiagramCard({ diagram, index }: { diagram: ArchitectureDiagram; index: number }) {
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Build mermaid.ink URL for rendered preview (base64 encode the mermaid code)
-  const mermaidB64 =
-    typeof window !== "undefined"
-      ? btoa(unescape(encodeURIComponent(diagram.mermaid)))
-      : "";
-  const previewUrl = mermaidB64
-    ? `https://mermaid.ink/img/${mermaidB64}?theme=neutral`
-    : "";
+  const mermaidCode = diagram.mermaid || diagram.mermaid_code || "";
 
   const handleCopy = () => {
-    copyToClipboard(diagram.mermaid);
+    copyToClipboard(mermaidCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -82,16 +133,6 @@ function DiagramCard({ diagram }: { diagram: ArchitectureDiagram }) {
               <Copy className="h-3.5 w-3.5" />
               {copied ? " Copied!" : ""}
             </Button>
-            {previewUrl && (
-              <a
-                href={previewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={buttonVariants({ size: "sm", variant: "ghost" })}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
             <Button
               size="sm"
               variant="ghost"
@@ -111,25 +152,15 @@ function DiagramCard({ diagram }: { diagram: ArchitectureDiagram }) {
           <p className="text-sm text-muted-foreground">{diagram.description}</p>
         )}
 
-        {/* Rendered preview via mermaid.ink */}
-        {previewUrl && (
-          <div className="rounded-lg border bg-white p-2 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt={diagram.title}
-              className="max-w-full mx-auto"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          </div>
+        {/* Client-side rendered Mermaid diagram */}
+        {mermaidCode && (
+          <MermaidRenderer code={mermaidCode} id={`diagram-${index}`} />
         )}
 
-        {/* Mermaid source code */}
-        {showCode && (
+        {/* Mermaid source code toggle */}
+        {showCode && mermaidCode && (
           <pre className="overflow-x-auto rounded-lg bg-secondary p-4 text-xs leading-relaxed text-foreground">
-            <code>{diagram.mermaid}</code>
+            <code>{mermaidCode}</code>
           </pre>
         )}
       </CardContent>
@@ -201,7 +232,7 @@ function DiagramsTab({ diagrams }: { diagrams: ArchitectureDiagram[] }) {
   return (
     <div className="space-y-4">
       {diagrams.map((d, i) => (
-        <DiagramCard key={i} diagram={d} />
+        <DiagramCard key={i} diagram={d} index={i} />
       ))}
     </div>
   );
@@ -254,7 +285,9 @@ function TechnicalVolumeTab({ volume }: { volume: TechnicalVolume }) {
 }
 
 function ValidationTab({ report }: { report: ValidationReport }) {
-  const pass = report.pass ?? (report.overall_quality === "excellent" || report.overall_quality === "good");
+  const pass = report.pass != null
+    ? report.pass
+    : (report.verdict === "PASS" || report.overall_quality === "excellent" || report.overall_quality === "good");
   const score = report.score;
 
   return (
@@ -269,11 +302,10 @@ function ValidationTab({ report }: { report: ValidationReport }) {
           )}
           <div>
             <p className={`font-semibold ${pass ? "text-green-800" : "text-orange-800"}`}>
-              {report.overall_quality
-                ? formatKey(report.overall_quality)
-                : pass
-                ? "Passed Validation"
-                : "Needs Revision"}
+              {pass ? "Passed Validation" : "Needs Revision"}
+              {report.overall_quality && report.overall_quality !== "needs_revision" && report.overall_quality !== "good"
+                ? ` — ${formatKey(report.overall_quality)}`
+                : ""}
             </p>
             {score != null && (
               <p className={`text-sm ${pass ? "text-green-600" : "text-orange-600"}`}>
@@ -324,6 +356,18 @@ function ValidationTab({ report }: { report: ValidationReport }) {
             ))}
           </ul>
         </div>
+      )}
+
+      {/* Full review text as expandable detail */}
+      {report.review_text && (
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">
+            Full Validation Review
+          </summary>
+          <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+            {report.review_text}
+          </p>
+        </details>
       )}
     </div>
   );

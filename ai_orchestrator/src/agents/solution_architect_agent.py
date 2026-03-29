@@ -198,8 +198,19 @@ async def analyze_requirements(state: SolutionArchitectState) -> dict:
         max_tokens=4096,
     )
 
+    # Parse the structured sections from the LLM output
+    import re as _re
+    section_pattern = _re.compile(
+        r'##\s+\d+\.\s+([^\n]+)\n(.*?)(?=##\s+\d+\.|$)', _re.DOTALL
+    )
+    parsed_sections: dict[str, str] = {}
+    for m in section_pattern.finditer(content):
+        key = m.group(1).strip().lower().replace(" ", "_").replace("&", "and").replace("/", "_")
+        parsed_sections[key] = m.group(2).strip()
+
     requirement_analysis = {
-        "analysis_text": content,
+        **parsed_sections,
+        "full_analysis": content,
         "requirements_count": len(state["rfp_requirements"]),
         "opportunity_title": state["opportunity"].get("title", ""),
     }
@@ -363,7 +374,18 @@ async def synthesize_solution(state: SolutionArchitectState) -> dict:
         max_tokens=4096,
     )
 
+    # Parse structured sections from LLM output for frontend display
+    import re as _re2
+    sol_pattern = _re2.compile(
+        r'##\s+\d+\.\s+([^\n]+)\n(.*?)(?=##\s+\d+\.|$)', _re2.DOTALL
+    )
+    parsed_sol: dict[str, str] = {}
+    for m in sol_pattern.finditer(content):
+        key = m.group(1).strip().lower().replace(" ", "_").replace("&", "and").replace("/", "_")
+        parsed_sol[key] = m.group(2).strip()
+
     technical_solution = {
+        **parsed_sol,
         "full_solution": content,
         "deal_id": state["deal_id"],
         "opportunity_title": state["opportunity"].get("title", ""),
@@ -426,6 +448,8 @@ async def generate_diagrams(state: SolutionArchitectState) -> dict:
             diagrams.append({
                 "number": int(num),
                 "title": title.strip(),
+                "type": title.strip(),
+                "mermaid": mermaid_code.strip(),
                 "mermaid_code": mermaid_code.strip(),
                 "description": description.strip()[:500],
             })
@@ -436,23 +460,28 @@ async def generate_diagrams(state: SolutionArchitectState) -> dict:
             diagrams.append({
                 "number": idx,
                 "title": f"Architecture Diagram {idx}",
+                "type": f"Architecture Diagram {idx}",
+                "mermaid": code.strip(),
                 "mermaid_code": code.strip(),
                 "description": "",
             })
 
     if not diagrams:
         # Provide a default system context diagram if parsing failed
+        default_mermaid = (
+            "graph TB\n"
+            f"    User[End User] --> System[{state['opportunity'].get('title', 'Solution')[:40]}]\n"
+            "    System --> Agency[Government Agency Systems]\n"
+            "    System --> Cloud[Cloud Infrastructure]\n"
+            "    System --> Security[Security & IAM]\n"
+            "    style System fill:#0066cc,color:#fff"
+        )
         diagrams = [{
             "number": 1,
             "title": "System Context",
-            "mermaid_code": (
-                "graph TB\n"
-                f"    User[End User] --> System[{state['opportunity'].get('title', 'Solution')[:40]}]\n"
-                "    System --> Agency[Government Agency Systems]\n"
-                "    System --> Cloud[Cloud Infrastructure]\n"
-                "    System --> Security[Security & IAM]\n"
-                "    style System fill:#0066cc,color:#fff"
-            ),
+            "type": "System Context",
+            "mermaid": default_mermaid,
+            "mermaid_code": default_mermaid,
             "description": "High-level system context diagram.",
         }]
 
@@ -574,10 +603,47 @@ async def validate_solution(state: SolutionArchitectState) -> dict:
                 verdict = "REVISE"
             break
 
+    # Parse structured issues, suggestions, and compliance gaps from review text
+    issues = []
+    suggestions = []
+    compliance_gaps = []
+    current_section = None
+    for line in content.split("\n"):
+        stripped = line.strip()
+        lower = stripped.lower()
+        if "requirement" in lower and "coverage" in lower:
+            current_section = "issues"
+        elif "win-ability" in lower or "weak" in lower:
+            current_section = "issues"
+        elif "compliance" in lower:
+            current_section = "compliance"
+        elif "suggestion" in lower or "recommend" in lower:
+            current_section = "suggestions"
+        elif "risk" in lower and "##" in line:
+            current_section = "issues"
+        elif stripped.startswith("- ") or stripped.startswith("* "):
+            item = stripped.lstrip("-* ").strip()
+            if item:
+                if current_section == "compliance":
+                    compliance_gaps.append(item)
+                elif current_section == "suggestions":
+                    suggestions.append(item)
+                elif current_section == "issues":
+                    issues.append(item)
+
+    passed = verdict == "PASS"
+    overall_quality = "good" if passed else "needs_revision"
+
     validation_report = {
         "review_text": content,
         "verdict": verdict,
         "iteration": state["iteration_count"],
+        "pass": passed,
+        "overall_quality": overall_quality,
+        "score": 80 if passed else 55,
+        "issues": issues[:10],
+        "suggestions": suggestions[:10],
+        "compliance_gaps": compliance_gaps[:10],
     }
 
     return {
