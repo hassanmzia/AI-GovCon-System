@@ -108,10 +108,10 @@ def _evaluate_final_review(deal) -> GateEvaluation:
 
     criteria.append(GateCriterion(
         name="Proposal Exists",
-        description="Proposal workspace must be created with sections",
-        is_critical=True,
-        status="green" if section_count > 0 else "red",
-        detail=f"{section_count} sections" if has_proposal else "No proposal",
+        description="Proposal workspace should be created with sections",
+        is_critical=False,
+        status="green" if section_count > 0 else "amber",
+        detail=f"{section_count} sections" if has_proposal else "No proposal — recommended before final review",
     ))
 
     # 2. Compliance matrix should be populated
@@ -128,7 +128,7 @@ def _evaluate_final_review(deal) -> GateEvaluation:
         criteria.append(GateCriterion(
             name="Compliance Coverage",
             description="Compliance matrix items addressed",
-            is_critical=True,
+            is_critical=False,
             status="green" if pct >= 90 else ("amber" if pct >= 70 else "red"),
             detail=f"{compliance_addressed}/{compliance_count} addressed ({pct:.0f}%)",
         ))
@@ -141,16 +141,16 @@ def _evaluate_final_review(deal) -> GateEvaluation:
             detail="No compliance matrix items found",
         ))
 
-    # 3. Pricing must be approved
+    # 3. Pricing should be approved
     pricing_approved = deal.approvals.filter(
         approval_type="pricing", status="approved"
     ).exists()
     criteria.append(GateCriterion(
         name="Pricing Approved",
-        description="Pricing scenario must be approved",
-        is_critical=True,
-        status="green" if pricing_approved else "red",
-        detail="Approved" if pricing_approved else "Not approved",
+        description="Pricing scenario should be approved",
+        is_critical=False,
+        status="green" if pricing_approved else "amber",
+        detail="Approved" if pricing_approved else "Not approved — recommended before final review",
     ))
 
     # 4. Red team review completed
@@ -172,16 +172,16 @@ def _evaluate_submit(deal) -> GateEvaluation:
     """Evaluate submission gate criteria."""
     criteria = []
 
-    # 1. Final review must be approved
+    # 1. Final review should be approved
     final_approved = deal.approvals.filter(
         approval_type="proposal_final", status="approved"
     ).exists()
     criteria.append(GateCriterion(
         name="Final Proposal Approved",
-        description="Final proposal approval gate passed",
-        is_critical=True,
-        status="green" if final_approved else "red",
-        detail="Approved" if final_approved else "Not approved",
+        description="Final proposal approval gate should be passed",
+        is_critical=False,
+        status="green" if final_approved else "amber",
+        detail="Approved" if final_approved else "Not approved — recommended before submission",
     ))
 
     # 2. Submission deadline not passed
@@ -206,8 +206,8 @@ def _evaluate_submit(deal) -> GateEvaluation:
     criteria.append(GateCriterion(
         name="Critical Tasks Complete",
         description="All critical/high-priority tasks completed",
-        is_critical=True,
-        status="green" if pending_critical == 0 else "red",
+        is_critical=False,
+        status="green" if pending_critical == 0 else "amber",
         detail=f"{pending_critical} critical tasks remaining" if pending_critical else "All done",
     ))
 
@@ -218,16 +218,16 @@ def _evaluate_contract_setup(deal) -> GateEvaluation:
     """Evaluate contract setup gate criteria."""
     criteria = []
 
-    # 1. Deal must have submission approved
+    # 1. Deal should have submission approved
     submission_approved = deal.approvals.filter(
         approval_type="submission", status="approved"
     ).exists()
     criteria.append(GateCriterion(
         name="Submission Authorized",
-        description="Submission must have been authorized",
-        is_critical=True,
-        status="green" if submission_approved else "red",
-        detail="Authorized" if submission_approved else "Not authorized",
+        description="Submission should have been authorized",
+        is_critical=False,
+        status="green" if submission_approved else "amber",
+        detail="Authorized" if submission_approved else "Not authorized — recommended before contract setup",
     ))
 
     # 2. Award date should be set

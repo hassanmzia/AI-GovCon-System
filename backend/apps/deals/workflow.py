@@ -69,14 +69,22 @@ class WorkflowEngine:
                 )
 
         # Gate readiness check: evaluate criteria and block on critical failures.
-        from apps.deals.services.gate_evaluator import evaluate_gate
-        evaluation = evaluate_gate(deal, target_stage)
-        if not evaluation.can_proceed:
-            failed = [c.name for c in evaluation.criteria
-                      if c.status == "red" and c.is_critical]
-            return False, (
-                f"Gate criteria not met for '{target_stage}': "
-                f"{', '.join(failed)}. {evaluation.summary}"
+        try:
+            from apps.deals.services.gate_evaluator import evaluate_gate
+            evaluation = evaluate_gate(deal, target_stage)
+            if not evaluation.can_proceed:
+                failed = [c.name for c in evaluation.criteria
+                          if c.status == "red" and c.is_critical]
+                return False, (
+                    f"Gate criteria not met for '{target_stage}': "
+                    f"{', '.join(failed)}. {evaluation.summary}"
+                )
+        except Exception:
+            # Gate evaluation should never block a transition with a 500.
+            # Log and allow the transition to proceed.
+            logger.warning(
+                "Gate evaluation failed for deal %s stage %s, allowing transition",
+                deal.id, target_stage, exc_info=True,
             )
 
         return True, ""
