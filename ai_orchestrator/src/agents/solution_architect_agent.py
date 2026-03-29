@@ -102,7 +102,11 @@ async def _llm(system: str, human: str, max_tokens: int = 4096) -> str:
             SystemMessage(content=system),
             HumanMessage(content=human),
         ])
-        return response.content
+        text = response.content
+        # Strip DeepSeek R1 <think>...</think> reasoning blocks
+        import re as _re
+        text = _re.sub(r'<think>.*?</think>', '', text, flags=_re.DOTALL).strip()
+        return text
     except (LLMCreditError, LLMProviderError):
         raise
     except Exception as exc:
