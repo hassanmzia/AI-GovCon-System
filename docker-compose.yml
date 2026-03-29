@@ -69,6 +69,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: >
       sh -c "python manage.py migrate --noinput &&
       python manage.py setup_admin &&
@@ -120,6 +122,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: celery -A config worker -l info -c 4
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.development
@@ -203,6 +207,8 @@ services:
     build:
       context: ./ai_orchestrator
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-dealmanager}
       - POSTGRES_USER=${POSTGRES_USER:-dealmanager}

@@ -231,11 +231,34 @@ def check_llm_error(exc: Exception) -> None:
             "in Settings or switch to a different provider."
         ) from exc
 
+    # Connection errors (Ollama / local LLM not reachable)
+    conn_keywords = ["connection refused", "connect error", "all connection attempts failed",
+                     "connection reset", "name or service not known", "nodename nor servname"]
+    if any(kw in msg for kw in conn_keywords):
+        raise LLMProviderError(
+            "LLM service is not reachable. If using Ollama, make sure it is running "
+            "and accessible. Check Settings for the correct Ollama URL."
+        ) from exc
+
 
 def _build_ollama(model: str, max_tokens: int, callbacks: list | None, **kwargs):
     from langchain_ollama import ChatOllama  # type: ignore[import]
 
     base_url = _get_ollama_url()
+    logger.info("Connecting to Ollama at %s with model %s", base_url, model)
+
+    # Quick connectivity check so we fail fast with a clear message
+    try:
+        import httpx
+        resp = httpx.get(f"{base_url}/api/version", timeout=5.0)
+        resp.raise_for_status()
+    except Exception as exc:
+        raise LLMProviderError(
+            f"Cannot connect to Ollama at {base_url}. "
+            f"Make sure Ollama is running with OLLAMA_HOST=0.0.0.0:12434 "
+            f"so Docker containers can reach it, and the model '{model}' is pulled. "
+            f"Run: ollama pull {model}"
+        ) from exc
 
     return ChatOllama(
         model=model,
