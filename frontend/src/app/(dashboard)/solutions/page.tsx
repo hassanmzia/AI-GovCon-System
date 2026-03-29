@@ -311,6 +311,42 @@ function sanitizeMermaid(code: string): string {
   // Fix "Subgraph" (capitalized) → "subgraph"
   fixed = fixed.replace(/^\s*Subgraph\b/gm, (m) => m.replace("Subgraph", "subgraph"));
 
+  // Fix node IDs that contain spaces or parens: "Application Execution (Lambda)" → AppExecLambda
+  // Match: word spaces word --> or word spaces word[ or start-of-arrow-line patterns
+  fixed = fixed.split("\n").map(line => {
+    // Don't touch graph/subgraph/end/style/class lines
+    if (/^\s*(graph|flowchart|subgraph|end|style|classDef|class)\b/i.test(line)) return line;
+
+    // Replace bare multi-word node refs (not inside brackets) with camelCase IDs
+    // Match sequences like "Some Node Name" that appear as source or target of arrows
+    line = line.replace(
+      /([A-Z][a-z]+(?:\s+[A-Za-z()]+)+)(\s*(?:-->|---|\[))/g,
+      (_, words, suffix) => {
+        const id = words.replace(/[^A-Za-z0-9]/g, "");
+        return id + suffix;
+      }
+    );
+    line = line.replace(
+      /(-->(?:\|[^|]*\|)?\s*)([A-Z][a-z]+(?:\s+[A-Za-z()]+)+)(\s*$|\s*\[)/gm,
+      (_, prefix, words, suffix) => {
+        const id = words.replace(/[^A-Za-z0-9]/g, "");
+        return prefix + id + suffix;
+      }
+    );
+
+    // Fix remaining node IDs with parens: NodeName(stuff) → NodeNameStuff
+    line = line.replace(/\b([A-Za-z]\w*)\(([^)]*)\)(?!\s*-->)/g, (_, id, inner) => {
+      return id + inner.replace(/[^A-Za-z0-9]/g, "");
+    });
+
+    // Fix pipe chars inside node labels (not edge labels): [Build | Deploy] → [Build, Deploy]
+    line = line.replace(/\[([^\]]*\|[^\]]*)\]/g, (_, content) => {
+      return "[" + content.replace(/\|/g, ",") + "]";
+    });
+
+    return line;
+  }).join("\n");
+
   // Ensure the diagram starts with a valid declaration (graph/flowchart)
   // Strip any leading text/whitespace before the declaration
   const declMatch = fixed.match(/^(.*?)((?:graph|flowchart)\s+(?:TD|TB|LR|RL|BT))/m);
