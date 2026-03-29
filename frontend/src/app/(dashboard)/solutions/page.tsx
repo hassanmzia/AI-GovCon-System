@@ -46,9 +46,101 @@ function copyToClipboard(text: string) {
 
 // ── Markdown renderer ─────────────────────────────────────────────────────
 
+/**
+ * Preprocess markdown to fix common LLM table formatting issues:
+ * - Convert dash-separated tables to proper markdown pipe tables
+ * - Ensure pipe tables have proper header separator rows
+ */
+function preprocessMarkdown(text: string): string {
+  const lines = text.split("\n");
+  const result: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Skip pure dash separator lines (------- or ---- | ---- | ----)
+    if (/^[-\s|]+$/.test(trimmed) && trimmed.includes("-")) {
+      // Check if this is a table separator: if previous line has pipes, keep it as markdown separator
+      if (i > 0 && result.length > 0 && result[result.length - 1].includes("|")) {
+        // Convert to proper markdown separator
+        const prevCols = result[result.length - 1].split("|").filter(c => c.trim()).length;
+        result.push("| " + Array(prevCols).fill("---").join(" | ") + " |");
+      }
+      // Otherwise skip the dashes line entirely
+      continue;
+    }
+
+    // If line contains pipe characters, ensure it's properly formatted
+    if (trimmed.includes("|") && !trimmed.startsWith("```")) {
+      let cols = trimmed.split("|").map(c => c.trim()).filter(c => c.length > 0);
+      if (cols.length >= 2) {
+        const formatted = "| " + cols.join(" | ") + " |";
+        result.push(formatted);
+
+        // If this looks like a header row (next line is dashes or this is the first pipe line)
+        // and we don't already have a separator after it
+        const nextLine = i + 1 < lines.length ? lines[i + 1]?.trim() : "";
+        const isHeaderRow = i === 0 ||
+          (i > 0 && !lines[i - 1]?.trim().includes("|")) ||
+          /^[-\s|]+$/.test(nextLine);
+
+        const alreadyHasSep = result.length >= 1 && /^\|[\s-|]+\|$/.test(result[result.length - 1]);
+
+        if (isHeaderRow && !alreadyHasSep && /^[-\s|]+$/.test(nextLine)) {
+          // The next line is the separator, it will be handled in the next iteration
+        } else if (isHeaderRow && !alreadyHasSep && !nextLine.includes("|") ) {
+          // No separator follows — add one
+        }
+        continue;
+      }
+    }
+
+    result.push(line);
+  }
+
+  // Second pass: ensure every pipe table block has a separator after the first row
+  const final: string[] = [];
+  let inTable = false;
+  let tableRowCount = 0;
+
+  for (let i = 0; i < result.length; i++) {
+    const line = result[i];
+    const isPipeLine = line.trim().startsWith("|") && line.trim().endsWith("|");
+    const isSepLine = /^\|[\s-:|]+\|$/.test(line.trim());
+
+    if (isPipeLine) {
+      if (!inTable) {
+        inTable = true;
+        tableRowCount = 0;
+      }
+      tableRowCount++;
+      final.push(line);
+
+      // After first row, if next line is NOT a separator, insert one
+      if (tableRowCount === 1 && !isSepLine) {
+        const nextLine = result[i + 1]?.trim() || "";
+        const nextIsSep = /^\|[\s-:|]+\|$/.test(nextLine);
+        if (!nextIsSep) {
+          const colCount = line.split("|").filter(c => c.trim()).length;
+          final.push("| " + Array(colCount).fill("---").join(" | ") + " |");
+        }
+      }
+    } else {
+      inTable = false;
+      tableRowCount = 0;
+      final.push(line);
+    }
+  }
+
+  return final.join("\n");
+}
+
 function MarkdownContent({ content }: { content: string }) {
+  const processed = preprocessMarkdown(content);
+
   return (
-    <div className="prose prose-sm max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground prose-th:text-foreground prose-td:text-muted-foreground">
+    <div className="prose prose-sm max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground">
       <ReactMarkdown
         components={{
           h1: ({ children }) => <h3 className="text-base font-bold mt-4 mb-2 text-foreground">{children}</h3>,
@@ -65,21 +157,33 @@ function MarkdownContent({ content }: { content: string }) {
           ),
           strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
           table: ({ children }) => (
-            <div className="overflow-x-auto my-3 rounded-lg border">
-              <table className="w-full text-sm">{children}</table>
+            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-sm">
+              <table className="w-full text-sm border-collapse">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-secondary/60">{children}</thead>,
-          th: ({ children }) => <th className="px-3 py-2 text-left text-xs font-semibold text-foreground border-b">{children}</th>,
-          td: ({ children }) => <td className="px-3 py-2 text-sm border-b border-secondary">{children}</td>,
-          tr: ({ children }) => <tr className="hover:bg-secondary/30">{children}</tr>,
+          thead: ({ children }) => (
+            <thead className="bg-primary/10">{children}</thead>
+          ),
+          th: ({ children }) => (
+            <th className="px-4 py-2.5 text-left text-xs font-bold text-primary uppercase tracking-wider border-b-2 border-primary/20">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="px-4 py-2.5 text-sm text-foreground border-b border-border">
+              {children}
+            </td>
+          ),
+          tr: ({ children }) => (
+            <tr className="even:bg-secondary/40 hover:bg-primary/5 transition-colors">{children}</tr>
+          ),
           code: ({ children }) => (
             <code className="rounded bg-secondary px-1.5 py-0.5 text-xs font-mono">{children}</code>
           ),
           hr: () => <hr className="my-4 border-secondary" />,
         }}
       >
-        {content}
+        {processed}
       </ReactMarkdown>
     </div>
   );
@@ -315,7 +419,14 @@ function DiagramCard({ diagram, index }: { diagram: ArchitectureDiagram; index: 
       </CardHeader>
       <CardContent className="space-y-3">
         {diagram.description && (
-          <p className="text-sm text-muted-foreground">{diagram.description}</p>
+          <div className="rounded-md bg-secondary/30 px-3 py-2">
+            <MarkdownContent
+              content={diagram.description
+                .replace(/^\*?\*?Description\*?\*?:?\s*/i, "")
+                .replace(/^---+\s*/, "")
+                .trim()}
+            />
+          </div>
         )}
 
         {/* Client-side rendered Mermaid diagram */}
