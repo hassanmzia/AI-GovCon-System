@@ -272,136 +272,133 @@ function sanitizeMermaid(code: string): string {
   // First, try converting C4 syntax to standard flowchart
   let fixed = convertC4ToFlowchart(code);
 
-  // Fix classDef class references: "class A, B, C styleName" → "class A,B,C styleName"
-  fixed = fixed.replace(
-    /^(\s*class\s+)([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)(\s+\w+)\s*;?\s*$/gm,
-    (_match, prefix, nodeList, styleName) => {
-      const nodes = nodeList.split(",").map((n: string) => n.trim()).join(",");
-      return `${prefix}${nodes}${styleName}`;
-    }
-  );
-
-  // Remove markdown bold/italic markers **text** or *text*
+  // Remove markdown bold/italic markers
   fixed = fixed.replace(/\*\*([^*]+)\*\*/g, "$1");
   fixed = fixed.replace(/\*([^*]+)\*/g, "$1");
 
-  // Remove trailing semicolons (safe for most diagram types)
+  // Remove trailing semicolons
   fixed = fixed.replace(/;\s*$/gm, "");
 
-  // Remove `title` lines (not valid in graph/flowchart)
+  // Remove `title` lines
   fixed = fixed.replace(/^\s*title\s+.+$/gm, "");
 
-  // Replace / in node IDs (e.g. CI/CDPipeline → CICDPipeline)
-  // Only replace when NOT inside brackets [...] or pipes |...|
-  fixed = fixed.split("\n").map(line => {
-    // Process each part of the line that's outside brackets and pipes
-    return line.replace(/^([^[\]|]*?)([A-Za-z]+)\/([A-Za-z]+)/g, "$1$2$3");
-  }).join("\n");
-
-  // Fix "pods, containers" style node references — split into separate lines
-  fixed = fixed.replace(
-    /^(\s*)(\w+)\s*-->\|([^|]*)\|\s*(\w+)\s*,\s*(\w+)/gm,
-    "$1$2 -->|$3| $4\n$1$2 -->|$3| $5"
-  );
-
-  // Remove lines where a node definition contains "subgraph" inside brackets
-  // e.g. DB -->|Interacts with| API[subgraph APIs Integration ...]
+  // Remove lines with subgraph inside brackets
   fixed = fixed.replace(/^.*\[subgraph\b.*$/gm, "");
 
   // Fix "Subgraph" (capitalized) → "subgraph"
-  fixed = fixed.replace(/^\s*Subgraph\b/gm, (m) => m.replace("Subgraph", "subgraph"));
+  fixed = fixed.replace(/\bSubgraph\b/g, "subgraph");
 
-  // Fix node IDs that contain spaces or parens: "Application Execution (Lambda)" → AppExecLambda
-  // Match: word spaces word --> or word spaces word[ or start-of-arrow-line patterns
+  // Process line by line for node ID fixes
   fixed = fixed.split("\n").map(line => {
-    // Don't touch graph/subgraph/end/style/class lines
-    if (/^\s*(graph|flowchart|subgraph|end|style|classDef|class)\b/i.test(line)) return line;
+    const trimmed = line.trim();
 
-    // Replace bare multi-word node refs (not inside brackets) with camelCase IDs
-    // Match sequences like "Some Node Name" that appear as source or target of arrows
+    // Don't touch structural lines
+    if (/^\s*(graph|flowchart|subgraph|end|style|classDef|class)\b/i.test(trimmed)) {
+      // Fix classDef spacing
+      return line.replace(
+        /^(\s*class\s+)([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)(\s+\w+)\s*;?\s*$/,
+        (_m, p, nl, sn) => `${p}${nl.split(",").map((n: string) => n.trim()).join(",")}${sn}`
+      );
+    }
+
+    // Replace / in node IDs (before brackets): CI/CDPipeline → CICDPipeline
+    line = line.replace(/\b([A-Za-z]\w*)\/([A-Za-z]\w*)/g, "$1$2");
+
+    // Fix node IDs with parentheses: NodeName(Lambda) → NodeNameLambda
+    line = line.replace(/\b([A-Za-z]\w*)\(([^)]*)\)/g, (_, id, inner) => {
+      return id + inner.replace(/[^A-Za-z0-9_]/g, "");
+    });
+
+    // Fix pipe chars inside node labels: [Build | Deploy | Scale] → [Build / Deploy / Scale]
+    line = line.replace(/\[([^\]]*)\]/g, (_, content) => {
+      if (content.includes("|")) {
+        return "[" + content.replace(/\|/g, " / ") + "]";
+      }
+      return "[" + content + "]";
+    });
+
+    // Fix multi-word bare node IDs (no brackets) on arrow lines
+    // "Cloud Services" --> X  or  X --> "Deployment Layer"
+    // Remove quotes around node refs
+    line = line.replace(/"([^"]+)"/g, (_, content) => {
+      return content.replace(/[^A-Za-z0-9_]/g, "");
+    });
+
+    // Fix bare multi-word IDs before arrows: "Cloud Services[S3] -->" → "CloudServices[S3] -->"
     line = line.replace(
-      /([A-Z][a-z]+(?:\s+[A-Za-z()]+)+)(\s*(?:-->|---|\[))/g,
-      (_, words, suffix) => {
-        const id = words.replace(/[^A-Za-z0-9]/g, "");
-        return id + suffix;
+      /^(\s*)([A-Z][a-z]+(?:\s+[A-Za-z][a-z]*)+)(\s*(?:\[|-->))/g,
+      (_, indent, words, suffix) => {
+        return indent + words.replace(/\s+/g, "") + suffix;
       }
     );
+
+    // Fix bare multi-word IDs after arrows: "--> Application Layer" → "--> ApplicationLayer"
     line = line.replace(
-      /(-->(?:\|[^|]*\|)?\s*)([A-Z][a-z]+(?:\s+[A-Za-z()]+)+)(\s*$|\s*\[)/gm,
+      /(-->(?:\|[^|]*\|)?\s*)([A-Z][a-z]+(?:\s+[A-Za-z][a-z]*)+)(\s*$|\s*\[)/g,
       (_, prefix, words, suffix) => {
-        const id = words.replace(/[^A-Za-z0-9]/g, "");
-        return prefix + id + suffix;
+        return prefix + words.replace(/\s+/g, "") + suffix;
       }
     );
-
-    // Fix remaining node IDs with parens: NodeName(stuff) → NodeNameStuff
-    line = line.replace(/\b([A-Za-z]\w*)\(([^)]*)\)(?!\s*-->)/g, (_, id, inner) => {
-      return id + inner.replace(/[^A-Za-z0-9]/g, "");
-    });
-
-    // Fix pipe chars inside node labels (not edge labels): [Build | Deploy] → [Build, Deploy]
-    line = line.replace(/\[([^\]]*\|[^\]]*)\]/g, (_, content) => {
-      return "[" + content.replace(/\|/g, ",") + "]";
-    });
 
     return line;
   }).join("\n");
 
-  // Ensure the diagram starts with a valid declaration (graph/flowchart)
-  // Strip any leading text/whitespace before the declaration
-  const declMatch = fixed.match(/^(.*?)((?:graph|flowchart)\s+(?:TD|TB|LR|RL|BT))/m);
-  if (declMatch && declMatch.index !== undefined && declMatch.index > 0) {
+  // Ensure the diagram starts with a valid declaration
+  const declMatch = fixed.match(/((?:graph|flowchart)\s+(?:TD|TB|LR|RL|BT))/m);
+  if (declMatch && declMatch.index !== undefined) {
     fixed = fixed.substring(declMatch.index);
-  }
-
-  // If no declaration at all, prepend graph TD
-  if (!/^(graph|flowchart)\s+(TD|TB|LR|RL|BT)/m.test(fixed.trim())) {
+  } else if (!/^(graph|flowchart)\s+(TD|TB|LR|RL|BT)/m.test(fixed.trim())) {
     fixed = "graph TD\n" + fixed;
   }
 
-  // Remove nested subgraph declarations inside other subgraph blocks
-  // (Mermaid supports nested subgraphs but LLMs often produce broken nesting)
+  // Flatten nested subgraphs (only keep depth 1)
   const lines = fixed.split("\n");
   const cleanedLines: string[] = [];
   let subgraphDepth = 0;
 
   for (const line of lines) {
     const trimmed = line.trim();
-
     if (/^subgraph\b/i.test(trimmed)) {
       subgraphDepth++;
-      // Only allow top-level subgraphs (depth <= 1)
-      if (subgraphDepth <= 1) {
-        cleanedLines.push(line);
-      }
+      if (subgraphDepth <= 1) cleanedLines.push(line);
       continue;
     }
-
     if (trimmed === "end" && subgraphDepth > 0) {
-      if (subgraphDepth <= 1) {
-        cleanedLines.push(line);
-      }
+      if (subgraphDepth <= 1) cleanedLines.push(line);
       subgraphDepth--;
       continue;
     }
-
-    // Skip lines inside deeply nested subgraphs
-    if (subgraphDepth <= 1) {
-      cleanedLines.push(line);
-    }
+    if (subgraphDepth <= 1) cleanedLines.push(line);
   }
 
   fixed = cleanedLines.join("\n");
 
-  // Remove empty subgraph blocks (subgraph ... end with nothing between)
+  // Remove empty subgraph blocks
   fixed = fixed.replace(/^\s*subgraph\b[^\n]*\n\s*end\s*$/gm, "");
 
-  // Remove lines with broken bracket nesting (unmatched [ or ])
+  // Remove lines with unbalanced brackets
   fixed = fixed.split("\n").filter(line => {
     const open = (line.match(/\[/g) || []).length;
     const close = (line.match(/\]/g) || []).length;
-    // Allow lines with no brackets or balanced brackets
-    return open === close || (!line.includes("[") && !line.includes("]"));
+    return open === close;
+  }).join("\n");
+
+  // Remove lines with unbalanced parentheses
+  fixed = fixed.split("\n").filter(line => {
+    const open = (line.match(/\(/g) || []).length;
+    const close = (line.match(/\)/g) || []).length;
+    return open === close;
+  }).join("\n");
+
+  // Final pass: remove any line that has characters that break Mermaid parsing
+  // but keep structural lines (graph, subgraph, end, style, class) and arrow lines
+  fixed = fixed.split("\n").filter(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return true; // keep blank lines
+    if (/^(graph|flowchart|subgraph|end|style|classDef|class)\b/i.test(trimmed)) return true;
+    if (/\w+.*-->/.test(trimmed) || /-->\s*\w+/.test(trimmed)) return true; // arrow lines
+    if (/^\s+\w+\s*$/.test(trimmed)) return true; // node ref inside subgraph
+    return false; // drop everything else (comments, plain text, broken syntax)
   }).join("\n");
 
   return fixed;
@@ -595,12 +592,16 @@ function DiagramCard({ diagram, index }: { diagram: ArchitectureDiagram; index: 
       <CardContent className="space-y-3">
         {diagram.description && (
           <div className="rounded-md bg-secondary/30 px-3 py-2">
-            <MarkdownContent
-              content={diagram.description
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {diagram.description
                 .replace(/^\*?\*?Description\*?\*?:?\s*/i, "")
                 .replace(/^---+\s*/, "")
+                .replace(/^\*{1,2}\s*/, "")
+                .replace(/\s*\*{1,2}\s*$/, "")
+                .replace(/\*\*([^*]+)\*\*/g, "$1")
+                .replace(/\*([^*]+)\*/g, "$1")
                 .trim()}
-            />
+            </p>
           </div>
         )}
 

@@ -464,9 +464,9 @@ async def generate_diagrams(state: SolutionArchitectState) -> dict:
             "Show: CI/CD pipeline, container registry, Kubernetes, app pods, database cluster, CDN, monitoring, logging. "
             "At least 7 nodes.\n\n"
             "For each diagram provide:\n"
-            "1. Diagram title\n"
+            "1. Diagram title (plain text, no markdown)\n"
             "2. The Mermaid code in a ```mermaid block (MUST start with graph TD)\n"
-            "3. A 2-sentence description"
+            "3. A plain text 2-sentence description (NO markdown formatting, NO ** or * characters)"
         ),
         max_tokens=4096,
     )
