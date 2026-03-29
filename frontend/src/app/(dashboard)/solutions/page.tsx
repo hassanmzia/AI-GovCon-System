@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import ReactMarkdown from "react-markdown";
 import { runSolutionArchitect } from "@/services/architecture";
 import { getDeals } from "@/services/deals";
 import { Deal } from "@/types/deal";
@@ -41,6 +42,47 @@ function formatKey(key: string): string {
 
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).catch(() => {});
+}
+
+// ── Markdown renderer ─────────────────────────────────────────────────────
+
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <div className="prose prose-sm max-w-none text-muted-foreground prose-headings:text-foreground prose-strong:text-foreground prose-th:text-foreground prose-td:text-muted-foreground">
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => <h3 className="text-base font-bold mt-4 mb-2 text-foreground">{children}</h3>,
+          h2: ({ children }) => <h4 className="text-sm font-bold mt-3 mb-1.5 text-foreground">{children}</h4>,
+          h3: ({ children }) => <h5 className="text-sm font-semibold mt-2 mb-1 text-foreground">{children}</h5>,
+          p: ({ children }) => <p className="text-sm leading-relaxed mb-2">{children}</p>,
+          ul: ({ children }) => <ul className="text-sm space-y-1 mb-3 ml-1">{children}</ul>,
+          ol: ({ children }) => <ol className="text-sm space-y-1 mb-3 ml-1 list-decimal list-inside">{children}</ol>,
+          li: ({ children }) => (
+            <li className="text-sm leading-relaxed flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
+              <span>{children}</span>
+            </li>
+          ),
+          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-3 rounded-lg border">
+              <table className="w-full text-sm">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="bg-secondary/60">{children}</thead>,
+          th: ({ children }) => <th className="px-3 py-2 text-left text-xs font-semibold text-foreground border-b">{children}</th>,
+          td: ({ children }) => <td className="px-3 py-2 text-sm border-b border-secondary">{children}</td>,
+          tr: ({ children }) => <tr className="hover:bg-secondary/30">{children}</tr>,
+          code: ({ children }) => (
+            <code className="rounded bg-secondary px-1.5 py-0.5 text-xs font-mono">{children}</code>
+          ),
+          hr: () => <hr className="my-4 border-secondary" />,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 // ── Mermaid diagram viewer ─────────────────────────────────────────────────
@@ -310,9 +352,7 @@ function RequirementsTab({ analysis }: { analysis: RequirementAnalysis }) {
           <h4 className="mb-2 text-sm font-semibold text-foreground">
             {formatKey(key)}
           </h4>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-            {value}
-          </p>
+          <MarkdownContent content={value as string} />
         </div>
       ))}
     </div>
@@ -336,9 +376,7 @@ function SolutionTab({ solution }: { solution: TechnicalSolution }) {
             <Cpu className="h-4 w-4 text-primary" />
             {formatKey(key)}
           </h4>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-            {value}
-          </p>
+          <MarkdownContent content={value as string} />
         </div>
       ))}
     </div>
@@ -384,23 +422,21 @@ function TechnicalVolumeTab({ volume }: { volume: TechnicalVolume }) {
           </>
         )}
       </div>
-      {sections.map(([title, content]) => (
+      {sections.map(([title, sectionContent]) => (
         <div key={title} className="rounded-lg border">
           <div className="flex items-center justify-between border-b px-4 py-3">
             <h4 className="font-semibold text-foreground">{title}</h4>
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => copyToClipboard(content)}
+              onClick={() => copyToClipboard(sectionContent)}
             >
               <Copy className="mr-1.5 h-3.5 w-3.5" />
               Copy
             </Button>
           </div>
           <div className="p-4">
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-              {content}
-            </p>
+            <MarkdownContent content={sectionContent} />
           </div>
         </div>
       ))}
@@ -488,9 +524,9 @@ function ValidationTab({ report }: { report: ValidationReport }) {
           <summary className="cursor-pointer text-sm font-semibold text-foreground">
             Full Validation Review
           </summary>
-          <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-            {report.review_text}
-          </p>
+          <div className="mt-3">
+            <MarkdownContent content={report.review_text} />
+          </div>
         </details>
       )}
     </div>
