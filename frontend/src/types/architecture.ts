@@ -2,8 +2,9 @@
 
 export interface ArchitectureDiagram {
   title: string;
-  type: string;       // "System Context", "Container", "Data Flow", etc.
-  mermaid: string;    // Raw Mermaid.js code
+  type: string;         // "System Context", "Container", "Data Flow", etc.
+  mermaid: string;      // Raw Mermaid.js code
+  mermaid_code?: string; // Alias used by agent (backwards compat)
   description: string;
 }
 
@@ -54,8 +55,11 @@ export interface ValidationReport {
   issues: string[];
   suggestions: string[];
   compliance_gaps: string[];
-  score?: number;   // 0-100
+  score?: number;     // 0-100
   pass?: boolean;
+  verdict?: string;   // "PASS" | "REVISE" from agent
+  review_text?: string; // Full validation review text
+  iteration?: number;
 }
 
 export interface ArchitectureResult {
