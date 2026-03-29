@@ -2,23 +2,16 @@
 Centralized LLM provider factory for the AI Orchestrator.
 
 Supports multiple LLM backends that users can switch between via
-environment variables or runtime configuration:
+the Settings UI, environment variables, or runtime overrides:
 
-  - **anthropic**: Anthropic Claude (claude-sonnet-4-6, claude-haiku-4-5-20251001, etc.)
+  - **anthropic**: Anthropic Claude (claude-sonnet-4-6, etc.)
   - **openai**: OpenAI ChatGPT (gpt-4o, gpt-4o-mini, etc.)
-  - **ollama**: Local Ollama instance (deepseek-r1:7b, llama3, mistral, etc.)
+  - **ollama**: Local Ollama instance (deepseek-r1:7b, llama3, etc.)
 
-Configuration
--------------
-Set these environment variables (or pass overrides at call time):
-
-    LLM_PROVIDER=anthropic          # "anthropic", "openai", or "ollama"
-    LLM_MODEL=claude-sonnet-4-6     # Model name for the chosen provider
-
-    # Provider-specific keys / URLs
-    ANTHROPIC_API_KEY=sk-ant-...
-    OPENAI_API_KEY=sk-...
-    OLLAMA_BASE_URL=http://localhost:12434   # Ollama server URL
+Configuration priority:
+    1. Redis key ``llm_config`` (written by Django Settings UI)
+    2. Environment variables (LLM_PROVIDER, LLM_MODEL, OLLAMA_BASE_URL)
+    3. Built-in defaults
 
 Public API
 ----------
@@ -27,6 +20,7 @@ get_provider_info()   -> dict with current provider, model, and status
 SUPPORTED_PROVIDERS   -> list of supported provider identifiers
 """
 
+import json
 import logging
 import os
 from typing import Any
@@ -43,18 +37,53 @@ _DEFAULT_MODELS: dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Redis-backed config (shared with Django backend)
+# ---------------------------------------------------------------------------
+
+def _redis_config() -> dict[str, Any]:
+    """Read LLM settings from Redis. Returns {} if unavailable."""
+    try:
+        import redis
+        r = redis.from_url(
+            os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+            decode_responses=True,
+        )
+        raw = r.get("llm_config")
+        if raw:
+            return json.loads(raw)
+    except Exception:
+        pass
+    return {}
+
+
 def _get_provider() -> str:
-    """Return the configured LLM provider name (lowercase)."""
-    return os.getenv("LLM_PROVIDER", "anthropic").lower().strip()
+    """Return the configured LLM provider (Redis > env var > default)."""
+    cfg = _redis_config()
+    return (
+        cfg.get("provider")
+        or os.getenv("LLM_PROVIDER", "anthropic")
+    ).lower().strip()
 
 
 def _get_model(provider: str | None = None) -> str:
-    """Return the configured model name, falling back to provider default."""
+    """Return the configured model name (Redis > env var > provider default)."""
+    cfg = _redis_config()
+    if cfg.get("model"):
+        return cfg["model"]
     model = os.getenv("LLM_MODEL", "")
     if model:
         return model
     p = provider or _get_provider()
     return _DEFAULT_MODELS.get(p, "claude-sonnet-4-6")
+
+
+def _get_ollama_url() -> str:
+    cfg = _redis_config()
+    return (
+        cfg.get("ollama_base_url")
+        or os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
+    )
 
 
 def get_chat_model(
@@ -68,8 +97,8 @@ def get_chat_model(
     Return a LangChain-compatible chat model for the requested provider.
 
     Args:
-        provider: Override LLM_PROVIDER env var ("anthropic", "openai", "ollama").
-        model: Override LLM_MODEL env var.
+        provider: Override configured provider ("anthropic", "openai", "ollama").
+        model: Override configured model.
         max_tokens: Maximum tokens for the response.
         callbacks: LangChain callback handlers (observability, etc.).
         **kwargs: Extra keyword arguments forwarded to the model constructor.
@@ -83,6 +112,8 @@ def get_chat_model(
     """
     p = (provider or _get_provider()).lower().strip()
     m = model or _get_model(p)
+
+    logger.info("Building LLM: provider=%s model=%s", p, m)
 
     if p == "anthropic":
         return _build_anthropic(m, max_tokens, callbacks, **kwargs)
@@ -114,8 +145,8 @@ def get_provider_info() -> dict[str, Any]:
     elif provider == "openai":
         info["status"] = "configured" if os.getenv("OPENAI_API_KEY") else "missing_api_key"
     elif provider == "ollama":
-        info["status"] = "configured"  # Ollama doesn't need an API key
-        info["ollama_base_url"] = os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
+        info["status"] = "configured"
+        info["ollama_base_url"] = _get_ollama_url()
 
     return info
 
@@ -166,7 +197,7 @@ def _build_openai(model: str, max_tokens: int, callbacks: list | None, **kwargs)
 def _build_ollama(model: str, max_tokens: int, callbacks: list | None, **kwargs):
     from langchain_ollama import ChatOllama  # type: ignore[import]
 
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
+    base_url = _get_ollama_url()
 
     return ChatOllama(
         model=model,
