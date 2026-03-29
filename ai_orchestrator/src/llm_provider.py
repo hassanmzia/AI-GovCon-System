@@ -93,7 +93,7 @@ def _get_ollama_url() -> str:
     cfg = _redis_config()
     return (
         cfg.get("ollama_base_url")
-        or os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
+        or os.getenv("OLLAMA_BASE_URL", "http://172.168.1.95:12434")
     )
 
 
