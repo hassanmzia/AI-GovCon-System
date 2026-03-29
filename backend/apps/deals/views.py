@@ -158,6 +158,14 @@ class DealViewSet(viewsets.ModelViewSet):
             return Response(
                 {"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST
             )
+        except Exception as exc:
+            logger.exception(
+                "Unexpected error transitioning deal %s to %s", pk, target
+            )
+            return Response(
+                {"detail": f"Transition failed: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         deal.refresh_from_db()
         return Response(DealDetailSerializer(deal).data)
