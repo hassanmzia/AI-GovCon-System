@@ -4,8 +4,11 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.core.views import llm_settings
+
 urlpatterns = [
     path("api/health/", include("apps.core.urls")),
+    path("api/settings/llm/", llm_settings, name="llm-settings"),
     path("django-admin/", admin.site.urls),
     # API schema
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
