@@ -53,14 +53,14 @@ def _evaluate_bid_no_bid(deal) -> GateEvaluation:
     """Evaluate bid/no-bid gate criteria."""
     criteria = []
 
-    # 1. Opportunity must have a score
+    # 1. Opportunity should have a score (recommended, not blocking)
     has_score = hasattr(deal.opportunity, "score")
     criteria.append(GateCriterion(
         name="Opportunity Scored",
-        description="Opportunity must be scored by AI or manually",
-        is_critical=True,
-        status="green" if has_score else "red",
-        detail=f"Score: {deal.opportunity.score.total_score}" if has_score else "Not scored yet",
+        description="Opportunity should be scored by AI or manually",
+        is_critical=False,
+        status="green" if has_score else "amber",
+        detail=f"Score: {deal.opportunity.score.total_score}" if has_score else "Not scored yet — recommended before bid decision",
     ))
 
     # 2. Strategy assessment should exist
