@@ -118,7 +118,15 @@ class DealViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="transition")
     def transition(self, request, pk=None):
-        """Advance or move a deal to a new pipeline stage."""
+        """Advance or move a deal to a new pipeline stage.
+
+        For HITL gate stages (bid_no_bid, final_review, submit, contract_setup),
+        auto-creates an approved Approval record when the user explicitly
+        triggers the transition — the user clicking the button IS the human
+        approval.
+        """
+        from apps.deals.workflow import HITL_GATES
+
         deal = self.get_object()
         serializer = DealTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -126,6 +134,23 @@ class DealViewSet(viewsets.ModelViewSet):
         engine = WorkflowEngine()
         target = serializer.validated_data["target_stage"]
         reason = serializer.validated_data.get("reason", "")
+
+        # Auto-create approval for HITL gates if none exists yet
+        if target in HITL_GATES:
+            has_approval = deal.approvals.filter(
+                approval_type=target,
+                status__in=["pending", "approved"],
+            ).exists()
+            if not has_approval:
+                Approval.objects.create(
+                    deal=deal,
+                    approval_type=target,
+                    requested_by=request.user,
+                    requested_from=request.user,
+                    status="approved",
+                    decision_rationale=reason or "Approved via stage transition",
+                    decided_at=timezone.now(),
+                )
 
         try:
             engine.transition(deal, target, user=request.user, reason=reason)

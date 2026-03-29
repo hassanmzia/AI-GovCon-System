@@ -324,8 +324,11 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
       await onTransition(deal, targetStage, reason);
       onClose();
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to transition stage.";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const axiosErr = err as any;
+      const detail = axiosErr?.response?.data?.detail;
+      const message = detail
+        || (err instanceof Error ? err.message : "Failed to transition stage.");
       setTransitionError(message);
     } finally {
       setTransitioning(false);
