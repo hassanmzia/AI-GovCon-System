@@ -8,8 +8,10 @@ without requiring LangChain. Supports:
   - **openai**: OpenAI ChatGPT API
   - **ollama**: Local Ollama instance (OpenAI-compatible API)
 
-Configuration via environment variables:
-    LLM_PROVIDER, LLM_MODEL, ANTHROPIC_API_KEY, OPENAI_API_KEY, OLLAMA_BASE_URL
+Configuration priority:
+    1. Database SystemSetting (editable from Settings UI)
+    2. Environment variables (LLM_PROVIDER, LLM_MODEL, OLLAMA_BASE_URL)
+    3. Built-in defaults
 """
 
 import logging
@@ -20,23 +22,97 @@ logger = logging.getLogger("ai_deal_manager.core.llm_provider")
 
 SUPPORTED_PROVIDERS = ["anthropic", "openai", "ollama"]
 
-_DEFAULT_MODELS: dict[str, str] = {
+DEFAULT_MODELS: dict[str, str] = {
     "anthropic": "claude-sonnet-4-6",
     "openai": "gpt-4o",
     "ollama": "deepseek-r1:7b",
 }
 
+PROVIDER_MODELS: dict[str, list[str]] = {
+    "anthropic": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+    "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+    "ollama": ["deepseek-r1:7b", "llama3", "mistral", "codellama", "phi3"],
+}
+
+
+def _db_settings() -> dict[str, Any]:
+    """Read LLM settings from the database. Returns {} if unavailable."""
+    try:
+        from apps.core.models import SystemSetting
+        return SystemSetting.get("llm_config", {}) or {}
+    except Exception:
+        return {}
+
 
 def _get_provider() -> str:
-    return os.getenv("LLM_PROVIDER", "anthropic").lower().strip()
+    db = _db_settings()
+    return (
+        db.get("provider")
+        or os.getenv("LLM_PROVIDER", "anthropic")
+    ).lower().strip()
 
 
 def _get_model(provider: str | None = None) -> str:
+    db = _db_settings()
+    if db.get("model"):
+        return db["model"]
     model = os.getenv("LLM_MODEL", "")
     if model:
         return model
     p = provider or _get_provider()
-    return _DEFAULT_MODELS.get(p, "claude-sonnet-4-6")
+    return DEFAULT_MODELS.get(p, "claude-sonnet-4-6")
+
+
+def _get_ollama_url() -> str:
+    db = _db_settings()
+    return (
+        db.get("ollama_base_url")
+        or os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
+    )
+
+
+def get_provider_info() -> dict[str, Any]:
+    """Return current LLM configuration status."""
+    provider = _get_provider()
+    model = _get_model(provider)
+    info: dict[str, Any] = {
+        "provider": provider,
+        "model": model,
+        "supported_providers": SUPPORTED_PROVIDERS,
+        "default_models": DEFAULT_MODELS,
+        "provider_models": PROVIDER_MODELS,
+    }
+    if provider == "anthropic":
+        info["status"] = "configured" if os.getenv("ANTHROPIC_API_KEY") else "missing_api_key"
+    elif provider == "openai":
+        info["status"] = "configured" if os.getenv("OPENAI_API_KEY") else "missing_api_key"
+    elif provider == "ollama":
+        info["status"] = "configured"
+        info["ollama_base_url"] = _get_ollama_url()
+    return info
+
+
+def update_settings(provider: str, model: str, ollama_base_url: str = "") -> dict[str, Any]:
+    """Persist LLM settings to the database and update env vars for current process."""
+    from apps.core.models import SystemSetting
+
+    if provider not in SUPPORTED_PROVIDERS:
+        raise ValueError(f"Unsupported provider: '{provider}'")
+
+    config = {"provider": provider, "model": model}
+    if ollama_base_url:
+        config["ollama_base_url"] = ollama_base_url
+
+    SystemSetting.put("llm_config", config)
+
+    # Also set env vars so the AI orchestrator (same process) picks them up
+    os.environ["LLM_PROVIDER"] = provider
+    os.environ["LLM_MODEL"] = model
+    if ollama_base_url:
+        os.environ["OLLAMA_BASE_URL"] = ollama_base_url
+
+    logger.info("LLM settings updated: provider=%s model=%s", provider, model)
+    return get_provider_info()
 
 
 async def chat_completion(
@@ -52,16 +128,12 @@ async def chat_completion(
     Args:
         messages: List of message dicts, e.g. [{"role": "user", "content": "..."}].
         system: Optional system prompt (handled differently per provider).
-        provider: Override LLM_PROVIDER env var.
-        model: Override LLM_MODEL env var.
+        provider: Override the configured provider.
+        model: Override the configured model.
         max_tokens: Maximum tokens in response.
 
     Returns:
         The assistant's response text.
-
-    Raises:
-        ValueError: If provider is not supported or API key is missing.
-        Exception: If the API call fails.
     """
     p = (provider or _get_provider()).lower().strip()
     m = model or _get_model(p)
@@ -77,25 +149,6 @@ async def chat_completion(
             f"Unsupported LLM provider: '{p}'. "
             f"Supported: {', '.join(SUPPORTED_PROVIDERS)}"
         )
-
-
-def get_provider_info() -> dict[str, Any]:
-    """Return current LLM configuration status."""
-    provider = _get_provider()
-    model = _get_model(provider)
-    info: dict[str, Any] = {
-        "provider": provider,
-        "model": model,
-        "supported_providers": SUPPORTED_PROVIDERS,
-    }
-    if provider == "anthropic":
-        info["status"] = "configured" if os.getenv("ANTHROPIC_API_KEY") else "missing_api_key"
-    elif provider == "openai":
-        info["status"] = "configured" if os.getenv("OPENAI_API_KEY") else "missing_api_key"
-    elif provider == "ollama":
-        info["status"] = "configured"
-        info["ollama_base_url"] = os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
-    return info
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +211,7 @@ async def _ollama_chat(
     """Call Ollama via its OpenAI-compatible API endpoint."""
     import httpx
 
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
+    base_url = _get_ollama_url()
 
     all_messages = []
     if system:

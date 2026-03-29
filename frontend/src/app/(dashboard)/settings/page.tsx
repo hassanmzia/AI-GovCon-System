@@ -18,6 +18,8 @@ interface LLMSettings {
   provider: string;
   model: string;
   supported_providers: string[];
+  default_models: Record<string, string>;
+  provider_models: Record<string, string[]>;
   status: string;
   ollama_base_url?: string;
 }
@@ -66,6 +68,12 @@ export default function SettingsPage() {
   // LLM Settings
   const [llmSettings, setLlmSettings] = useState<LLMSettings | null>(null);
   const [llmLoading, setLlmLoading] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
+  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:12434");
+  const [llmSaving, setLlmSaving] = useState(false);
+  const [llmSaveSuccess, setLlmSaveSuccess] = useState(false);
+  const [llmSaveError, setLlmSaveError] = useState("");
 
   // API Key display
   const [showApiKey, setShowApiKey] = useState(false);
@@ -88,6 +96,9 @@ export default function SettingsPage() {
       try {
         const { data } = await api.get("/settings/llm/");
         setLlmSettings(data);
+        setSelectedProvider(data.provider);
+        setSelectedModel(data.model);
+        if (data.ollama_base_url) setOllamaUrl(data.ollama_base_url);
       } catch (error) {
         console.error("Failed to fetch LLM settings:", error);
       } finally {
@@ -113,6 +124,53 @@ export default function SettingsPage() {
       setSaving(false);
     }
   };
+
+  const handleSelectProvider = (provider: string) => {
+    setSelectedProvider(provider);
+    // Auto-select default model for this provider
+    const defaultModel =
+      llmSettings?.default_models?.[provider] ||
+      (provider === "anthropic"
+        ? "claude-sonnet-4-6"
+        : provider === "openai"
+        ? "gpt-4o"
+        : "deepseek-r1:7b");
+    setSelectedModel(defaultModel);
+    setLlmSaveSuccess(false);
+    setLlmSaveError("");
+  };
+
+  const handleSaveLLM = async () => {
+    setLlmSaving(true);
+    setLlmSaveSuccess(false);
+    setLlmSaveError("");
+    try {
+      const payload: Record<string, string> = {
+        provider: selectedProvider,
+        model: selectedModel,
+      };
+      if (selectedProvider === "ollama" && ollamaUrl) {
+        payload.ollama_base_url = ollamaUrl;
+      }
+      const { data } = await api.put("/settings/llm/", payload);
+      setLlmSettings(data);
+      setLlmSaveSuccess(true);
+      setTimeout(() => setLlmSaveSuccess(false), 3000);
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.error || "Failed to save LLM settings";
+      setLlmSaveError(msg);
+    } finally {
+      setLlmSaving(false);
+    }
+  };
+
+  const llmHasChanges =
+    llmSettings &&
+    (selectedProvider !== llmSettings.provider ||
+      selectedModel !== llmSettings.model ||
+      (selectedProvider === "ollama" &&
+        ollamaUrl !== (llmSettings.ollama_base_url || "http://localhost:12434")));
 
   if (loading) {
     return (
@@ -391,11 +449,8 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Select which LLM provider powers the AI agents. Change the{" "}
-            <code className="text-xs bg-muted px-1 py-0.5 rounded">LLM_PROVIDER</code>{" "}
-            and{" "}
-            <code className="text-xs bg-muted px-1 py-0.5 rounded">LLM_MODEL</code>{" "}
-            environment variables to switch providers.
+            Select which LLM provider powers the AI agents. Click a provider to
+            switch, choose a model, then save.
           </p>
 
           {llmLoading ? (
@@ -405,24 +460,36 @@ export default function SettingsPage() {
             </div>
           ) : llmSettings ? (
             <div className="space-y-3">
+              {/* Provider cards */}
               {(llmSettings.supported_providers || ["anthropic", "openai", "ollama"]).map(
                 (provider) => {
-                  const isActive = llmSettings.provider === provider;
+                  const isSelected = selectedProvider === provider;
+                  const isSaved = llmSettings.provider === provider;
                   const label = PROVIDER_LABELS[provider] || {
                     name: provider,
                     description: "",
                   };
+                  const models =
+                    llmSettings.provider_models?.[provider] ||
+                    (provider === "anthropic"
+                      ? ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+                      : provider === "openai"
+                      ? ["gpt-4o", "gpt-4o-mini"]
+                      : ["deepseek-r1:7b", "llama3", "mistral"]);
+
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={provider}
-                      className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
-                        isActive
-                          ? "border-primary bg-primary/5"
-                          : "border-border opacity-60"
+                      onClick={() => handleSelectProvider(provider)}
+                      className={`w-full text-left flex items-start gap-3 rounded-lg border p-3 transition-all cursor-pointer hover:border-primary/50 hover:bg-primary/[0.02] ${
+                        isSelected
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                          : "border-border"
                       }`}
                     >
                       <div className="mt-0.5">
-                        {isActive ? (
+                        {isSelected ? (
                           <CheckCircle2 className="h-5 w-5 text-primary" />
                         ) : (
                           <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
@@ -431,83 +498,132 @@ export default function SettingsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium">{label.name}</p>
-                          {isActive && (
+                          {isSaved && !isSelected && (
+                            <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium">
+                              Current
+                            </span>
+                          )}
+                          {isSelected && isSaved && (
                             <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
                               Active
+                            </span>
+                          )}
+                          {isSelected && !isSaved && (
+                            <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium">
+                              Unsaved
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {label.description}
                         </p>
-                        {isActive && (
-                          <div className="mt-2 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">
-                                Model:
-                              </span>
-                              <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
-                                {llmSettings.model}
-                              </code>
+
+                        {/* Model selector - shown when this provider is selected */}
+                        {isSelected && (
+                          <div
+                            className="mt-3 space-y-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">
+                                Model
+                              </label>
+                              <select
+                                value={selectedModel}
+                                onChange={(e) => {
+                                  setSelectedModel(e.target.value);
+                                  setLlmSaveSuccess(false);
+                                  setLlmSaveError("");
+                                }}
+                                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              >
+                                {models.map((m) => (
+                                  <option key={m} value={m}>
+                                    {m}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
-                            {provider === "ollama" && llmSettings.ollama_base_url && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">
-                                  URL:
-                                </span>
-                                <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
-                                  {llmSettings.ollama_base_url}
-                                </code>
+
+                            {/* Ollama URL field */}
+                            {provider === "ollama" && (
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">
+                                  Ollama Server URL
+                                </label>
+                                <Input
+                                  value={ollamaUrl}
+                                  onChange={(e) => {
+                                    setOllamaUrl(e.target.value);
+                                    setLlmSaveSuccess(false);
+                                    setLlmSaveError("");
+                                  }}
+                                  placeholder="http://localhost:12434"
+                                  className="text-sm"
+                                />
                               </div>
                             )}
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">
-                                Status:
-                              </span>
-                              {llmSettings.status === "configured" ? (
-                                <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  Configured
-                                </span>
-                              ) : llmSettings.status === "missing_api_key" ? (
-                                <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  API key not set
-                                </span>
-                              ) : (
+
+                            {/* Status indicator */}
+                            {isSaved && (
+                              <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground">
-                                  {llmSettings.status}
+                                  Status:
                                 </span>
-                              )}
-                            </div>
+                                {llmSettings.status === "configured" ? (
+                                  <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Configured
+                                  </span>
+                                ) : llmSettings.status === "missing_api_key" ? (
+                                  <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    API key not set
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    {llmSettings.status}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 }
               )}
 
-              <div className="rounded-lg border border-dashed border-muted-foreground/30 p-3 mt-2">
-                <p className="text-xs text-muted-foreground">
-                  To switch providers, update your{" "}
-                  <code className="bg-muted px-1 py-0.5 rounded">.env</code>{" "}
-                  file and restart the services:
-                </p>
-                <pre className="mt-2 text-xs font-mono bg-muted p-2 rounded overflow-x-auto">
-{`# Anthropic Claude
-LLM_PROVIDER=anthropic
-LLM_MODEL=claude-sonnet-4-6
-
-# OpenAI ChatGPT
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4o
-
-# Local Ollama
-LLM_PROVIDER=ollama
-LLM_MODEL=deepseek-r1:7b
-OLLAMA_BASE_URL=http://localhost:12434`}
-                </pre>
+              {/* Save button + feedback */}
+              <div className="flex items-center gap-3 pt-1">
+                <Button
+                  onClick={handleSaveLLM}
+                  disabled={llmSaving || !llmHasChanges}
+                  size="sm"
+                >
+                  {llmSaving ? (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-3.5 w-3.5" />
+                  )}
+                  Save LLM Settings
+                </Button>
+                {llmSaveSuccess && (
+                  <span className="text-xs text-green-600 font-medium">
+                    Saved successfully
+                  </span>
+                )}
+                {llmSaveError && (
+                  <span className="text-xs text-red-600 font-medium">
+                    {llmSaveError}
+                  </span>
+                )}
+                {!llmHasChanges && !llmSaveSuccess && (
+                  <span className="text-xs text-muted-foreground">
+                    Select a different provider or model to save
+                  </span>
+                )}
               </div>
             </div>
           ) : (

@@ -15,6 +15,32 @@ class BaseModel(models.Model):
         abstract = True
 
 
+class SystemSetting(models.Model):
+    """Singleton-style key/value store for system-wide settings (e.g. LLM provider)."""
+
+    key = models.CharField(max_length=100, unique=True, primary_key=True)
+    value = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["key"]
+
+    def __str__(self):
+        return f"{self.key}={self.value}"
+
+    @classmethod
+    def get(cls, key: str, default=None):
+        try:
+            return cls.objects.get(key=key).value
+        except cls.DoesNotExist:
+            return default
+
+    @classmethod
+    def put(cls, key: str, value):
+        obj, _ = cls.objects.update_or_create(key=key, defaults={"value": value})
+        return obj
+
+
 class AuditLog(BaseModel):
     """Tracks user and system actions for compliance and debugging."""
 
