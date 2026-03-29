@@ -299,6 +299,27 @@ class DealViewSet(viewsets.ModelViewSet):
                     error_msg = poll_data.get("result", {}).get(
                         "error", "Agent run failed"
                     )
+                    # Return 402 for credit/billing errors so frontend can show
+                    # a specific message directing the user to Settings
+                    error_lower = error_msg.lower()
+                    if "credit" in error_lower or "billing" in error_lower or "quota" in error_lower:
+                        return Response(
+                            {
+                                "error": error_msg,
+                                "error_type": "llm_credit_error",
+                                "action": "Please add API credits or switch to a different LLM provider in Settings.",
+                            },
+                            status=status.HTTP_402_PAYMENT_REQUIRED,
+                        )
+                    if "api key" in error_lower or "authentication" in error_lower:
+                        return Response(
+                            {
+                                "error": error_msg,
+                                "error_type": "llm_auth_error",
+                                "action": "Please check your API key or switch to a different LLM provider in Settings.",
+                            },
+                            status=status.HTTP_401_UNAUTHORIZED,
+                        )
                     return Response(
                         {"error": error_msg},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR,

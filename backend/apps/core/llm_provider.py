@@ -209,8 +209,17 @@ async def _anthropic_chat(
     if system:
         kwargs["system"] = system
 
-    message = await client.messages.create(**kwargs)
-    return message.content[0].text
+    try:
+        message = await client.messages.create(**kwargs)
+        return message.content[0].text
+    except anthropic.BadRequestError as exc:
+        error_msg = str(exc)
+        if "credit balance" in error_msg.lower() or "billing" in error_msg.lower():
+            raise ValueError(
+                "Anthropic API credit balance is too low. Please add credits at "
+                "console.anthropic.com or switch to a different LLM provider in Settings."
+            ) from exc
+        raise
 
 
 async def _openai_chat(
