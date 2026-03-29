@@ -67,47 +67,23 @@ Format as valid JSON only, no markdown."""
 
 async def _call_ai(prompt: str) -> dict[str, Any]:
     """Call AI provider to generate the report. Falls back to rule-based extraction."""
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
-    openai_key = os.getenv("OPENAI_API_KEY", "")
+    try:
+        from apps.core.llm_provider import chat_completion
 
-    if anthropic_key:
-        try:
-            import anthropic  # type: ignore
-
-            client = anthropic.AsyncAnthropic(api_key=anthropic_key)
-            msg = await client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = msg.content[0].text
-            return _parse_json_response(raw)
-        except Exception as exc:
-            logger.warning("Anthropic research report generation failed: %s", exc)
-
-    if openai_key:
-        try:
-            import openai  # type: ignore
-
-            client = openai.AsyncOpenAI(api_key=openai_key)
-            resp = await client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"},
-                max_tokens=2000,
-            )
-            import json
-
-            return json.loads(resp.choices[0].message.content or "{}")
-        except Exception as exc:
-            logger.warning("OpenAI research report generation failed: %s", exc)
+        raw = await chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2000,
+        )
+        return _parse_json_response(raw)
+    except Exception as exc:
+        logger.warning("AI research report generation failed: %s", exc)
 
     # Rule-based fallback
     return {
-        "summary": "Research synthesis unavailable – AI provider not configured.",
-        "findings": ["Multiple sources retrieved but synthesis requires AI configuration."],
+        "summary": "Research synthesis unavailable – LLM provider not configured.",
+        "findings": ["Multiple sources retrieved but synthesis requires LLM configuration."],
         "key_facts": [],
-        "recommendations": ["Configure ANTHROPIC_API_KEY or OPENAI_API_KEY for AI synthesis."],
+        "recommendations": ["Configure LLM_PROVIDER and the required API key for AI synthesis."],
     }
 
 

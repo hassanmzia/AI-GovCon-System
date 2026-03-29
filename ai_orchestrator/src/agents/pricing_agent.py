@@ -5,7 +5,7 @@ from typing import Annotated, Any
 import operator
 
 import httpx
-from langchain_anthropic import ChatAnthropic
+from src.llm_provider import get_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
@@ -86,12 +86,8 @@ async def _fetch_market_intelligence() -> list:
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
 
-def _get_llm() -> ChatAnthropic:
-    return ChatAnthropic(
-        model="claude-sonnet-4-6",
-        api_key=os.getenv("ANTHROPIC_API_KEY"),
-        max_tokens=2048,
-    )
+def _get_llm():
+    return get_chat_model(max_tokens=2048)
 
 
 # ── Graph nodes ───────────────────────────────────────────────────────────────

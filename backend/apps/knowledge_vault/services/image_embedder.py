@@ -204,40 +204,106 @@ async def _embed_with_local_clip(image_bytes: bytes) -> list[float]:
 
 
 async def _describe_image_with_vision(image_bytes: bytes) -> str:
-    """Use Claude/GPT-4V to generate a text description of an image."""
+    """Use Claude/GPT-4V to generate a text description of an image.
+
+    Vision APIs differ between providers, so we use direct SDK calls here
+    rather than the centralized chat_completion helper. The LLM_PROVIDER
+    env var determines which provider to try first.
+    """
     import base64
 
     b64 = base64.b64encode(image_bytes).decode()
+    provider = os.getenv("LLM_PROVIDER", "anthropic").lower().strip()
 
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
-    if anthropic_key:
-        try:
-            import anthropic  # type: ignore
+    vision_prompt = (
+        "Describe this technical diagram or image in detail for a search index. "
+        "Focus on components, relationships, and technical content."
+    )
 
-            client = anthropic.AsyncAnthropic(api_key=anthropic_key)
-            msg = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=300,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {"type": "base64", "media_type": "image/png", "data": b64},
-                            },
-                            {
-                                "type": "text",
-                                "text": "Describe this technical diagram or image in detail for a search index. Focus on components, relationships, and technical content.",
-                            },
-                        ],
-                    }
-                ],
-            )
-            return msg.content[0].text
-        except Exception as exc:
-            logger.debug("Vision description failed: %s", exc)
+    # Try the configured provider first, then fall back to the other
+    if provider != "openai":
+        result = await _describe_with_anthropic(b64, vision_prompt)
+        if result:
+            return result
+
+    if provider != "anthropic":
+        result = await _describe_with_openai(b64, vision_prompt)
+        if result:
+            return result
+
+    # If configured provider failed, try the other as fallback
+    if provider == "openai":
+        result = await _describe_with_anthropic(b64, vision_prompt)
+        if result:
+            return result
+    elif provider == "anthropic":
+        result = await _describe_with_openai(b64, vision_prompt)
+        if result:
+            return result
+
     return ""
+
+
+async def _describe_with_anthropic(b64: str, prompt: str) -> str:
+    """Use Anthropic Claude vision to describe an image."""
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+    if not anthropic_key:
+        return ""
+    try:
+        import anthropic  # type: ignore
+
+        client = anthropic.AsyncAnthropic(api_key=anthropic_key)
+        msg = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": "image/png", "data": b64},
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+        )
+        return msg.content[0].text
+    except Exception as exc:
+        logger.debug("Anthropic vision description failed: %s", exc)
+        return ""
+
+
+async def _describe_with_openai(b64: str, prompt: str) -> str:
+    """Use OpenAI GPT-4V to describe an image."""
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+    if not openai_key:
+        return ""
+    try:
+        import openai  # type: ignore
+
+        client = openai.AsyncOpenAI(api_key=openai_key)
+        resp = await client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=300,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{b64}"},
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+        )
+        return resp.choices[0].message.content or ""
+    except Exception as exc:
+        logger.debug("OpenAI vision description failed: %s", exc)
+        return ""
 
 
 async def _extract_text_from_diagram(image_bytes: bytes) -> str:

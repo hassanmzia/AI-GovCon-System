@@ -48,12 +48,11 @@ class BaseAgent(ABC):
         execution_id: str | None = None,
     ) -> Any:
         """
-        Build a ChatAnthropic instance pre-wired with observability callbacks.
+        Build a chat model pre-wired with observability callbacks.
 
-        New agents should call this instead of instantiating ChatAnthropic
-        directly.  The returned model automatically sends traces to Langfuse
-        (cost/latency/token counts) and LangSmith (LangGraph node visibility)
-        when those backends are configured via environment variables.
+        Supports multiple providers (Anthropic, OpenAI, Ollama) via the
+        ``LLM_PROVIDER`` environment variable.  New agents should call this
+        instead of instantiating a chat model directly.
 
         Example::
 
@@ -70,15 +69,9 @@ class BaseAgent(ABC):
             )
         except Exception:
             # Graceful fallback — observability unavailable but agent still works.
-            import os
+            from src.llm_provider import get_chat_model
 
-            from langchain_anthropic import ChatAnthropic  # type: ignore[import]
-
-            return ChatAnthropic(
-                model="claude-sonnet-4-6",
-                api_key=os.getenv("ANTHROPIC_API_KEY"),
-                max_tokens=max_tokens,
-            )
+            return get_chat_model(max_tokens=max_tokens)
 
     async def emit_event(
         self,

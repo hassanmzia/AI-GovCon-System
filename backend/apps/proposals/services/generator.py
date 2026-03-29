@@ -1,7 +1,8 @@
 """Proposal section generation service using AI and knowledge vault."""
 import logging
-import os
 from typing import Any
+
+from apps.core.llm_provider import chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,6 @@ async def generate_section(
     Returns:
         Dict with content (markdown), compliance_trace, win_themes_used, word_count.
     """
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-    openai_key = os.getenv("OPENAI_API_KEY")
-
     context = _build_context(
         section_type, rfp_requirements, compliance_matrix,
         technical_solution, capture_strategy, past_performance, win_themes
@@ -47,12 +45,14 @@ async def generate_section(
     system_prompt = _get_system_prompt(section_type)
     user_prompt = _build_user_prompt(section_type, context, instructions)
 
-    content = ""
-    if anthropic_key:
-        content = await _generate_with_anthropic(system_prompt, user_prompt, anthropic_key)
-    elif openai_key:
-        content = await _generate_with_openai(system_prompt, user_prompt, openai_key)
-    else:
+    try:
+        content = await chat_completion(
+            messages=[{"role": "user", "content": user_prompt}],
+            system=system_prompt,
+            max_tokens=4096,
+        )
+    except Exception as exc:
+        logger.warning("LLM generation failed: %s", exc)
         content = _generate_template(section_type, context)
 
     # Trace compliance coverage
@@ -166,42 +166,6 @@ def _build_user_prompt(section_type: str, context: dict, instructions: str) -> s
         parts.append(f"\nAdditional context: {instructions}")
     parts.append("\nWrite a professional, government proposal section in markdown format.")
     return "\n".join(parts)
-
-
-async def _generate_with_anthropic(system: str, user: str, api_key: str) -> str:
-    try:
-        import anthropic
-
-        client = anthropic.AsyncAnthropic(api_key=api_key)
-        message = await client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=4096,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
-        return message.content[0].text
-    except Exception as exc:
-        logger.error("Anthropic generation failed: %s", exc)
-        return ""
-
-
-async def _generate_with_openai(system: str, user: str, api_key: str) -> str:
-    try:
-        import openai  # type: ignore
-
-        client = openai.AsyncOpenAI(api_key=api_key)
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            max_tokens=4096,
-        )
-        return resp.choices[0].message.content or ""
-    except Exception as exc:
-        logger.error("OpenAI generation failed: %s", exc)
-        return ""
 
 
 def _generate_template(section_type: str, context: dict) -> str:

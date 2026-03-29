@@ -24,7 +24,7 @@ from typing import Annotated, Any
 import operator
 
 import httpx
-from langchain_anthropic import ChatAnthropic
+from src.llm_provider import get_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
@@ -83,12 +83,8 @@ async def _get(path: str, default: Any = None) -> Any:
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
 
-def _get_llm(max_tokens: int = 4096) -> ChatAnthropic:
-    return ChatAnthropic(
-        model="claude-sonnet-4-6",
-        api_key=os.getenv("ANTHROPIC_API_KEY"),
-        max_tokens=max_tokens,
-    )
+def _get_llm(max_tokens: int = 4096):
+    return get_chat_model(max_tokens=max_tokens)
 
 
 async def _llm(system: str, human: str, max_tokens: int = 4096) -> str:

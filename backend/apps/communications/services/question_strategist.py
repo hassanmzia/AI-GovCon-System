@@ -1,7 +1,8 @@
 """Vendor question strategist – AI-powered prioritization of clarification questions."""
 import logging
-import os
 from typing import Any
+
+from apps.core.llm_provider import chat_completion, get_provider_info
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,9 @@ async def generate_question_strategy(
     Returns:
         Dict with questions (ranked list), strategy_notes, categories.
     """
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-
-    if anthropic_key:
-        questions = await _generate_with_ai(rfp_text, max_questions, focus_areas, anthropic_key)
+    info = get_provider_info()
+    if info.get("status") == "configured":
+        questions = await _generate_with_ai(rfp_text, max_questions, focus_areas)
     else:
         questions = _generate_rule_based(rfp_text, max_questions)
 
@@ -81,13 +81,11 @@ async def _generate_with_ai(
     rfp_text: str,
     max_questions: int,
     focus_areas: list[str] | None,
-    api_key: str,
 ) -> list[dict]:
     try:
-        import anthropic
         import json
+        import re
 
-        client = anthropic.AsyncAnthropic(api_key=api_key)
         focus = f"\nFocus areas: {', '.join(focus_areas)}" if focus_areas else ""
         rfp_excerpt = rfp_text[:4000]  # Limit to fit in context
 
@@ -116,16 +114,12 @@ Focus on questions that:
 
 Return only the JSON array."""
 
-        message = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=3000,
+        content = await chat_completion(
             messages=[{"role": "user", "content": prompt}],
+            max_tokens=3000,
         )
 
-        content = message.content[0].text
         # Extract JSON array
-        import re
-
         json_match = re.search(r"\[.*\]", content, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())

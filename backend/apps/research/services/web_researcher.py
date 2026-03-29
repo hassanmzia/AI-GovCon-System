@@ -10,33 +10,23 @@ Claude is used to generate intelligence-grade analysis directly.
 """
 
 import logging
-import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from apps.core.llm_provider import chat_completion
+
 logger = logging.getLogger(__name__)
-
-
-def _get_llm():
-    from langchain_anthropic import ChatAnthropic
-    return ChatAnthropic(
-        model="claude-sonnet-4-6",
-        api_key=os.getenv("ANTHROPIC_API_KEY"),
-        max_tokens=2048,
-    )
 
 
 async def _llm_analyze(system_prompt: str, user_prompt: str) -> str:
     """Run an LLM call and return the text content."""
-    from langchain_core.messages import HumanMessage, SystemMessage
     try:
-        llm = _get_llm()
-        response = await llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ])
-        return response.content
+        return await chat_completion(
+            messages=[{"role": "user", "content": user_prompt}],
+            system=system_prompt,
+            max_tokens=2048,
+        )
     except Exception as exc:
         logger.warning("LLM call failed in WebResearcher: %s", exc)
         return ""

@@ -28,7 +28,7 @@ Public API
 init_langfuse()          — call once at app startup
 init_langsmith()         — call once at app startup
 get_callbacks(...)       — returns list of active LangChain callback handlers
-build_llm(...)           — ChatAnthropic pre-wired with callbacks
+build_llm(...)           — Chat model (Anthropic/OpenAI/Ollama) pre-wired with callbacks
 flush_langfuse()         — call at app shutdown to drain pending events
 """
 
@@ -217,7 +217,10 @@ def build_llm(
     agent_name: str | None = None,
 ):
     """
-    Construct a ChatAnthropic instance pre-wired with observability callbacks.
+    Construct a chat model pre-wired with observability callbacks.
+
+    Uses the centralized LLM provider (``LLM_PROVIDER`` env var) so the
+    same agent code works with Anthropic, OpenAI, or local Ollama.
 
     Agents that call this helper automatically get:
     - Langfuse cost/latency/token tracking grouped by session and agent
@@ -228,16 +231,14 @@ def build_llm(
         llm = build_llm(max_tokens=2000, execution_id=deal_id, agent_name="compliance_agent")
         resp = await llm.ainvoke([SystemMessage(content=system), HumanMessage(content=human)])
     """
-    from langchain_anthropic import ChatAnthropic  # type: ignore[import]
+    from src.llm_provider import get_chat_model  # type: ignore[import]
 
     callbacks = get_callbacks(
         session_id=execution_id,
         trace_name=agent_name,
         metadata={"agent": agent_name} if agent_name else None,
     )
-    return ChatAnthropic(
-        model="claude-sonnet-4-6",
-        api_key=os.getenv("ANTHROPIC_API_KEY"),
+    return get_chat_model(
         max_tokens=max_tokens,
         callbacks=callbacks if callbacks else None,
     )
