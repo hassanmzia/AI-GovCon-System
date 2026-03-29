@@ -87,7 +87,11 @@ async def _run_strategy_agent(run_id: str, input_data: dict) -> None:
 
         agent = StrategyAgent()
         result = await agent.run(input_data)
-        await _finalize_run(run_id, result)
+
+        if result.get("error"):
+            await _fail_run(run_id, result["error"])
+        else:
+            await _finalize_run(run_id, result)
     except Exception as exc:
         logger.exception("Strategy agent run %s failed", run_id)
         await _fail_run(run_id, str(exc))
@@ -103,7 +107,11 @@ async def _run_research_agent(run_id: str, input_data: dict) -> None:
 
         agent = ResearchAgent()
         result = await agent.run(input_data)
-        await _finalize_run(run_id, result)
+
+        if result.get("error"):
+            await _fail_run(run_id, result["error"])
+        else:
+            await _finalize_run(run_id, result)
     except Exception as exc:
         logger.exception("Research agent run %s failed", run_id)
         await _fail_run(run_id, str(exc))
@@ -119,7 +127,11 @@ async def _run_legal_agent(run_id: str, input_data: dict) -> None:
 
         agent = LegalAgent()
         result = await agent.run(input_data)
-        await _finalize_run(run_id, result)
+
+        if result.get("error"):
+            await _fail_run(run_id, result["error"])
+        else:
+            await _finalize_run(run_id, result)
     except Exception as exc:
         logger.exception("Legal agent run %s failed", run_id)
         await _fail_run(run_id, str(exc))
@@ -135,7 +147,11 @@ async def _run_marketing_agent(run_id: str, input_data: dict) -> None:
 
         agent = MarketingAgent()
         result = await agent.run(input_data)
-        await _finalize_run(run_id, result)
+
+        if result.get("error"):
+            await _fail_run(run_id, result["error"])
+        else:
+            await _finalize_run(run_id, result)
     except Exception as exc:
         logger.exception("Marketing agent run %s failed", run_id)
         await _fail_run(run_id, str(exc))
@@ -151,7 +167,11 @@ async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
 
         agent = SolutionArchitectAgent()
         result = await agent.run(input_data)
-        await _finalize_run(run_id, result)
+
+        if result.get("error"):
+            await _fail_run(run_id, result["error"])
+        else:
+            await _finalize_run(run_id, result)
     except Exception as exc:
         logger.exception("Solution architect agent run %s failed", run_id)
         await _fail_run(run_id, str(exc))

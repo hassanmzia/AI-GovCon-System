@@ -27,6 +27,17 @@ from typing import Any
 
 logger = logging.getLogger("ai_orchestrator.llm_provider")
 
+
+class LLMProviderError(Exception):
+    """Raised when the LLM provider is misconfigured or unavailable."""
+    pass
+
+
+class LLMCreditError(LLMProviderError):
+    """Raised when the LLM provider rejects requests due to billing/credit issues."""
+    pass
+
+
 SUPPORTED_PROVIDERS = ["anthropic", "openai", "ollama"]
 
 # Default models per provider
@@ -161,9 +172,9 @@ def _build_anthropic(model: str, max_tokens: int, callbacks: list | None, **kwar
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise ValueError(
+        raise LLMProviderError(
             "ANTHROPIC_API_KEY is not set. Please set it in your environment "
-            "or switch LLM_PROVIDER to 'openai' or 'ollama'."
+            "or switch to a different LLM provider in Settings."
         )
 
     return ChatAnthropic(
@@ -180,9 +191,9 @@ def _build_openai(model: str, max_tokens: int, callbacks: list | None, **kwargs)
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError(
+        raise LLMProviderError(
             "OPENAI_API_KEY is not set. Please set it in your environment "
-            "or switch LLM_PROVIDER to 'anthropic' or 'ollama'."
+            "or switch to a different LLM provider in Settings."
         )
 
     return ChatOpenAI(
@@ -192,6 +203,33 @@ def _build_openai(model: str, max_tokens: int, callbacks: list | None, **kwargs)
         callbacks=callbacks if callbacks else None,
         **kwargs,
     )
+
+
+def check_llm_error(exc: Exception) -> None:
+    """Re-raise as LLMCreditError or LLMProviderError if the exception
+    indicates a billing, authentication, or configuration issue.
+
+    Call this in except blocks around LLM invocations to convert opaque
+    SDK exceptions into actionable errors that stop the agent pipeline
+    immediately instead of continuing with broken output.
+    """
+    msg = str(exc).lower()
+
+    # Credit / billing errors
+    credit_keywords = ["credit balance", "insufficient_quota", "billing", "exceeded your current quota"]
+    if any(kw in msg for kw in credit_keywords):
+        raise LLMCreditError(
+            "LLM API credit balance is too low. Please add credits to your account "
+            "or switch to a different LLM provider in Settings."
+        ) from exc
+
+    # Authentication errors
+    auth_keywords = ["invalid api key", "invalid x-api-key", "authentication", "unauthorized", "permission denied"]
+    if any(kw in msg for kw in auth_keywords):
+        raise LLMProviderError(
+            "LLM API key is invalid or expired. Please check your API key "
+            "in Settings or switch to a different provider."
+        ) from exc
 
 
 def _build_ollama(model: str, max_tokens: int, callbacks: list | None, **kwargs):
@@ -206,3 +244,32 @@ def _build_ollama(model: str, max_tokens: int, callbacks: list | None, **kwargs)
         callbacks=callbacks if callbacks else None,
         **kwargs,
     )
+
+
+async def safe_llm_call(
+    system: str,
+    human: str,
+    max_tokens: int = 3000,
+    provider: str | None = None,
+    model: str | None = None,
+) -> str:
+    """High-level async LLM call with proper error handling.
+
+    Use this in agent graph nodes instead of rolling your own try/except.
+    Raises LLMCreditError or LLMProviderError on billing/auth issues
+    so agent pipelines fail fast with actionable messages.
+    """
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    llm = get_chat_model(provider=provider, model=model, max_tokens=max_tokens)
+    try:
+        response = await llm.ainvoke([
+            SystemMessage(content=system),
+            HumanMessage(content=human),
+        ])
+        return response.content
+    except (LLMCreditError, LLMProviderError):
+        raise
+    except Exception as exc:
+        check_llm_error(exc)
+        raise

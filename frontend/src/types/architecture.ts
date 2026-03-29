@@ -68,4 +68,5 @@ export interface ArchitectureResult {
   technical_volume: TechnicalVolume;
   validation_report: ValidationReport;
   iteration_count: number;
+  error?: string;
 }

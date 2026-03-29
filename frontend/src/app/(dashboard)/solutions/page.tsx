@@ -378,13 +378,24 @@ export default function SolutionsPage() {
     setResult(null);
     try {
       const data = await runSolutionArchitect(selectedDealId);
+      if (data.error) {
+        throw new Error(data.error as string);
+      }
       setResult(data);
       setActiveTab("requirements");
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Agent failed. Check that the AI Orchestrator is running and ANTHROPIC_API_KEY is configured.";
+      // Extract the error message from the API response if available
+      let msg = "Agent failed. Check that the AI Orchestrator is running.";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const axiosErr = err as any;
+      if (axiosErr?.response?.data?.error) {
+        msg = axiosErr.response.data.error;
+        if (axiosErr.response.data.action) {
+          msg += " " + axiosErr.response.data.action;
+        }
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
       setError(msg);
     } finally {
       setRunning(false);
@@ -537,6 +548,17 @@ export default function SolutionsPage() {
               <div>
                 <p className="font-medium text-red-700">Agent Failed</p>
                 <p className="text-sm text-red-600 mt-1">{error}</p>
+                {(error.toLowerCase().includes("credit") ||
+                  error.toLowerCase().includes("api key") ||
+                  error.toLowerCase().includes("billing") ||
+                  error.toLowerCase().includes("settings")) && (
+                  <a
+                    href="/settings"
+                    className="inline-block mt-2 text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    Go to Settings to change LLM provider
+                  </a>
+                )}
               </div>
             </div>
           </CardContent>

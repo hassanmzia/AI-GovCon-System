@@ -88,7 +88,14 @@ def _get_llm(max_tokens: int = 4096):
 
 
 async def _llm(system: str, human: str, max_tokens: int = 4096) -> str:
-    """Single LLM call helper."""
+    """Single LLM call helper.
+
+    Raises LLMCreditError or LLMProviderError on billing/auth issues
+    so the agent pipeline stops immediately instead of continuing with
+    broken output across multiple nodes.
+    """
+    from src.llm_provider import LLMCreditError, LLMProviderError, check_llm_error
+
     try:
         llm = _get_llm(max_tokens)
         response = await llm.ainvoke([
@@ -96,8 +103,11 @@ async def _llm(system: str, human: str, max_tokens: int = 4096) -> str:
             HumanMessage(content=human),
         ])
         return response.content
+    except (LLMCreditError, LLMProviderError):
+        raise
     except Exception as exc:
         logger.error("LLM call failed in SolutionArchitectAgent: %s", exc)
+        check_llm_error(exc)
         return f"[LLM unavailable: {exc}]"
 
 
