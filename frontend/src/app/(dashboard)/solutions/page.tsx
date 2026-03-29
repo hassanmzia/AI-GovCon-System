@@ -409,32 +409,49 @@ function sanitizeMermaid(code: string): string {
  * build a minimal valid graph TD diagram.
  */
 function rebuildMermaid(code: string): string | null {
-  const nodes = new Set<string>();
+  const nodeLabels = new Map<string, string>(); // id → label
   const edges: string[] = [];
 
-  // Sanitize node ID: replace non-alphanumeric chars with nothing
-  const cleanId = (id: string) => id.replace(/[^A-Za-z0-9_]/g, "");
+  // Sanitize node ID: replace non-alphanumeric chars
+  const cleanId = (id: string) => id.replace(/[^A-Za-z0-9_]/g, "").replace(/\s+/g, "");
 
   for (const line of code.split("\n")) {
     const trimmed = line.trim();
 
-    // Skip graph/subgraph/end/style/class lines
+    // Skip structural lines
     if (/^(graph|flowchart|subgraph|end|style|classDef|class)\b/i.test(trimmed)) continue;
-    // Skip lines with broken subgraph-inside-brackets
     if (trimmed.includes("[subgraph")) continue;
+    if (!trimmed) continue;
 
-    // Match arrows with various patterns:
-    // A -->|label| B, A --> B, A -->|label| B[Label], A[Label] --> B[Label]
+    // Extract node definitions: NodeId[Label]
+    let nodeMatch: RegExpExecArray | null;
+    const nodeRe = /([A-Za-z][A-Za-z0-9_/.:\s-]*?)\[([^\]]+)\]/g;
+    while ((nodeMatch = nodeRe.exec(trimmed)) !== null) {
+      const nid = cleanId(nodeMatch[1]);
+      if (nid && nid.length >= 2) {
+        nodeLabels.set(nid, nodeMatch[2].replace(/\|/g, "/"));
+      }
+    }
+
+    // Also match database nodes: NodeId[(Label)]
+    const dbRe = /([A-Za-z]\w*)\[\(([^)]+)\)\]/g;
+    let dbMatch: RegExpExecArray | null;
+    while ((dbMatch = dbRe.exec(trimmed)) !== null) {
+      const did = cleanId(dbMatch[1]);
+      if (did) nodeLabels.set(did, dbMatch[2]);
+    }
+
+    // Match arrows: various forms including broken spacing
     const arrowMatch = trimmed.match(
-      /^\s*([A-Za-z0-9_/.:-]+)(?:\[[^\]]*\])?\s*--+>(?:\|([^|]*)\|)?\s*([A-Za-z0-9_/.:-]+)/
+      /([A-Za-z][A-Za-z0-9_/.:\s-]*?)(?:\[[^\]]*\])?\s*--+>(?:\|([^|]*)\|)?\s*([A-Za-z][A-Za-z0-9_/.:\s-]*?)(?:\s*\[|\s*$)/
     );
     if (arrowMatch) {
       const from = cleanId(arrowMatch[1]);
       const label = arrowMatch[2]?.trim();
       const to = cleanId(arrowMatch[3]);
-      if (from && to && from !== to) {
-        nodes.add(from);
-        nodes.add(to);
+      if (from && to && from !== to && from.length >= 2 && to.length >= 2) {
+        if (!nodeLabels.has(from)) nodeLabels.set(from, from);
+        if (!nodeLabels.has(to)) nodeLabels.set(to, to);
         edges.push(
           label ? `    ${from} -->|${label}| ${to}` : `    ${from} --> ${to}`
         );
@@ -442,9 +459,14 @@ function rebuildMermaid(code: string): string | null {
     }
   }
 
-  if (nodes.size < 2 || edges.length === 0) return null;
+  if (nodeLabels.size < 2 || edges.length === 0) return null;
 
-  return ["graph TD", ...edges].join("\n");
+  // Build node declarations with labels
+  const nodeDecls = Array.from(nodeLabels.entries()).map(
+    ([id, label]) => `    ${id}[${label}]`
+  );
+
+  return ["graph TD", ...nodeDecls, "", ...edges].join("\n");
 }
 
 function MermaidRenderer({ code, id }: { code: string; id: string }) {
@@ -458,24 +480,17 @@ function MermaidRenderer({ code, id }: { code: string; id: string }) {
 
     (async () => {
       try {
-        const mermaid = (await import("mermaid")).default;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: "neutral",
-          securityLevel: "loose",
-          fontFamily: "ui-sans-serif, system-ui, sans-serif",
-        });
+        const mermaidModule = await import("mermaid");
+        const mermaid = mermaidModule.default;
 
-        // Attempt 1: original code
-        // Attempt 2: sanitized code
-        // Attempt 3: rebuilt minimal graph from extracted nodes/edges
+        // Build candidate list: original → sanitized → rebuilt from arrows
         const candidates = [
           code,
           sanitizeMermaid(code),
           rebuildMermaid(code),
         ];
 
-        // Deduplicate while preserving order, skip nulls
+        // Deduplicate, skip nulls
         const seen = new Set<string>();
         const unique = candidates.filter((c): c is string => {
           if (c === null) return false;
@@ -487,11 +502,25 @@ function MermaidRenderer({ code, id }: { code: string; id: string }) {
         let rendered: string | null = null;
         for (let i = 0; i < unique.length; i++) {
           try {
-            const result = await mermaid.render(`mermaid-${id}-${i}`, unique[i]);
+            // Re-initialize mermaid for each attempt to clear error state
+            mermaid.initialize({
+              startOnLoad: false,
+              theme: "neutral",
+              securityLevel: "loose",
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+            });
+
+            // Remove any leftover temp SVG elements from prior failed renders
+            const staleEl = document.getElementById(`dmermaid-${id}-${i}`);
+            if (staleEl) staleEl.remove();
+
+            const result = await mermaid.render(`dmermaid-${id}-${i}`, unique[i]);
             rendered = result.svg;
             break;
           } catch {
-            // Try next attempt
+            // Clean up failed render element
+            const failedEl = document.getElementById(`dmermaid-${id}-${i}`);
+            if (failedEl) failedEl.remove();
           }
         }
 
