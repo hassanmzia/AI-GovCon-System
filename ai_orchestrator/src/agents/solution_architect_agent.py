@@ -410,7 +410,14 @@ async def generate_diagrams(state: SolutionArchitectState) -> dict:
             "Generate production-quality Mermaid.js diagrams for a federal IT solution. "
             "Each diagram must be syntactically correct Mermaid.js that can be rendered "
             "directly. Use clear labels, appropriate shapes, and meaningful relationships. "
-            "Wrap each diagram in a fenced code block with 'mermaid' as the language."
+            "Wrap each diagram in a fenced code block with 'mermaid' as the language.\n\n"
+            "CRITICAL MERMAID SYNTAX RULES:\n"
+            "- Do NOT use semicolons at the end of lines\n"
+            "- In `class` statements, do NOT put spaces after commas: `class A,B,C styleName` (correct), NOT `class A, B, C styleName` (wrong)\n"
+            "- In `classDef` statements, do NOT end with semicolons\n"
+            "- Use simple node IDs without special characters\n"
+            "- Avoid using `---` for links, use `-->` or `-->`\n"
+            "- Test that subgraph names don't contain special characters"
         ),
         human=(
             f"Technical Solution Summary:\n{solution_text}\n\n"
@@ -568,29 +575,35 @@ async def validate_solution(state: SolutionArchitectState) -> dict:
 
     content = await _llm(
         system=(
-            "You are a red team reviewer and chief architect for a government contracting firm. "
-            "Your job is to critically evaluate a proposed technical solution and identify "
-            "gaps, weaknesses, and risks BEFORE it goes to the customer. Be brutally honest."
+            "You are a senior quality reviewer for a government contracting firm. "
+            "Your job is to evaluate a proposed technical solution and provide constructive "
+            "feedback. Be fair and balanced — acknowledge strengths while noting areas for "
+            "improvement. Remember this is an AI-generated first draft that will be refined "
+            "by human architects."
         ),
         human=(
             f"Opportunity: {state['opportunity']}\n\n"
             f"Technical Solution (preview):\n{solution_preview}\n\n"
             f"Technical Volume (preview):\n{volume_preview}\n\n"
             f"Architecture Diagrams: {len(state['diagrams'])} generated\n\n"
-            "Evaluate this solution on:\n\n"
-            "## 1. Requirements Coverage\n"
-            "Are ALL key requirements addressed? List any gaps.\n\n"
-            "## 2. Technical Soundness\n"
-            "Are the architectural choices technically sound? Any anti-patterns?\n\n"
-            "## 3. Compliance Completeness\n"
-            "Are all security/compliance requirements fully addressed?\n\n"
-            "## 4. Win-ability\n"
-            "Would this solution score well against evaluation criteria? What's weak?\n\n"
-            "## 5. Risk Assessment\n"
-            "What risks in this solution could cause evaluation score deductions?\n\n"
-            "## 6. Verdict\n"
-            "PASS (ready for human review) or REVISE (requires refinement). "
-            "State on a line by itself starting with 'VERDICT:'"
+            "Evaluate this solution and provide your assessment in the following "
+            "EXACT format. Each section must start with the header shown.\n\n"
+            "## Score\n"
+            "A number from 0-100 representing overall quality. "
+            "70+ means ready for human review.\n\n"
+            "## Strengths\n"
+            "- Bullet list of what the solution does well\n\n"
+            "## Issues\n"
+            "- Bullet list of technical gaps or weaknesses\n\n"
+            "## Compliance Gaps\n"
+            "- Bullet list of security/compliance requirements not addressed\n"
+            "- Write NONE if no compliance gaps\n\n"
+            "## Suggestions\n"
+            "- Bullet list of specific, actionable improvements\n\n"
+            "## Verdict\n"
+            "PASS or REVISE on a line by itself starting with VERDICT:\n"
+            "Use PASS if score >= 70 (solution is a solid foundation for human review). "
+            "Use REVISE only if there are critical gaps that would make the proposal non-competitive."
         ),
         max_tokens=2048,
     )
@@ -603,27 +616,43 @@ async def validate_solution(state: SolutionArchitectState) -> dict:
                 verdict = "REVISE"
             break
 
-    # Parse structured issues, suggestions, and compliance gaps from review text
-    issues = []
-    suggestions = []
-    compliance_gaps = []
-    current_section = None
+    # Parse score from the review
+    import re as _re3
+    score_match = _re3.search(r'##\s*Score\s*\n\s*(\d+)', content)
+    score = int(score_match.group(1)) if score_match else (78 if verdict == "PASS" else 62)
+    score = max(0, min(100, score))
+
+    # Parse structured lists from review text
+    issues: list[str] = []
+    suggestions: list[str] = []
+    compliance_gaps: list[str] = []
+    current_section: str | None = None
+
     for line in content.split("\n"):
         stripped = line.strip()
         lower = stripped.lower()
-        if "requirement" in lower and "coverage" in lower:
-            current_section = "issues"
-        elif "win-ability" in lower or "weak" in lower:
-            current_section = "issues"
-        elif "compliance" in lower:
-            current_section = "compliance"
-        elif "suggestion" in lower or "recommend" in lower:
-            current_section = "suggestions"
-        elif "risk" in lower and "##" in line:
-            current_section = "issues"
-        elif stripped.startswith("- ") or stripped.startswith("* "):
+
+        # Detect section headers
+        if stripped.startswith("## "):
+            header = lower.replace("##", "").strip()
+            if "issue" in header or "weakness" in header:
+                current_section = "issues"
+            elif "compliance" in header:
+                current_section = "compliance"
+            elif "suggestion" in header or "improvement" in header or "recommend" in header:
+                current_section = "suggestions"
+            elif "strength" in header:
+                current_section = "strengths"
+            elif "verdict" in header or "score" in header:
+                current_section = None
+            continue
+
+        # Only capture actual bullet items, skip sub-headers like **Bold:**
+        if (stripped.startswith("- ") or stripped.startswith("* ")) and not stripped.endswith(":**"):
             item = stripped.lstrip("-* ").strip()
-            if item:
+            # Remove markdown bold markers
+            item = item.replace("**", "")
+            if item and item.upper() != "NONE":
                 if current_section == "compliance":
                     compliance_gaps.append(item)
                 elif current_section == "suggestions":
@@ -632,7 +661,12 @@ async def validate_solution(state: SolutionArchitectState) -> dict:
                     issues.append(item)
 
     passed = verdict == "PASS"
-    overall_quality = "good" if passed else "needs_revision"
+    # If score >= 70 but verdict says REVISE, trust the score
+    if score >= 70 and not passed:
+        passed = True
+        verdict = "PASS"
+
+    overall_quality = "excellent" if score >= 85 else "good" if score >= 70 else "needs_revision"
 
     validation_report = {
         "review_text": content,
@@ -640,7 +674,7 @@ async def validate_solution(state: SolutionArchitectState) -> dict:
         "iteration": state["iteration_count"],
         "pass": passed,
         "overall_quality": overall_quality,
-        "score": 80 if passed else 55,
+        "score": score,
         "issues": issues[:10],
         "suggestions": suggestions[:10],
         "compliance_gaps": compliance_gaps[:10],

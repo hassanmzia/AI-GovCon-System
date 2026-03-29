@@ -45,6 +45,35 @@ function copyToClipboard(text: string) {
 
 // ── Mermaid diagram viewer ─────────────────────────────────────────────────
 
+/**
+ * Fix common Mermaid syntax errors produced by LLMs:
+ * - `class A, B, C style` → `class A,B,C style` (no spaces after commas in classDef refs)
+ * - Remove trailing semicolons on lines (not valid in all diagram types)
+ * - Fix `---` link labels that need `-->|label|` form
+ * - Remove markdown bold/italic that LLMs sometimes inject
+ */
+function sanitizeMermaid(code: string): string {
+  let fixed = code;
+
+  // Fix classDef class references: "class A, B, C styleName" → "class A,B,C styleName"
+  fixed = fixed.replace(
+    /^(\s*class\s+)([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)(\s+\w+)\s*;?\s*$/gm,
+    (_match, prefix, nodeList, styleName) => {
+      const nodes = nodeList.split(",").map((n: string) => n.trim()).join(",");
+      return `${prefix}${nodes}${styleName}`;
+    }
+  );
+
+  // Remove markdown bold/italic markers **text** or *text*
+  fixed = fixed.replace(/\*\*([^*]+)\*\*/g, "$1");
+  fixed = fixed.replace(/\*([^*]+)\*/g, "$1");
+
+  // Remove trailing semicolons (safe for most diagram types)
+  fixed = fixed.replace(/;\s*$/gm, "");
+
+  return fixed;
+}
+
 function MermaidRenderer({ code, id }: { code: string; id: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
@@ -63,10 +92,29 @@ function MermaidRenderer({ code, id }: { code: string; id: string }) {
           securityLevel: "loose",
           fontFamily: "ui-sans-serif, system-ui, sans-serif",
         });
-        const { svg: rendered } = await mermaid.render(`mermaid-${id}`, code);
+
+        // Try original code first, then sanitized version on failure
+        let rendered: string | null = null;
+        try {
+          const result = await mermaid.render(`mermaid-${id}`, code);
+          rendered = result.svg;
+        } catch {
+          // Retry with sanitized code
+          const sanitized = sanitizeMermaid(code);
+          if (sanitized !== code) {
+            // Need a different element ID for the retry
+            const retryResult = await mermaid.render(`mermaid-${id}-retry`, sanitized);
+            rendered = retryResult.svg;
+          }
+        }
+
         if (!cancelled) {
-          setSvg(rendered);
-          setRenderError(false);
+          if (rendered) {
+            setSvg(rendered);
+            setRenderError(false);
+          } else {
+            setRenderError(true);
+          }
         }
       } catch {
         if (!cancelled) setRenderError(true);
@@ -83,6 +131,13 @@ function MermaidRenderer({ code, id }: { code: string; id: string }) {
         <pre className="overflow-x-auto rounded bg-white p-3 text-xs leading-relaxed text-foreground border">
           <code>{code}</code>
         </pre>
+        <p className="mt-2 text-xs">
+          You can copy this code and paste it into{" "}
+          <a href="https://mermaid.live" target="_blank" rel="noreferrer" className="underline font-medium">
+            mermaid.live
+          </a>{" "}
+          to view and edit the diagram.
+        </p>
       </div>
     );
   }
