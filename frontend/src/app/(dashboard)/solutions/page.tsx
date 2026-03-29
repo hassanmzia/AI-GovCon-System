@@ -266,7 +266,7 @@ function convertC4ToFlowchart(code: string): string {
 }
 
 /**
- * Fix common Mermaid syntax errors produced by LLMs.
+ * Fix common Mermaid syntax errors produced by LLMs (especially smaller models like DeepSeek).
  */
 function sanitizeMermaid(code: string): string {
   // First, try converting C4 syntax to standard flowchart
@@ -291,7 +291,99 @@ function sanitizeMermaid(code: string): string {
   // Remove `title` lines (not valid in graph/flowchart)
   fixed = fixed.replace(/^\s*title\s+.+$/gm, "");
 
+  // Replace / in node IDs (e.g. CI/CDPipeline → CICDPipeline) but not in labels
+  fixed = fixed.replace(/\b([A-Za-z]+)\/([A-Za-z]+)/g, "$1$2");
+
+  // Fix "pods, containers" style node references — split into separate lines
+  fixed = fixed.replace(
+    /^(\s*)(\w+)\s*-->\|([^|]*)\|\s*(\w+)\s*,\s*(\w+)/gm,
+    "$1$2 -->|$3| $4\n$1$2 -->|$3| $5"
+  );
+
+  // Remove lines where a node definition contains "subgraph" inside brackets
+  // e.g. DB -->|Interacts with| API[subgraph APIs Integration ...]
+  fixed = fixed.replace(/^.*\[subgraph\b.*$/gm, "");
+
+  // Fix "Subgraph" (capitalized) → "subgraph"
+  fixed = fixed.replace(/^\s*Subgraph\b/gm, (m) => m.replace("Subgraph", "subgraph"));
+
+  // Remove nested subgraph declarations inside other subgraph blocks
+  // (Mermaid supports nested subgraphs but LLMs often produce broken nesting)
+  const lines = fixed.split("\n");
+  const cleanedLines: string[] = [];
+  let subgraphDepth = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (/^subgraph\b/i.test(trimmed)) {
+      subgraphDepth++;
+      // Only allow top-level subgraphs (depth <= 1)
+      if (subgraphDepth <= 1) {
+        cleanedLines.push(line);
+      }
+      continue;
+    }
+
+    if (trimmed === "end" && subgraphDepth > 0) {
+      if (subgraphDepth <= 1) {
+        cleanedLines.push(line);
+      }
+      subgraphDepth--;
+      continue;
+    }
+
+    // Skip lines inside deeply nested subgraphs
+    if (subgraphDepth <= 1) {
+      cleanedLines.push(line);
+    }
+  }
+
+  fixed = cleanedLines.join("\n");
+
+  // Remove empty subgraph blocks (subgraph ... end with nothing between)
+  fixed = fixed.replace(/^\s*subgraph\b[^\n]*\n\s*end\s*$/gm, "");
+
+  // Remove lines with broken bracket nesting (unmatched [ or ])
+  fixed = fixed.split("\n").filter(line => {
+    const open = (line.match(/\[/g) || []).length;
+    const close = (line.match(/\]/g) || []).length;
+    // Allow lines with no brackets or balanced brackets
+    return open === close || (!line.includes("[") && !line.includes("]"));
+  }).join("\n");
+
   return fixed;
+}
+
+/**
+ * Last-resort rebuild: extract nodes and edges from broken Mermaid code and
+ * build a minimal valid graph TD diagram.
+ */
+function rebuildMermaid(code: string): string | null {
+  const nodes = new Set<string>();
+  const edges: string[] = [];
+
+  for (const line of code.split("\n")) {
+    const trimmed = line.trim();
+    // Match arrows: A -->|label| B, A --> B, A -->|label| B[Label]
+    const arrowMatch = trimmed.match(
+      /^\s*(\w+)(?:\[[^\]]*\])?\s*-->(?:\|([^|]*)\|)?\s*(\w+)/
+    );
+    if (arrowMatch) {
+      const from = arrowMatch[1];
+      const label = arrowMatch[2]?.trim();
+      const to = arrowMatch[3];
+      nodes.add(from);
+      nodes.add(to);
+      edges.push(
+        label ? `    ${from} -->|${label}| ${to}` : `    ${from} --> ${to}`
+      );
+    }
+  }
+
+  if (nodes.size < 2) return null;
+
+  return ["graph TD", ...edges].join("\n");
 }
 
 function MermaidRenderer({ code, id }: { code: string; id: string }) {
@@ -313,18 +405,31 @@ function MermaidRenderer({ code, id }: { code: string; id: string }) {
           fontFamily: "ui-sans-serif, system-ui, sans-serif",
         });
 
-        // Try original code first, then sanitized version on failure
+        // Attempt 1: original code
+        // Attempt 2: sanitized code
+        // Attempt 3: rebuilt minimal graph from extracted nodes/edges
+        const attempts = [
+          code,
+          sanitizeMermaid(code),
+          rebuildMermaid(code),
+        ].filter((c): c is string => c !== null && c !== code || c === code);
+
+        // Deduplicate while preserving order
+        const seen = new Set<string>();
+        const unique = attempts.filter((c) => {
+          if (seen.has(c)) return false;
+          seen.add(c);
+          return true;
+        });
+
         let rendered: string | null = null;
-        try {
-          const result = await mermaid.render(`mermaid-${id}`, code);
-          rendered = result.svg;
-        } catch {
-          // Retry with sanitized code
-          const sanitized = sanitizeMermaid(code);
-          if (sanitized !== code) {
-            // Need a different element ID for the retry
-            const retryResult = await mermaid.render(`mermaid-${id}-retry`, sanitized);
-            rendered = retryResult.svg;
+        for (let i = 0; i < unique.length; i++) {
+          try {
+            const result = await mermaid.render(`mermaid-${id}-${i}`, unique[i]);
+            rendered = result.svg;
+            break;
+          } catch {
+            // Try next attempt
           }
         }
 
