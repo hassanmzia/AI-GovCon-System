@@ -119,8 +119,8 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
   return (
     <Card className={`border-2 ${statusColor.border}`}>
       <CardHeader className={`pb-2 ${statusColor.header} rounded-t-lg`}>
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Bot className="h-4 w-4" />
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-gray-900">
+          <Bot className="h-4 w-4 text-gray-700" />
           <span>{agentDisplayName(agentName)}</span>
           <div className={`ml-auto w-2.5 h-2.5 rounded-full ${statusColor.dot}`} />
         </CardTitle>
@@ -128,7 +128,7 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
 
       <CardContent className="pt-3 space-y-3">
         {totalRuns === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-2">No runs recorded</p>
+          <p className="text-sm text-gray-500 text-center py-2">No runs recorded</p>
         ) : (
           <>
             {/* Success Rate + Trend */}
