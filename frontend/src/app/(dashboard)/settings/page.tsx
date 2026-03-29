@@ -86,7 +86,7 @@ export default function SettingsPage() {
 
     const fetchLLMSettings = async () => {
       try {
-        const { data } = await api.get("/core/llm-settings/");
+        const { data } = await api.get("/settings/llm/");
         setLlmSettings(data);
       } catch (error) {
         console.error("Failed to fetch LLM settings:", error);
