@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import api from "@/lib/api";
-import { Loader2, Eye, EyeOff, Save, Info } from "lucide-react";
+import { Loader2, Eye, EyeOff, Save, Info, Bot, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface UserProfile {
   email: string;
@@ -13,6 +13,29 @@ interface UserProfile {
   last_name: string;
   username: string;
 }
+
+interface LLMSettings {
+  provider: string;
+  model: string;
+  supported_providers: string[];
+  status: string;
+  ollama_base_url?: string;
+}
+
+const PROVIDER_LABELS: Record<string, { name: string; description: string }> = {
+  anthropic: {
+    name: "Anthropic Claude",
+    description: "Claude models (claude-sonnet-4-6, claude-haiku-4-5-20251001). Requires ANTHROPIC_API_KEY.",
+  },
+  openai: {
+    name: "OpenAI ChatGPT",
+    description: "GPT models (gpt-4o, gpt-4o-mini). Requires OPENAI_API_KEY.",
+  },
+  ollama: {
+    name: "Ollama (Local)",
+    description: "Local models (deepseek-r1:7b, llama3, mistral). No API key needed.",
+  },
+};
 
 const APP_VERSION = "1.0.0";
 const BUILD_ENV: string = process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "development";
@@ -40,6 +63,10 @@ export default function SettingsPage() {
   const [notifySystemAlerts, setNotifySystemAlerts] = useState(true);
   const [dashboardEmails, setDashboardEmails] = useState(true);
 
+  // LLM Settings
+  const [llmSettings, setLlmSettings] = useState<LLMSettings | null>(null);
+  const [llmLoading, setLlmLoading] = useState(true);
+
   // API Key display
   const [showApiKey, setShowApiKey] = useState(false);
   const MASKED_SAM_KEY = "SAM-••••••••••••••••••••••••••••••";
@@ -57,7 +84,19 @@ export default function SettingsPage() {
       }
     };
 
+    const fetchLLMSettings = async () => {
+      try {
+        const { data } = await api.get("/core/llm-settings/");
+        setLlmSettings(data);
+      } catch (error) {
+        console.error("Failed to fetch LLM settings:", error);
+      } finally {
+        setLlmLoading(false);
+      }
+    };
+
     fetchUserSettings();
+    fetchLLMSettings();
   }, []);
 
   const handleSaveCompanyProfile = async () => {
@@ -339,6 +378,143 @@ export default function SettingsPage() {
               </div>
             </label>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* LLM Provider Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bot className="h-4 w-4 text-muted-foreground" />
+            AI / LLM Provider
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Select which LLM provider powers the AI agents. Change the{" "}
+            <code className="text-xs bg-muted px-1 py-0.5 rounded">LLM_PROVIDER</code>{" "}
+            and{" "}
+            <code className="text-xs bg-muted px-1 py-0.5 rounded">LLM_MODEL</code>{" "}
+            environment variables to switch providers.
+          </p>
+
+          {llmLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading LLM configuration...
+            </div>
+          ) : llmSettings ? (
+            <div className="space-y-3">
+              {(llmSettings.supported_providers || ["anthropic", "openai", "ollama"]).map(
+                (provider) => {
+                  const isActive = llmSettings.provider === provider;
+                  const label = PROVIDER_LABELS[provider] || {
+                    name: provider,
+                    description: "",
+                  };
+                  return (
+                    <div
+                      key={provider}
+                      className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
+                        isActive
+                          ? "border-primary bg-primary/5"
+                          : "border-border opacity-60"
+                      }`}
+                    >
+                      <div className="mt-0.5">
+                        {isActive ? (
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                        ) : (
+                          <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{label.name}</p>
+                          {isActive && (
+                            <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {label.description}
+                        </p>
+                        {isActive && (
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                Model:
+                              </span>
+                              <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+                                {llmSettings.model}
+                              </code>
+                            </div>
+                            {provider === "ollama" && llmSettings.ollama_base_url && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  URL:
+                                </span>
+                                <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+                                  {llmSettings.ollama_base_url}
+                                </code>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                Status:
+                              </span>
+                              {llmSettings.status === "configured" ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Configured
+                                </span>
+                              ) : llmSettings.status === "missing_api_key" ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  API key not set
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  {llmSettings.status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              )}
+
+              <div className="rounded-lg border border-dashed border-muted-foreground/30 p-3 mt-2">
+                <p className="text-xs text-muted-foreground">
+                  To switch providers, update your{" "}
+                  <code className="bg-muted px-1 py-0.5 rounded">.env</code>{" "}
+                  file and restart the services:
+                </p>
+                <pre className="mt-2 text-xs font-mono bg-muted p-2 rounded overflow-x-auto">
+{`# Anthropic Claude
+LLM_PROVIDER=anthropic
+LLM_MODEL=claude-sonnet-4-6
+
+# OpenAI ChatGPT
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o
+
+# Local Ollama
+LLM_PROVIDER=ollama
+LLM_MODEL=deepseek-r1:7b
+OLLAMA_BASE_URL=http://localhost:12434`}
+                </pre>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Could not load LLM configuration.
+            </p>
+          )}
         </CardContent>
       </Card>
 

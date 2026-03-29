@@ -1,7 +1,8 @@
 """Security narrative drafter: generates SSP narratives and security approach sections."""
 import logging
-import os
 from typing import Any
+
+from apps.core.llm_provider import chat_completion
 
 logger = logging.getLogger("ai_deal_manager.security.narrative")
 
@@ -168,34 +169,11 @@ def _build_frameworks_text(framework: str, fedramp_level: str | None, cmmc_level
 
 async def _call_ai(prompt: str, max_tokens: int = 600) -> str:
     """Call AI to generate security narrative."""
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
-    if anthropic_key:
-        try:
-            import anthropic  # type: ignore
-
-            client = anthropic.AsyncAnthropic(api_key=anthropic_key)
-            msg = await client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return msg.content[0].text
-        except Exception as exc:
-            logger.warning("AI narrative generation failed: %s", exc)
-
-    openai_key = os.getenv("OPENAI_API_KEY", "")
-    if openai_key:
-        try:
-            import openai  # type: ignore
-
-            client = openai.AsyncOpenAI(api_key=openai_key)
-            resp = await client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-            )
-            return resp.choices[0].message.content or ""
-        except Exception as exc:
-            logger.warning("OpenAI narrative generation failed: %s", exc)
-
-    return f"[AI narrative generation requires ANTHROPIC_API_KEY or OPENAI_API_KEY configuration]"
+    try:
+        return await chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+        )
+    except Exception as exc:
+        logger.warning("AI narrative generation failed: %s", exc)
+        return "[AI narrative generation requires a configured LLM provider]"

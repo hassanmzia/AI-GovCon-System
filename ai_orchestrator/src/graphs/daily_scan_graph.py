@@ -11,7 +11,6 @@ import os
 from typing import Annotated, Any
 import operator
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict

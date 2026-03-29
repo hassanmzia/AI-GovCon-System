@@ -8,4 +8,5 @@ router = DefaultRouter()
 urlpatterns = [
     path("", views.health_check, name="health-check"),
     path("core/", include(router.urls)),
+    path("core/llm-settings/", views.llm_settings, name="llm-settings"),
 ]

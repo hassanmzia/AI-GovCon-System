@@ -12,12 +12,12 @@ from typing import Annotated, Any
 import operator
 
 import httpx
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
 from src.agents.base import BaseAgent
+from src.llm_provider import get_chat_model
 
 logger = logging.getLogger("ai_orchestrator.agents.communication")
 
@@ -73,11 +73,7 @@ async def _get(path: str, default: Any = None) -> Any:
 
 async def _llm(system: str, human: str, max_tokens: int = 2500) -> str:
     try:
-        llm = ChatAnthropic(
-            model="claude-sonnet-4-6",
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
-            max_tokens=max_tokens,
-        )
+        llm = get_chat_model(max_tokens=max_tokens)
         resp = await llm.ainvoke([SystemMessage(content=system), HumanMessage(content=human)])
         return resp.content
     except Exception as exc:

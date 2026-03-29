@@ -1,7 +1,8 @@
 """CO answer impact mapping – maps answers to compliance matrix and pricing changes."""
 import logging
-import os
 from typing import Any
+
+from apps.core.llm_provider import chat_completion, get_provider_info
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,9 @@ async def map_answer_impact(
     # Detect risk changes
     risk_changes = _detect_risk_changes(answer_lower)
 
-    # AI-enhanced analysis if API key available
-    if os.getenv("ANTHROPIC_API_KEY") and (matrix_changes or pricing_impacts):
+    # AI-enhanced analysis if provider is configured
+    info = get_provider_info()
+    if info.get("status") == "configured" and (matrix_changes or pricing_impacts):
         enhanced = await _ai_impact_analysis(answer_text, matrix_changes, pricing_impacts)
         matrix_changes = enhanced.get("matrix_changes", matrix_changes)
         pricing_impacts = enhanced.get("pricing_impacts", pricing_impacts)
@@ -215,9 +217,8 @@ async def _ai_impact_analysis(
 ) -> dict:
     """Use AI for enhanced impact analysis."""
     try:
-        import anthropic
+        import json
 
-        client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         prompt = (
             f"CO Answer: {answer_text}\n\n"
             f"Analyze the impact of this answer on:\n"
@@ -225,14 +226,10 @@ async def _ai_impact_analysis(
             f"2. Pricing assumptions\n\n"
             f"Return JSON with matrix_changes (list) and pricing_impacts (list)."
         )
-        message = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
+        content = await chat_completion(
             messages=[{"role": "user", "content": prompt}],
+            max_tokens=512,
         )
-        import json
-
-        content = message.content[0].text
         try:
             return json.loads(content)
         except Exception:
