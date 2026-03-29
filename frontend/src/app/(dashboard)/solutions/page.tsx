@@ -419,7 +419,14 @@ function DiagramCard({ diagram, index }: { diagram: ArchitectureDiagram; index: 
       </CardHeader>
       <CardContent className="space-y-3">
         {diagram.description && (
-          <p className="text-sm text-muted-foreground">{diagram.description}</p>
+          <div className="rounded-md bg-secondary/30 px-3 py-2">
+            <MarkdownContent
+              content={diagram.description
+                .replace(/^\*?\*?Description\*?\*?:?\s*/i, "")
+                .replace(/^---+\s*/, "")
+                .trim()}
+            />
+          </div>
         )}
 
         {/* Client-side rendered Mermaid diagram */}
