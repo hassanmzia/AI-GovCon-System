@@ -1,13 +1,14 @@
 """
-Stage Orchestrator — Maps deal stages to agent chains and auto-creates
-domain artifacts (proposals, contracts, workspaces) on stage transitions.
+Stage Orchestrator — Maps deal stages to auto-created artifacts and agent tasks.
 
 This is the server-side (Django) component that handles the "side effects"
-of stage transitions that must happen in the backend:
-  - Auto-create Proposal when entering proposal_dev
-  - Auto-create Contract when entering contract_setup
-  - Auto-create CapturePlan when entering capture_plan
-  - Trigger learning agent when deal closes
+of stage transitions.  It:
+  - Auto-creates domain shells (Proposal, CapturePlan, Contract)
+  - Fires Celery tasks that run AI agents (Solution Architect, Pricing, etc.)
+  - Records learning feedback on terminal stages
+
+Each handler runs synchronously for quick DB operations, but delegates
+heavy AI work to Celery so the HTTP response returns immediately.
 """
 
 import logging
@@ -22,7 +23,7 @@ def handle_stage_transition(deal, from_stage: str, to_stage: str, user=None):
     Called after a successful stage transition to handle domain-level side effects.
 
     This runs synchronously within the transition. Heavy work is deferred
-    to Celery tasks via `deals.tasks.execute_stage_side_effects`.
+    to Celery tasks via `deals.tasks.*`.
     """
     handler = STAGE_HANDLERS.get(to_stage)
     if handler:
@@ -36,28 +37,17 @@ def handle_stage_transition(deal, from_stage: str, to_stage: str, user=None):
             )
 
 
-def _on_enter_proposal_dev(deal, from_stage, user):
-    """Auto-create a Proposal workspace when deal enters proposal_dev."""
-    from apps.proposals.models import Proposal
+# ── Stage Handlers ───────────────────────────────────────────────────────────
 
-    proposal, created = Proposal.objects.get_or_create(
-        deal=deal,
-        defaults={
-            "title": f"Proposal — {deal.title}",
-            "status": "draft",
-        },
-    )
-    if created:
-        logger.info("Auto-created Proposal %s for deal %s", proposal.id, deal.id)
-        from apps.deals.models import Activity
-        Activity.objects.create(
-            deal=deal,
-            actor=None,
-            action="proposal_workspace_created",
-            description=f"Proposal workspace auto-created for '{deal.title}'",
-            metadata={"proposal_id": str(proposal.id)},
-            is_ai_action=True,
-        )
+
+def _on_enter_qualify(deal, from_stage, user):
+    """Auto-score the opportunity when deal enters qualify."""
+    try:
+        from apps.deals.tasks import auto_score_opportunity
+        auto_score_opportunity.delay(str(deal.id))
+        logger.info("Queued auto_score_opportunity for deal %s", deal.id)
+    except Exception:
+        logger.warning("Could not queue auto_score_opportunity for deal %s", deal.id, exc_info=True)
 
 
 def _on_enter_capture_plan(deal, from_stage, user):
@@ -79,6 +69,41 @@ def _on_enter_capture_plan(deal, from_stage, user):
             description="Capture plan auto-created",
             metadata={"capture_plan_id": str(plan.id)},
             is_ai_action=True,
+        )
+
+
+def _on_enter_proposal_dev(deal, from_stage, user):
+    """Auto-create a Proposal workspace and trigger Solution Architect + Pricing pipeline."""
+    from apps.proposals.models import Proposal
+
+    proposal, created = Proposal.objects.get_or_create(
+        deal=deal,
+        defaults={
+            "title": f"Proposal — {deal.title}",
+            "status": "draft",
+        },
+    )
+    if created:
+        logger.info("Auto-created Proposal %s for deal %s", proposal.id, deal.id)
+        from apps.deals.models import Activity
+        Activity.objects.create(
+            deal=deal,
+            actor=None,
+            action="proposal_workspace_created",
+            description=f"Proposal workspace auto-created for '{deal.title}'",
+            metadata={"proposal_id": str(proposal.id)},
+            is_ai_action=True,
+        )
+
+    # Fire the Solution Architect → Pricing → Proposal population chain
+    try:
+        from apps.deals.tasks import auto_run_solution_architect
+        auto_run_solution_architect.delay(str(deal.id))
+        logger.info("Queued auto_run_solution_architect for deal %s", deal.id)
+    except Exception:
+        logger.warning(
+            "Could not queue auto_run_solution_architect for deal %s",
+            deal.id, exc_info=True,
         )
 
 
@@ -146,8 +171,10 @@ def _trigger_learning_feedback(deal):
         )
 
 
-# Map of stage -> handler function
+# ── Handler Map ──────────────────────────────────────────────────────────────
+
 STAGE_HANDLERS = {
+    "qualify": _on_enter_qualify,
     "capture_plan": _on_enter_capture_plan,
     "proposal_dev": _on_enter_proposal_dev,
     "contract_setup": _on_enter_contract_setup,

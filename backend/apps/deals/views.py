@@ -277,6 +277,87 @@ class DealViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data)
 
+    @action(detail=True, methods=["get"], url_path="artifacts")
+    def artifacts(self, request, pk=None):
+        """Return a summary of all pipeline artifacts linked to this deal."""
+        deal = self.get_object()
+        result = {}
+
+        # Opportunity Score
+        try:
+            from apps.opportunities.models import OpportunityScore
+            score = OpportunityScore.objects.filter(
+                opportunity=deal.opportunity
+            ).first()
+            result["opportunity_score"] = {
+                "total_score": score.total_score,
+                "recommendation": score.recommendation,
+            } if score else None
+        except Exception:
+            result["opportunity_score"] = None
+
+        # Technical Solution
+        try:
+            from apps.proposals.models import TechnicalSolution
+            ts = TechnicalSolution.objects.filter(deal=deal).first()
+            result["technical_solution"] = {
+                "id": str(ts.id),
+                "executive_summary": ts.executive_summary[:200] if ts.executive_summary else "",
+                "architecture_pattern": ts.architecture_pattern,
+                "diagram_count": ts.diagrams.count(),
+            } if ts else None
+        except Exception:
+            result["technical_solution"] = None
+
+        # Pricing
+        try:
+            from apps.pricing.models import CostModel, PricingScenario
+            scenarios = PricingScenario.objects.filter(deal=deal)
+            recommended = scenarios.filter(is_recommended=True).first()
+            cost_model = CostModel.objects.filter(deal=deal).order_by("-version").first()
+            result["pricing"] = {
+                "scenario_count": scenarios.count(),
+                "recommended": {
+                    "name": recommended.name,
+                    "total_price": str(recommended.total_price),
+                    "margin_pct": recommended.margin_pct,
+                    "probability_of_win": recommended.probability_of_win,
+                } if recommended else None,
+                "cost_model": {
+                    "total_cost": str(cost_model.total_cost),
+                    "direct_labor": str(cost_model.direct_labor),
+                } if cost_model else None,
+            } if scenarios.exists() else None
+        except Exception:
+            result["pricing"] = None
+
+        # Proposal
+        try:
+            from apps.proposals.models import Proposal
+            proposal = Proposal.objects.filter(deal=deal).first()
+            result["proposal"] = {
+                "id": str(proposal.id),
+                "title": proposal.title,
+                "status": proposal.status,
+                "section_count": proposal.sections.count(),
+            } if proposal else None
+        except Exception:
+            result["proposal"] = None
+
+        # Pricing Volume
+        try:
+            from apps.pricing.models import PricingVolume
+            pv = PricingVolume.objects.filter(deal=deal).first()
+            result["pricing_volume"] = {
+                "id": str(pv.id),
+                "status": pv.status,
+                "total_price": str(pv.total_price),
+            } if pv else None
+        except Exception:
+            result["pricing_volume"] = None
+
+        return Response(result)
+
     @action(detail=True, methods=["post"], url_path="run-solution-architect")
     def run_solution_architect(self, request, pk=None):
         """Trigger the Solution Architect Agent for this deal.
