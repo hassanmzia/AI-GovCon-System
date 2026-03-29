@@ -46,14 +46,80 @@ function copyToClipboard(text: string) {
 // ── Mermaid diagram viewer ─────────────────────────────────────────────────
 
 /**
- * Fix common Mermaid syntax errors produced by LLMs:
- * - `class A, B, C style` → `class A,B,C style` (no spaces after commas in classDef refs)
- * - Remove trailing semicolons on lines (not valid in all diagram types)
- * - Fix `---` link labels that need `-->|label|` form
- * - Remove markdown bold/italic that LLMs sometimes inject
+ * Convert unsupported C4 diagram syntax to standard flowchart.
+ * C4Context/C4Container use actor(), container(), component(), boundary()
+ * which aren't supported by standard Mermaid. Convert to graph TD.
+ */
+function convertC4ToFlowchart(code: string): string {
+  const trimmed = code.trim();
+  // Only convert if it starts with a C4 keyword
+  if (!/^C4(Context|Container|Deployment|Component)/m.test(trimmed)) {
+    return code;
+  }
+
+  const nodes: string[] = [];
+  const edges: string[] = [];
+  const styles: string[] = [];
+  let nodeCounter = 0;
+  const idMap: Record<string, string> = {};
+
+  function getNodeId(alias: string): string {
+    if (!idMap[alias]) {
+      idMap[alias] = `n${nodeCounter++}`;
+    }
+    return idMap[alias];
+  }
+
+  for (const line of trimmed.split("\n")) {
+    const stripped = line.trim();
+
+    // actor(alias, "Label") or Person(alias, "Label", "Desc")
+    const actorMatch = stripped.match(/^(?:actor|Person|Person_Ext)\s*\(\s*(\w+)\s*,\s*"([^"]+)"(?:\s*,\s*"([^"]*)")?\)/);
+    if (actorMatch) {
+      const id = getNodeId(actorMatch[1]);
+      nodes.push(`    ${id}[/"${actorMatch[2]}"\\]`);
+      styles.push(`    style ${id} fill:#08427B,color:#fff`);
+      continue;
+    }
+
+    // container(alias, "Label", "Tech") or System(alias, ...)
+    const containerMatch = stripped.match(/^(?:container|container_system|System|System_Ext|Container|Container_Ext|component|Component)\s*\(\s*(\w+)\s*,\s*"([^"]+)"(?:\s*,\s*"([^"]*)")?/);
+    if (containerMatch) {
+      const id = getNodeId(containerMatch[1]);
+      const label = containerMatch[3]
+        ? `${containerMatch[2]}<br/><i>${containerMatch[3]}</i>`
+        : containerMatch[2];
+      nodes.push(`    ${id}[${label}]`);
+      styles.push(`    style ${id} fill:#1168BD,color:#fff`);
+      continue;
+    }
+
+    // Rel(from, to, "label") or Rel_D, Rel_R, etc.
+    const relMatch = stripped.match(/^Rel(?:_[A-Z])?\s*\(\s*(\w+)\s*,\s*(\w+)\s*,\s*"([^"]+)"/);
+    if (relMatch) {
+      edges.push(`    ${getNodeId(relMatch[1])} -->|${relMatch[3]}| ${getNodeId(relMatch[2])}`);
+      continue;
+    }
+
+    // Simple arrow: Alias --> Alias : Label
+    const arrowMatch = stripped.match(/^(\w+)\s*-->\s*(\w+)\s*:\s*(.+)/);
+    if (arrowMatch) {
+      edges.push(`    ${getNodeId(arrowMatch[1])} -->|${arrowMatch[3].trim()}| ${getNodeId(arrowMatch[2])}`);
+      continue;
+    }
+  }
+
+  if (nodes.length === 0) return code; // Conversion failed, return original
+
+  return ["graph TD", ...nodes, "", ...edges, "", ...styles].join("\n");
+}
+
+/**
+ * Fix common Mermaid syntax errors produced by LLMs.
  */
 function sanitizeMermaid(code: string): string {
-  let fixed = code;
+  // First, try converting C4 syntax to standard flowchart
+  let fixed = convertC4ToFlowchart(code);
 
   // Fix classDef class references: "class A, B, C styleName" → "class A,B,C styleName"
   fixed = fixed.replace(
@@ -70,6 +136,9 @@ function sanitizeMermaid(code: string): string {
 
   // Remove trailing semicolons (safe for most diagram types)
   fixed = fixed.replace(/;\s*$/gm, "");
+
+  // Remove `title` lines (not valid in graph/flowchart)
+  fixed = fixed.replace(/^\s*title\s+.+$/gm, "");
 
   return fixed;
 }
