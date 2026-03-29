@@ -410,7 +410,14 @@ async def generate_diagrams(state: SolutionArchitectState) -> dict:
             "Generate production-quality Mermaid.js diagrams for a federal IT solution. "
             "Each diagram must be syntactically correct Mermaid.js that can be rendered "
             "directly. Use clear labels, appropriate shapes, and meaningful relationships. "
-            "Wrap each diagram in a fenced code block with 'mermaid' as the language."
+            "Wrap each diagram in a fenced code block with 'mermaid' as the language.\n\n"
+            "CRITICAL MERMAID SYNTAX RULES:\n"
+            "- Do NOT use semicolons at the end of lines\n"
+            "- In `class` statements, do NOT put spaces after commas: `class A,B,C styleName` (correct), NOT `class A, B, C styleName` (wrong)\n"
+            "- In `classDef` statements, do NOT end with semicolons\n"
+            "- Use simple node IDs without special characters\n"
+            "- Avoid using `---` for links, use `-->` or `-->`\n"
+            "- Test that subgraph names don't contain special characters"
         ),
         human=(
             f"Technical Solution Summary:\n{solution_text}\n\n"
