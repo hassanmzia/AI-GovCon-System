@@ -82,7 +82,7 @@ def _get_ollama_url() -> str:
     db = _db_settings()
     return (
         db.get("ollama_base_url")
-        or os.getenv("OLLAMA_BASE_URL", "http://localhost:12434")
+        or os.getenv("OLLAMA_BASE_URL", "http://172.168.1.95:12434")
     )
 
 
