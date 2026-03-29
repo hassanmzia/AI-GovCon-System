@@ -36,7 +36,22 @@ PROVIDER_MODELS: dict[str, list[str]] = {
 
 
 def _db_settings() -> dict[str, Any]:
-    """Read LLM settings from the database. Returns {} if unavailable."""
+    """Read LLM settings from Redis first, then database. Returns {} if unavailable."""
+    # Try Redis first (fast, shared with orchestrator)
+    try:
+        import json
+        import redis
+        r = redis.from_url(
+            os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+            decode_responses=True,
+        )
+        raw = r.get("llm_config")
+        if raw:
+            return json.loads(raw)
+    except Exception:
+        pass
+
+    # Fall back to database
     try:
         from apps.core.models import SystemSetting
         return SystemSetting.get("llm_config", {}) or {}
@@ -93,7 +108,12 @@ def get_provider_info() -> dict[str, Any]:
 
 
 def update_settings(provider: str, model: str, ollama_base_url: str = "") -> dict[str, Any]:
-    """Persist LLM settings to the database and update env vars for current process."""
+    """Persist LLM settings to DB, Redis, and env vars.
+
+    Redis is used to share settings with the AI orchestrator (separate process).
+    """
+    import json
+
     from apps.core.models import SystemSetting
 
     if provider not in SUPPORTED_PROVIDERS:
@@ -103,9 +123,22 @@ def update_settings(provider: str, model: str, ollama_base_url: str = "") -> dic
     if ollama_base_url:
         config["ollama_base_url"] = ollama_base_url
 
+    # 1. Persist to database (survives restarts)
     SystemSetting.put("llm_config", config)
 
-    # Also set env vars so the AI orchestrator (same process) picks them up
+    # 2. Publish to Redis (AI orchestrator reads this)
+    try:
+        import redis
+        r = redis.from_url(
+            os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+            decode_responses=True,
+        )
+        r.set("llm_config", json.dumps(config))
+        logger.info("LLM config written to Redis")
+    except Exception as exc:
+        logger.warning("Failed to write LLM config to Redis: %s", exc)
+
+    # 3. Set env vars for this Django process
     os.environ["LLM_PROVIDER"] = provider
     os.environ["LLM_MODEL"] = model
     if ollama_base_url:
