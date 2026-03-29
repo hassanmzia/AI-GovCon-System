@@ -63,6 +63,7 @@ export interface ValidationReport {
 }
 
 export interface ArchitectureResult {
+  id?: string;
   deal_id: string;
   opportunity_id: string;
   selected_frameworks: string[];

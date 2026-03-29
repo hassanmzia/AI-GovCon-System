@@ -1,9 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  getSecurityFrameworks,
+  getSecurityControls,
+  getComplianceRequirements,
+  getComplianceReports,
+} from "@/services/security";
+import {
+  SecurityFramework,
+  SecurityControl,
+  ComplianceRequirement,
+  SecurityComplianceReport,
+} from "@/types/security";
 import {
   Search,
   CheckCircle2,
@@ -11,329 +23,124 @@ import {
   XCircle,
   ClipboardCheck,
   ShieldCheck,
-  FileWarning,
+  Shield,
+  BarChart3,
+  BookOpen,
+  FileText,
+  Loader2,
+  RefreshCw,
+  AlertOctagon,
+  ListChecks,
   ChevronDown,
   ChevronRight,
-  Filter,
-  BarChart3,
-  ListChecks,
-  AlertOctagon,
-  CircleDot,
-  CheckSquare,
-  Square,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// Types
+// Helpers
 // ---------------------------------------------------------------------------
 
-type ComplianceStatus = "fully_addressed" | "partially_addressed" | "not_addressed";
-type Severity = "high" | "medium" | "low";
-type RedTeamSeverity = "critical" | "major" | "minor" | "observation";
-
-interface ComplianceRequirement {
-  id: string;
-  requirementId: string;
-  description: string;
-  status: ComplianceStatus;
-  severity: Severity;
-  sectionRef: string;
-  recommendation: string;
-  proposal: string;
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "--";
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-interface ChecklistItem {
-  id: string;
-  label: string;
-  checked: boolean;
+function getFrameworkDisplayName(
+  framework: string | { id: string; name: string; version: string } | undefined
+): string {
+  if (!framework) return "--";
+  if (typeof framework === "string") return framework;
+  return framework.version
+    ? `${framework.name} v${framework.version}`
+    : framework.name;
 }
 
-interface RedTeamFinding {
-  id: string;
-  finding: string;
-  severity: RedTeamSeverity;
-  section: string;
-  recommendation: string;
-  resolved: boolean;
+function getDealDisplayName(
+  deal: string | { id: string; name: string; title?: string } | undefined
+): string {
+  if (!deal) return "--";
+  if (typeof deal === "string") return deal;
+  return deal.name || deal.title || "--";
+}
+
+function truncate(str: string | null | undefined, max: number): string {
+  if (!str) return "--";
+  return str.length > max ? str.slice(0, max) + "…" : str;
 }
 
 // ---------------------------------------------------------------------------
-// Status & Severity Config
+// Badge sub-components
 // ---------------------------------------------------------------------------
 
-const STATUS_LABELS: Record<ComplianceStatus, string> = {
-  fully_addressed: "Fully Addressed",
-  partially_addressed: "Partially Addressed",
-  not_addressed: "Not Addressed",
+const IMPL_STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
+  implemented: { label: "Implemented", cls: "bg-green-100 text-green-800 border-green-200" },
+  partially_implemented: { label: "Partial", cls: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+  partial: { label: "Partial", cls: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+  not_implemented: { label: "Not Implemented", cls: "bg-red-100 text-red-800 border-red-200" },
+  not_applicable: { label: "N/A", cls: "bg-gray-100 text-gray-600 border-gray-200" },
+  planned: { label: "Planned", cls: "bg-blue-100 text-blue-800 border-blue-200" },
 };
 
-const STATUS_CLASSES: Record<ComplianceStatus, string> = {
-  fully_addressed: "bg-green-100 text-green-700 border-green-200",
-  partially_addressed: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  not_addressed: "bg-red-100 text-red-700 border-red-200",
-};
-
-const STATUS_ICONS: Record<ComplianceStatus, typeof CheckCircle2> = {
-  fully_addressed: CheckCircle2,
-  partially_addressed: AlertTriangle,
-  not_addressed: XCircle,
-};
-
-const SEVERITY_CLASSES: Record<Severity, string> = {
-  high: "bg-red-50 text-red-700 border-red-200",
-  medium: "bg-orange-50 text-orange-700 border-orange-200",
-  low: "bg-blue-50 text-blue-700 border-blue-200",
-};
-
-const RED_TEAM_SEVERITY_CLASSES: Record<RedTeamSeverity, string> = {
-  critical: "bg-red-100 text-red-800 border-red-300",
-  major: "bg-orange-100 text-orange-800 border-orange-300",
-  minor: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  observation: "bg-blue-100 text-blue-800 border-blue-300",
-};
-
-// ---------------------------------------------------------------------------
-// Mock Data
-// ---------------------------------------------------------------------------
-
-const PROPOSALS = [
-  "All Proposals",
-  "DOD Cloud Migration (FA8529-26-R-0042)",
-  "VA Health IT Modernization (36C10X26R0015)",
-  "DHS Cybersecurity Support (70RCSA26R00003)",
-];
-
-const INITIAL_REQUIREMENTS: ComplianceRequirement[] = [
-  {
-    id: "1",
-    requirementId: "L-001",
-    description: "Contractor shall provide a detailed transition plan within 30 days of award",
-    status: "fully_addressed",
-    severity: "high",
-    sectionRef: "Section L.4.1",
-    recommendation: "Requirement fully addressed in Technical Volume, Section 3.2",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "2",
-    requirementId: "L-002",
-    description: "Key personnel must possess active TS/SCI clearance",
-    status: "fully_addressed",
-    severity: "high",
-    sectionRef: "Section L.5.2",
-    recommendation: "All proposed key personnel clearances verified",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "3",
-    requirementId: "L-003",
-    description: "Demonstrate FedRAMP High authorization for proposed cloud solution",
-    status: "partially_addressed",
-    severity: "high",
-    sectionRef: "Section L.4.3",
-    recommendation: "FedRAMP High ATO pending; include timeline and interim authorization details",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "4",
-    requirementId: "L-004",
-    description: "Provide three past performance references of similar scope within last 5 years",
-    status: "fully_addressed",
-    severity: "medium",
-    sectionRef: "Section L.6.1",
-    recommendation: "Three relevant references provided with CPARS ratings",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "5",
-    requirementId: "L-005",
-    description: "Small business subcontracting plan required per FAR 19.702",
-    status: "partially_addressed",
-    severity: "medium",
-    sectionRef: "Section L.7.1",
-    recommendation: "Subcontracting plan drafted; needs specific SDVOSB percentage targets",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "6",
-    requirementId: "L-006",
-    description: "Organizational conflict of interest mitigation plan",
-    status: "not_addressed",
-    severity: "high",
-    sectionRef: "Section L.8.2",
-    recommendation: "OCI mitigation plan must be developed and included before submission",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "7",
-    requirementId: "L-007",
-    description: "Quality assurance surveillance plan (QASP) response",
-    status: "fully_addressed",
-    severity: "medium",
-    sectionRef: "Section L.4.5",
-    recommendation: "QASP response aligns with government metrics",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "8",
-    requirementId: "L-008",
-    description: "Cybersecurity framework compliance per NIST 800-171",
-    status: "partially_addressed",
-    severity: "high",
-    sectionRef: "Section L.9.1",
-    recommendation: "NIST 800-171 SSP provided; POA&M items need resolution timeline",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "9",
-    requirementId: "M-001",
-    description: "Technical approach evaluation criteria per Section M.2",
-    status: "fully_addressed",
-    severity: "high",
-    sectionRef: "Section M.2",
-    recommendation: "Technical approach addresses all evaluation sub-factors",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "10",
-    requirementId: "M-002",
-    description: "Price reasonableness documentation",
-    status: "not_addressed",
-    severity: "medium",
-    sectionRef: "Section M.4",
-    recommendation: "Basis of estimate and price justification narrative required",
-    proposal: "DOD Cloud Migration (FA8529-26-R-0042)",
-  },
-  {
-    id: "11",
-    requirementId: "VA-001",
-    description: "508 Compliance certification for all deliverables",
-    status: "fully_addressed",
-    severity: "high",
-    sectionRef: "Section C.3.1",
-    recommendation: "508 compliance plan included with VPAT documentation",
-    proposal: "VA Health IT Modernization (36C10X26R0015)",
-  },
-  {
-    id: "12",
-    requirementId: "VA-002",
-    description: "HIPAA compliance and BAA execution plan",
-    status: "partially_addressed",
-    severity: "high",
-    sectionRef: "Section C.4.2",
-    recommendation: "BAA template included; need specific PHI handling procedures",
-    proposal: "VA Health IT Modernization (36C10X26R0015)",
-  },
-];
-
-const INITIAL_PRE_PROPOSAL: ChecklistItem[] = [
-  { id: "pre-1", label: "Read entire solicitation", checked: true },
-  { id: "pre-2", label: "Identify all requirements (Sections L & M)", checked: true },
-  { id: "pre-3", label: "Create compliance matrix", checked: true },
-  { id: "pre-4", label: "Review evaluation criteria", checked: true },
-  { id: "pre-5", label: "Identify key personnel needs", checked: false },
-  { id: "pre-6", label: "Assess past performance requirements", checked: true },
-];
-
-const INITIAL_PROPOSAL: ChecklistItem[] = [
-  { id: "prop-1", label: "Executive summary written", checked: true },
-  { id: "prop-2", label: "Technical approach complete", checked: true },
-  { id: "prop-3", label: "Past performance volume complete", checked: true },
-  { id: "prop-4", label: "Management plan complete", checked: false },
-  { id: "prop-5", label: "Price/cost volume complete", checked: false },
-  { id: "prop-6", label: "All sections formatted per instructions", checked: false },
-  { id: "prop-7", label: "Page limits verified", checked: false },
-  { id: "prop-8", label: "Table of contents updated", checked: false },
-  { id: "prop-9", label: "All attachments included", checked: false },
-  { id: "prop-10", label: "Final review completed", checked: false },
-];
-
-const INITIAL_RED_TEAM_FINDINGS: RedTeamFinding[] = [
-  {
-    id: "rt-1",
-    finding: "Technical approach lacks specific staffing timeline for Phase 2 migration",
-    severity: "critical",
-    section: "Technical Volume, Section 3.4",
-    recommendation: "Add Gantt chart showing resource loading by sprint for Phase 2",
-    resolved: false,
-  },
-  {
-    id: "rt-2",
-    finding: "Past performance reference #2 contract value does not meet minimum threshold",
-    severity: "major",
-    section: "Past Performance Volume, Section 2.2",
-    recommendation: "Replace with DISA SETI contract (HC1028-22-C-0034) which exceeds threshold",
-    resolved: false,
-  },
-  {
-    id: "rt-3",
-    finding: "Executive summary does not reference all evaluation sub-factors from Section M",
-    severity: "major",
-    section: "Executive Summary",
-    recommendation: "Restructure executive summary to map to each evaluation factor explicitly",
-    resolved: true,
-  },
-  {
-    id: "rt-4",
-    finding: "Risk mitigation table missing probability and impact ratings",
-    severity: "minor",
-    section: "Technical Volume, Section 5.1",
-    recommendation: "Add 5x5 risk matrix with probability/impact scores for each identified risk",
-    resolved: true,
-  },
-  {
-    id: "rt-5",
-    finding: "Acronym list incomplete - 12 undefined acronyms found in technical volume",
-    severity: "minor",
-    section: "Appendix A",
-    recommendation: "Run acronym checker across all volumes and update master acronym list",
-    resolved: false,
-  },
-  {
-    id: "rt-6",
-    finding: "Proposal uses inconsistent naming for the cloud platform across sections",
-    severity: "observation",
-    section: "All Volumes",
-    recommendation: "Standardize to 'SecureCloud GovPlatform' throughout; update style guide",
-    resolved: true,
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: ComplianceStatus }) {
-  const Icon = STATUS_ICONS[status];
+function ImplStatusBadge({ status }: { status: string }) {
+  const cfg = IMPL_STATUS_CONFIG[status] ?? {
+    label: status?.replace(/_/g, " ") ?? "--",
+    cls: "bg-gray-100 text-gray-700 border-gray-200",
+  };
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[status]}`}
-    >
-      <Icon className="h-3 w-3" />
-      {STATUS_LABELS[status]}
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cfg.cls}`}>
+      {cfg.label}
     </span>
   );
 }
 
-function SeverityBadge({ severity }: { severity: Severity }) {
+const PRIORITY_CONFIG: Record<string, string> = {
+  critical: "bg-red-100 text-red-800 border-red-200",
+  high: "bg-orange-100 text-orange-800 border-orange-200",
+  medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  low: "bg-blue-100 text-blue-800 border-blue-200",
+  P1: "bg-red-100 text-red-800 border-red-200",
+  P2: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  P3: "bg-blue-100 text-blue-800 border-blue-200",
+};
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const cls = PRIORITY_CONFIG[priority] ?? "bg-gray-100 text-gray-700 border-gray-200";
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${SEVERITY_CLASSES[severity]}`}
-    >
-      {severity}
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${cls}`}>
+      {priority}
     </span>
   );
 }
 
-function RedTeamSeverityBadge({ severity }: { severity: RedTeamSeverity }) {
+const REPORT_TYPE_CONFIG: Record<string, { label: string; cls: string }> = {
+  gap_analysis: { label: "Gap Analysis", cls: "bg-orange-100 text-orange-800 border-orange-200" },
+  ssp_draft: { label: "SSP Draft", cls: "bg-blue-100 text-blue-800 border-blue-200" },
+  assessment_report: { label: "Assessment", cls: "bg-purple-100 text-purple-800 border-purple-200" },
+  cmmc_readiness: { label: "CMMC Readiness", cls: "bg-green-100 text-green-800 border-green-200" },
+  readiness_assessment: { label: "Readiness", cls: "bg-green-100 text-green-800 border-green-200" },
+  poam: { label: "POA&M", cls: "bg-red-100 text-red-800 border-red-200" },
+  ssp_section: { label: "SSP Section", cls: "bg-blue-100 text-blue-800 border-blue-200" },
+  authorization_package: { label: "Auth Package", cls: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+};
+
+function ReportTypeBadge({ type }: { type: string }) {
+  const cfg = REPORT_TYPE_CONFIG[type] ?? {
+    label: type?.replace(/_/g, " ") ?? "--",
+    cls: "bg-gray-100 text-gray-700 border-gray-200",
+  };
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${RED_TEAM_SEVERITY_CLASSES[severity]}`}
-    >
-      {severity}
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cfg.cls}`}>
+      {cfg.label}
     </span>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Reusable UI pieces
+// ---------------------------------------------------------------------------
 
 function ProgressBar({
   value,
@@ -347,11 +154,7 @@ function ProgressBar({
   const pct = Math.min(100, Math.max(0, value));
   const color =
     colorClass ??
-    (pct >= 80
-      ? "bg-green-500"
-      : pct >= 50
-        ? "bg-yellow-500"
-        : "bg-red-500");
+    (pct >= 80 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500");
   return (
     <div className={`h-2.5 w-full rounded-full bg-gray-200 ${className}`}>
       <div
@@ -413,7 +216,7 @@ function StatCard({
   colorClass,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   icon: typeof CheckCircle2;
   colorClass: string;
 }) {
@@ -430,88 +233,760 @@ function StatCard({
   );
 }
 
+function LoadingSpinner({ message }: { message?: string }) {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      {message && (
+        <span className="ml-3 text-sm text-gray-500">{message}</span>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  message,
+}: {
+  icon: typeof Shield;
+  message: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+      <Icon className="mb-3 h-12 w-12" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Frameworks
+// ---------------------------------------------------------------------------
+
+function FrameworksTab({
+  frameworks,
+  loading,
+  error,
+}: {
+  frameworks: SecurityFramework[];
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) return <LoadingSpinner message="Loading frameworks..." />;
+  if (error)
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {error}
+      </div>
+    );
+  if (frameworks.length === 0)
+    return <EmptyState icon={Shield} message="No compliance frameworks found." />;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {frameworks.map((fw) => {
+        const controlCount = fw.controls_count ?? fw.control_families?.length ?? 0;
+        const isActive = fw.is_active !== false;
+        return (
+          <Card key={fw.id} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+                    <Shield className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base leading-tight">
+                      {fw.name}
+                    </CardTitle>
+                    {fw.version && (
+                      <p className="text-xs text-gray-400">v{fw.version}</p>
+                    )}
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                    isActive
+                      ? "border-green-200 bg-green-100 text-green-700"
+                      : "border-gray-200 bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {isActive ? "Active" : "Inactive"}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              {fw.description && (
+                <p className="text-sm text-gray-600 line-clamp-2">
+                  {fw.description}
+                </p>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Controls</span>
+                <span className="font-semibold text-gray-900">
+                  {controlCount}
+                </span>
+              </div>
+              {fw.framework_type && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Type</span>
+                  <span className="font-medium text-gray-700 capitalize">
+                    {fw.framework_type.replace(/_/g, " ")}
+                  </span>
+                </div>
+              )}
+              {fw.created_at && (
+                <p className="text-xs text-gray-400">
+                  Added {formatDate(fw.created_at)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Controls
+// ---------------------------------------------------------------------------
+
+function ControlsTab({
+  controls,
+  loading,
+  error,
+}: {
+  controls: SecurityControl[];
+  loading: boolean;
+  error: string | null;
+}) {
+  const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const filtered = controls.filter((c) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      c.control_id.toLowerCase().includes(q) ||
+      c.title.toLowerCase().includes(q) ||
+      (c.framework_name ?? "").toLowerCase().includes(q) ||
+      (c.control_family ?? c.family ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  if (loading) return <LoadingSpinner message="Loading security controls..." />;
+  if (error)
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {error}
+      </div>
+    );
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          placeholder="Search controls..."
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setSearch(e.target.value)
+          }
+          className="pl-9"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={ListChecks}
+          message={
+            search
+              ? "No controls match your search."
+              : "No security controls found."
+          }
+        />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3">Control ID</th>
+                    <th className="px-4 py-3">Title</th>
+                    <th className="px-4 py-3">Framework</th>
+                    <th className="px-4 py-3">Family</th>
+                    <th className="px-4 py-3">Priority</th>
+                    <th className="px-4 py-3">Baseline</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filtered.map((ctrl) => {
+                    const family = ctrl.control_family ?? ctrl.family ?? "--";
+                    const frameworkName =
+                      ctrl.framework_name ??
+                      getFrameworkDisplayName(
+                        typeof ctrl.framework === "object"
+                          ? ctrl.framework
+                          : undefined
+                      );
+                    const isExpanded = expandedId === ctrl.id;
+                    return (
+                      <>
+                        <tr
+                          key={ctrl.id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="whitespace-nowrap px-4 py-3 font-mono font-medium text-gray-900">
+                            {ctrl.control_id}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 max-w-xs">
+                            {truncate(ctrl.title, 60)}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                            {frameworkName}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                            {family}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3">
+                            {ctrl.priority ? (
+                              <PriorityBadge priority={ctrl.priority} />
+                            ) : (
+                              "--"
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-gray-600 capitalize">
+                            {ctrl.baseline_impact?.replace(/_/g, " ") ?? "--"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {ctrl.description && (
+                              <button
+                                onClick={() =>
+                                  setExpandedId(isExpanded ? null : ctrl.id)
+                                }
+                                className="text-blue-600 hover:text-blue-800"
+                                aria-label={isExpanded ? "Collapse" : "Expand"}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                        {isExpanded && ctrl.description && (
+                          <tr key={`${ctrl.id}-detail`} className="bg-blue-50">
+                            <td colSpan={7} className="px-6 py-3">
+                              <p className="text-sm text-gray-700">
+                                {ctrl.description}
+                              </p>
+                              {ctrl.implementation_guidance && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500 mb-1">
+                                    Implementation Guidance
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {ctrl.implementation_guidance}
+                                  </p>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Requirements
+// ---------------------------------------------------------------------------
+
+function RequirementsTab({
+  requirements,
+  loading,
+  error,
+}: {
+  requirements: ComplianceRequirement[];
+  loading: boolean;
+  error: string | null;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filtered = requirements.filter((r) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      r.requirement_text.toLowerCase().includes(q) ||
+      (r.framework_reference ?? "").toLowerCase().includes(q) ||
+      (r.category ?? "").toLowerCase().includes(q) ||
+      (r.source_document ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  // Summary stats from the full (unfiltered) list
+  const total = requirements.length;
+  const statusCounts = requirements.reduce<Record<string, number>>((acc, r) => {
+    const s = r.current_status ?? r.status ?? "unknown";
+    acc[s] = (acc[s] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  if (loading) return <LoadingSpinner message="Loading requirements..." />;
+  if (error)
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {error}
+      </div>
+    );
+
+  return (
+    <div className="space-y-4">
+      {/* Summary stats */}
+      {total > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Total Requirements"
+            value={total}
+            icon={BarChart3}
+            colorClass="bg-blue-100 text-blue-600"
+          />
+          {Object.entries(statusCounts)
+            .slice(0, 3)
+            .map(([status, count]) => (
+              <div
+                key={status}
+                className="flex items-center gap-3 rounded-lg border bg-white p-4"
+              >
+                <div className="rounded-lg bg-gray-100 p-2 text-gray-600">
+                  <ClipboardCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{count}</p>
+                  <p className="text-sm capitalize text-gray-500">
+                    {status.replace(/_/g, " ")}
+                  </p>
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          placeholder="Search requirements..."
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setSearch(e.target.value)
+          }
+          className="pl-9"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={ClipboardCheck}
+          message={
+            search
+              ? "No requirements match your search."
+              : "No compliance requirements found."
+          }
+        />
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3">Requirement</th>
+                    <th className="px-4 py-3">Framework Ref</th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Priority</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Source</th>
+                    <th className="px-4 py-3">Deal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filtered.map((req) => {
+                    const status = req.current_status ?? req.status ?? "--";
+                    const category = req.category ?? "--";
+                    return (
+                      <tr
+                        key={req.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-4 py-3 text-gray-700 max-w-sm">
+                          <p className="line-clamp-2">
+                            {truncate(req.requirement_text, 120)}
+                          </p>
+                          {req.gap_description && (
+                            <p className="mt-1 text-xs text-orange-600">
+                              Gap: {truncate(req.gap_description, 80)}
+                            </p>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-gray-600">
+                          {req.framework_reference || "--"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 capitalize text-gray-600">
+                          {category.replace(/_/g, " ")}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {req.priority ? (
+                            <PriorityBadge priority={req.priority} />
+                          ) : (
+                            "--"
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <ImplStatusBadge status={status} />
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
+                          {truncate(req.source_document, 30)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                          {getDealDisplayName(req.deal)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Reports
+// ---------------------------------------------------------------------------
+
+function ReportsTab({
+  reports,
+  loading,
+  error,
+}: {
+  reports: SecurityComplianceReport[];
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading) return <LoadingSpinner message="Loading compliance reports..." />;
+  if (error)
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {error}
+      </div>
+    );
+
+  // Aggregate stats
+  const avgScore =
+    reports.length > 0
+      ? Math.round(
+          reports.reduce((sum, r) => {
+            const s = r.overall_score ?? r.overall_compliance_pct ?? 0;
+            return sum + s;
+          }, 0) / reports.length
+        )
+      : 0;
+  const totalGaps = reports.reduce((sum, r) => {
+    const g =
+      r.gaps_identified ?? (Array.isArray(r.gaps) ? r.gaps.length : 0);
+    return sum + g;
+  }, 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Summary */}
+      {reports.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-5">
+          <Card className="lg:col-span-2">
+            <CardContent className="flex flex-col items-center justify-center gap-4 py-8">
+              <CircularProgress value={avgScore} />
+              <p className="text-sm font-medium text-gray-600">
+                Average Compliance Score
+              </p>
+              <ProgressBar value={avgScore} className="max-w-xs" />
+            </CardContent>
+          </Card>
+          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-3 lg:grid-cols-2">
+            <StatCard
+              label="Total Reports"
+              value={reports.length}
+              icon={FileText}
+              colorClass="bg-blue-100 text-blue-600"
+            />
+            <StatCard
+              label="Avg Compliance"
+              value={`${avgScore}%`}
+              icon={CheckCircle2}
+              colorClass="bg-green-100 text-green-600"
+            />
+            <StatCard
+              label="Gaps Identified"
+              value={totalGaps}
+              icon={AlertTriangle}
+              colorClass="bg-orange-100 text-orange-600"
+            />
+            <StatCard
+              label="Frameworks Covered"
+              value={
+                new Set(
+                  reports.map((r) => getFrameworkDisplayName(r.framework))
+                ).size
+              }
+              icon={Shield}
+              colorClass="bg-purple-100 text-purple-600"
+            />
+          </div>
+        </div>
+      )}
+
+      {reports.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          message="No compliance reports found."
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Compliance Reports
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-3">Deal</th>
+                    <th className="px-4 py-3">Framework</th>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Score</th>
+                    <th className="px-4 py-3">Controls</th>
+                    <th className="px-4 py-3">Gaps</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {reports.map((report) => {
+                    const score =
+                      report.overall_score ?? report.overall_compliance_pct ?? 0;
+                    const compliantControls =
+                      report.compliant_controls ??
+                      report.controls_implemented ??
+                      0;
+                    const totalControls =
+                      report.total_controls ??
+                      (report.controls_implemented ?? 0) +
+                        (report.controls_partial ?? 0) +
+                        (report.controls_planned ?? 0) +
+                        (report.controls_na ?? 0);
+                    const gaps =
+                      report.gaps_identified ??
+                      (Array.isArray(report.gaps) ? report.gaps.length : 0);
+                    const pct = Math.min(Math.max(score, 0), 100);
+                    const barColor =
+                      pct >= 80
+                        ? "bg-green-500"
+                        : pct >= 60
+                          ? "bg-yellow-500"
+                          : "bg-red-500";
+                    const textColor =
+                      pct >= 80
+                        ? "text-green-700"
+                        : pct >= 60
+                          ? "text-yellow-700"
+                          : "text-red-700";
+
+                    return (
+                      <tr
+                        key={report.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-4 py-3 text-gray-700">
+                          {getDealDisplayName(report.deal)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                          {report.framework_name ??
+                            getFrameworkDisplayName(report.framework)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <ReportTypeBadge type={report.report_type} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 min-w-[120px]">
+                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${barColor}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span
+                              className={`text-xs font-semibold w-9 text-right ${textColor}`}
+                            >
+                              {pct.toFixed(0)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                          {totalControls > 0
+                            ? `${compliantControls}/${totalControls}`
+                            : "--"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {gaps > 0 ? (
+                            <span className="font-medium text-orange-600">
+                              {gaps}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">0</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {report.status ? (
+                            <ImplStatusBadge status={report.status} />
+                          ) : (
+                            "--"
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-500">
+                          {formatDate(report.created_at)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main Page
 // ---------------------------------------------------------------------------
 
-type TabKey = "matrix" | "checklist" | "redteam";
+type TabKey = "frameworks" | "controls" | "requirements" | "reports";
+
+const TABS: { key: TabKey; label: string; icon: typeof Shield }[] = [
+  { key: "frameworks", label: "Frameworks", icon: Shield },
+  { key: "controls", label: "Security Controls", icon: ListChecks },
+  { key: "requirements", label: "Requirements", icon: ClipboardCheck },
+  { key: "reports", label: "Reports", icon: FileText },
+];
 
 export default function CompliancePage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("matrix");
-  const [search, setSearch] = useState("");
-  const [selectedProposal, setSelectedProposal] = useState(PROPOSALS[0]);
-  const [proposalDropdownOpen, setProposalDropdownOpen] = useState(false);
-  const [requirements] = useState<ComplianceRequirement[]>(INITIAL_REQUIREMENTS);
-  const [preProposal, setPreProposal] = useState<ChecklistItem[]>(INITIAL_PRE_PROPOSAL);
-  const [proposal, setProposal] = useState<ChecklistItem[]>(INITIAL_PROPOSAL);
-  const [redTeamFindings, setRedTeamFindings] = useState<RedTeamFinding[]>(INITIAL_RED_TEAM_FINDINGS);
-  const [checklistExpandedPhases, setChecklistExpandedPhases] = useState<Record<string, boolean>>({
-    pre: true,
-    prop: true,
-  });
+  const [activeTab, setActiveTab] = useState<TabKey>("frameworks");
 
-  // -- Filtered requirements
-  const filtered = requirements.filter((r) => {
-    const matchesProposal =
-      selectedProposal === "All Proposals" || r.proposal === selectedProposal;
-    const matchesSearch =
-      search === "" ||
-      r.requirementId.toLowerCase().includes(search.toLowerCase()) ||
-      r.description.toLowerCase().includes(search.toLowerCase()) ||
-      r.sectionRef.toLowerCase().includes(search.toLowerCase());
-    return matchesProposal && matchesSearch;
-  });
+  const [frameworks, setFrameworks] = useState<SecurityFramework[]>([]);
+  const [controls, setControls] = useState<SecurityControl[]>([]);
+  const [requirements, setRequirements] = useState<ComplianceRequirement[]>([]);
+  const [reports, setReports] = useState<SecurityComplianceReport[]>([]);
 
-  // -- Stats
-  const total = filtered.length;
-  const fully = filtered.filter((r) => r.status === "fully_addressed").length;
-  const partially = filtered.filter((r) => r.status === "partially_addressed").length;
-  const notAddr = filtered.filter((r) => r.status === "not_addressed").length;
-  const compliancePct = total > 0 ? Math.round((fully / total) * 100) : 0;
+  const [loadingFrameworks, setLoadingFrameworks] = useState(false);
+  const [loadingControls, setLoadingControls] = useState(false);
+  const [loadingRequirements, setLoadingRequirements] = useState(false);
+  const [loadingReports, setLoadingReports] = useState(false);
 
-  // -- Checklist helpers
-  const toggleChecklistItem = (
-    phase: "pre" | "prop",
-    id: string,
-  ) => {
-    const setter = phase === "pre" ? setPreProposal : setProposal;
-    setter((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, checked: !item.checked } : item,
-      ),
-    );
+  const [errorFrameworks, setErrorFrameworks] = useState<string | null>(null);
+  const [errorControls, setErrorControls] = useState<string | null>(null);
+  const [errorRequirements, setErrorRequirements] = useState<string | null>(null);
+  const [errorReports, setErrorReports] = useState<string | null>(null);
+
+  const fetchFrameworks = useCallback(async () => {
+    setLoadingFrameworks(true);
+    setErrorFrameworks(null);
+    try {
+      const data = await getSecurityFrameworks();
+      setFrameworks(data.results ?? []);
+    } catch {
+      setErrorFrameworks("Failed to load frameworks. Please try again.");
+    } finally {
+      setLoadingFrameworks(false);
+    }
+  }, []);
+
+  const fetchControls = useCallback(async () => {
+    setLoadingControls(true);
+    setErrorControls(null);
+    try {
+      const data = await getSecurityControls();
+      setControls(data.results ?? []);
+    } catch {
+      setErrorControls("Failed to load security controls. Please try again.");
+    } finally {
+      setLoadingControls(false);
+    }
+  }, []);
+
+  const fetchRequirements = useCallback(async () => {
+    setLoadingRequirements(true);
+    setErrorRequirements(null);
+    try {
+      const data = await getComplianceRequirements();
+      setRequirements(data.results ?? []);
+    } catch {
+      setErrorRequirements("Failed to load requirements. Please try again.");
+    } finally {
+      setLoadingRequirements(false);
+    }
+  }, []);
+
+  const fetchReports = useCallback(async () => {
+    setLoadingReports(true);
+    setErrorReports(null);
+    try {
+      const data = await getComplianceReports();
+      setReports(data.results ?? []);
+    } catch {
+      setErrorReports("Failed to load compliance reports. Please try again.");
+    } finally {
+      setLoadingReports(false);
+    }
+  }, []);
+
+  // Fetch all data on mount
+  useEffect(() => {
+    fetchFrameworks();
+    fetchControls();
+    fetchRequirements();
+    fetchReports();
+  }, [fetchFrameworks, fetchControls, fetchRequirements, fetchReports]);
+
+  const handleRefresh = () => {
+    fetchFrameworks();
+    fetchControls();
+    fetchRequirements();
+    fetchReports();
   };
 
-  const togglePhase = (phase: string) => {
-    setChecklistExpandedPhases((prev) => ({
-      ...prev,
-      [phase]: !prev[phase],
-    }));
-  };
-
-  const preChecked = preProposal.filter((i) => i.checked).length;
-  const propChecked = proposal.filter((i) => i.checked).length;
-  const totalChecklist = preProposal.length + proposal.length;
-  const totalChecked = preChecked + propChecked;
-  const overallChecklistPct =
-    totalChecklist > 0 ? Math.round((totalChecked / totalChecklist) * 100) : 0;
-
-  // -- Red team helpers
-  const toggleRedTeamResolved = (id: string) => {
-    setRedTeamFindings((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, resolved: !f.resolved } : f)),
-    );
-  };
-
-  const resolvedCount = redTeamFindings.filter((f) => f.resolved).length;
-  const unresolvedCount = redTeamFindings.length - resolvedCount;
-
-  // -- Tab config
-  const tabs: { key: TabKey; label: string; icon: typeof ClipboardCheck }[] = [
-    { key: "matrix", label: "Compliance Matrix", icon: ClipboardCheck },
-    { key: "checklist", label: "Submission Checklist", icon: ListChecks },
-    { key: "redteam", label: "Red Team Findings", icon: AlertOctagon },
-  ];
+  const isAnyLoading =
+    loadingFrameworks || loadingControls || loadingRequirements || loadingReports;
 
   return (
     <div className="space-y-6 p-6">
@@ -519,20 +994,32 @@ export default function CompliancePage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Compliance &amp; Submission
+            Compliance &amp; Security
           </h1>
           <p className="text-sm text-gray-500">
-            Track proposal compliance and submission readiness
+            Manage security frameworks, controls, requirements, and compliance reports
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isAnyLoading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isAnyLoading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
           <ShieldCheck className="h-8 w-8 text-blue-600" />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border bg-gray-50 p-1">
-        {tabs.map((tab) => {
+      <div className="flex gap-1 rounded-lg border bg-gray-50 p-1 flex-wrap">
+        {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
           return (
@@ -552,455 +1039,37 @@ export default function CompliancePage() {
         })}
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* TAB: Compliance Matrix                                              */}
-      {/* ------------------------------------------------------------------ */}
-      {activeTab === "matrix" && (
-        <div className="space-y-6">
-          {/* Top stats row */}
-          <div className="grid gap-6 lg:grid-cols-5">
-            {/* Circular progress */}
-            <Card className="lg:col-span-2">
-              <CardContent className="flex flex-col items-center justify-center gap-4 py-8">
-                <CircularProgress value={compliancePct} />
-                <p className="text-sm font-medium text-gray-600">
-                  Overall Compliance Score
-                </p>
-                <ProgressBar value={compliancePct} className="max-w-xs" />
-              </CardContent>
-            </Card>
-
-            {/* Stat cards */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:col-span-3 lg:grid-cols-2">
-              <StatCard
-                label="Total Requirements"
-                value={total}
-                icon={BarChart3}
-                colorClass="bg-blue-100 text-blue-600"
-              />
-              <StatCard
-                label="Fully Addressed"
-                value={fully}
-                icon={CheckCircle2}
-                colorClass="bg-green-100 text-green-600"
-              />
-              <StatCard
-                label="Partially Addressed"
-                value={partially}
-                icon={AlertTriangle}
-                colorClass="bg-yellow-100 text-yellow-600"
-              />
-              <StatCard
-                label="Not Addressed"
-                value={notAddr}
-                icon={XCircle}
-                colorClass="bg-red-100 text-red-600"
-              />
-            </div>
-          </div>
-
-          {/* Filters */}
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Search requirements..."
-                    value={search}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setSearch(e.target.value)
-                    }
-                    className="pl-9"
-                  />
-                </div>
-                {/* Proposal filter dropdown */}
-                <div className="relative">
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => setProposalDropdownOpen(!proposalDropdownOpen)}
-                  >
-                    <Filter className="h-4 w-4" />
-                    <span className="max-w-[200px] truncate text-sm">
-                      {selectedProposal}
-                    </span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                  {proposalDropdownOpen && (
-                    <div className="absolute right-0 z-10 mt-1 w-80 rounded-md border bg-white shadow-lg">
-                      {PROPOSALS.map((p) => (
-                        <button
-                          key={p}
-                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
-                            selectedProposal === p
-                              ? "bg-blue-50 font-medium text-blue-700"
-                              : "text-gray-700"
-                          }`}
-                          onClick={() => {
-                            setSelectedProposal(p);
-                            setProposalDropdownOpen(false);
-                          }}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Requirements table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ClipboardCheck className="h-5 w-5 text-blue-600" />
-                Requirements Traceability
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      <th className="px-4 py-3">Req ID</th>
-                      <th className="px-4 py-3">Description</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Severity</th>
-                      <th className="px-4 py-3">Section Ref</th>
-                      <th className="px-4 py-3">Recommendation</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {filtered.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={6}
-                          className="px-4 py-8 text-center text-gray-400"
-                        >
-                          No requirements match the current filters.
-                        </td>
-                      </tr>
-                    )}
-                    {filtered.map((req) => (
-                      <tr
-                        key={req.id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="whitespace-nowrap px-4 py-3 font-mono font-medium text-gray-900">
-                          {req.requirementId}
-                        </td>
-                        <td className="max-w-xs px-4 py-3 text-gray-700">
-                          {req.description}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3">
-                          <StatusBadge status={req.status} />
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3">
-                          <SeverityBadge severity={req.severity} />
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">
-                          {req.sectionRef}
-                        </td>
-                        <td className="max-w-xs px-4 py-3 text-gray-600">
-                          {req.recommendation}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Tab content */}
+      {activeTab === "frameworks" && (
+        <FrameworksTab
+          frameworks={frameworks}
+          loading={loadingFrameworks}
+          error={errorFrameworks}
+        />
       )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* TAB: Submission Checklist                                           */}
-      {/* ------------------------------------------------------------------ */}
-      {activeTab === "checklist" && (
-        <div className="space-y-6">
-          {/* Overall progress */}
-          <Card>
-            <CardContent className="py-6">
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100">
-                    <ListChecks className="h-7 w-7 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      Overall Submission Readiness
-                    </p>
-                    <p className="text-3xl font-bold text-gray-900">
-                      {totalChecked}
-                      <span className="text-lg font-normal text-gray-400">
-                        {" "}
-                        / {totalChecklist}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <div className="w-full max-w-sm">
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span className="text-gray-500">Progress</span>
-                    <span className="font-medium text-gray-700">
-                      {overallChecklistPct}%
-                    </span>
-                  </div>
-                  <ProgressBar value={overallChecklistPct} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pre-Proposal Phase */}
-          <Card>
-            <CardHeader
-              className="cursor-pointer select-none"
-              onClick={() => togglePhase("pre")}
-            >
-              <CardTitle className="flex items-center justify-between text-lg">
-                <div className="flex items-center gap-2">
-                  {checklistExpandedPhases.pre ? (
-                    <ChevronDown className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  )}
-                  <FileWarning className="h-5 w-5 text-orange-500" />
-                  Pre-Proposal Phase
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-normal text-gray-500">
-                    {preChecked} / {preProposal.length}
-                  </span>
-                  <div className="w-24">
-                    <ProgressBar
-                      value={
-                        preProposal.length > 0
-                          ? Math.round(
-                              (preChecked / preProposal.length) * 100,
-                            )
-                          : 0
-                      }
-                      colorClass="bg-orange-500"
-                    />
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            {checklistExpandedPhases.pre && (
-              <CardContent className="pt-0">
-                <ul className="divide-y">
-                  {preProposal.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex items-center gap-3 py-3 cursor-pointer hover:bg-gray-50 rounded px-2 -mx-2 transition-colors"
-                      onClick={() => toggleChecklistItem("pre", item.id)}
-                    >
-                      {item.checked ? (
-                        <CheckSquare className="h-5 w-5 flex-shrink-0 text-green-500" />
-                      ) : (
-                        <Square className="h-5 w-5 flex-shrink-0 text-gray-300" />
-                      )}
-                      <span
-                        className={`text-sm ${
-                          item.checked
-                            ? "text-gray-400 line-through"
-                            : "text-gray-700"
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            )}
-          </Card>
-
-          {/* Proposal Phase */}
-          <Card>
-            <CardHeader
-              className="cursor-pointer select-none"
-              onClick={() => togglePhase("prop")}
-            >
-              <CardTitle className="flex items-center justify-between text-lg">
-                <div className="flex items-center gap-2">
-                  {checklistExpandedPhases.prop ? (
-                    <ChevronDown className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  )}
-                  <ClipboardCheck className="h-5 w-5 text-blue-500" />
-                  Proposal Phase
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-normal text-gray-500">
-                    {propChecked} / {proposal.length}
-                  </span>
-                  <div className="w-24">
-                    <ProgressBar
-                      value={
-                        proposal.length > 0
-                          ? Math.round(
-                              (propChecked / proposal.length) * 100,
-                            )
-                          : 0
-                      }
-                      colorClass="bg-blue-500"
-                    />
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            {checklistExpandedPhases.prop && (
-              <CardContent className="pt-0">
-                <ul className="divide-y">
-                  {proposal.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex items-center gap-3 py-3 cursor-pointer hover:bg-gray-50 rounded px-2 -mx-2 transition-colors"
-                      onClick={() => toggleChecklistItem("prop", item.id)}
-                    >
-                      {item.checked ? (
-                        <CheckSquare className="h-5 w-5 flex-shrink-0 text-green-500" />
-                      ) : (
-                        <Square className="h-5 w-5 flex-shrink-0 text-gray-300" />
-                      )}
-                      <span
-                        className={`text-sm ${
-                          item.checked
-                            ? "text-gray-400 line-through"
-                            : "text-gray-700"
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            )}
-          </Card>
-        </div>
+      {activeTab === "controls" && (
+        <ControlsTab
+          controls={controls}
+          loading={loadingControls}
+          error={errorControls}
+        />
       )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* TAB: Red Team Findings                                             */}
-      {/* ------------------------------------------------------------------ */}
-      {activeTab === "redteam" && (
-        <div className="space-y-6">
-          {/* Summary bar */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard
-              label="Total Findings"
-              value={redTeamFindings.length}
-              icon={AlertOctagon}
-              colorClass="bg-purple-100 text-purple-600"
-            />
-            <StatCard
-              label="Resolved"
-              value={resolvedCount}
-              icon={CheckCircle2}
-              colorClass="bg-green-100 text-green-600"
-            />
-            <StatCard
-              label="Unresolved"
-              value={unresolvedCount}
-              icon={CircleDot}
-              colorClass="bg-red-100 text-red-600"
-            />
-          </div>
+      {activeTab === "requirements" && (
+        <RequirementsTab
+          requirements={requirements}
+          loading={loadingRequirements}
+          error={errorRequirements}
+        />
+      )}
 
-          {/* Resolution progress */}
-          <Card>
-            <CardContent className="py-4">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-gray-500">Resolution Progress</span>
-                <span className="font-medium text-gray-700">
-                  {redTeamFindings.length > 0
-                    ? Math.round(
-                        (resolvedCount / redTeamFindings.length) * 100,
-                      )
-                    : 0}
-                  %
-                </span>
-              </div>
-              <ProgressBar
-                value={
-                  redTeamFindings.length > 0
-                    ? Math.round(
-                        (resolvedCount / redTeamFindings.length) * 100,
-                      )
-                    : 0
-                }
-                colorClass="bg-purple-500"
-              />
-            </CardContent>
-          </Card>
-
-          {/* Findings list */}
-          <div className="space-y-3">
-            {redTeamFindings.map((finding) => (
-              <Card
-                key={finding.id}
-                className={`transition-opacity ${finding.resolved ? "opacity-60" : ""}`}
-              >
-                <CardContent className="py-4">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <RedTeamSeverityBadge severity={finding.severity} />
-                        <span className="text-xs text-gray-400">
-                          {finding.section}
-                        </span>
-                      </div>
-                      <Button
-                        variant={finding.resolved ? "outline" : "default"}
-                        size="sm"
-                        className={`text-xs ${
-                          finding.resolved
-                            ? "border-green-300 text-green-700 hover:bg-green-50"
-                            : ""
-                        }`}
-                        onClick={() => toggleRedTeamResolved(finding.id)}
-                      >
-                        {finding.resolved ? (
-                          <>
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
-                            Resolved
-                          </>
-                        ) : (
-                          "Mark Resolved"
-                        )}
-                      </Button>
-                    </div>
-                    <p
-                      className={`text-sm font-medium ${
-                        finding.resolved
-                          ? "text-gray-400 line-through"
-                          : "text-gray-900"
-                      }`}
-                    >
-                      {finding.finding}
-                    </p>
-                    <div className="rounded-md bg-gray-50 px-3 py-2">
-                      <p className="text-xs font-medium text-gray-500">
-                        Recommendation
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        {finding.recommendation}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+      {activeTab === "reports" && (
+        <ReportsTab
+          reports={reports}
+          loading={loadingReports}
+          error={errorReports}
+        />
       )}
     </div>
   );

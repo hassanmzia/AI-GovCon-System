@@ -4,15 +4,19 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import (
+    ArchitectureDiagram,
     Proposal,
     ProposalSection,
     ProposalTemplate,
     ReviewComment,
     ReviewCycle,
+    SolutionValidationReport,
     SourcesSoughtResponse,
     SubmissionEmail,
+    TechnicalSolution,
 )
 from .serializers import (
+    ArchitectureDiagramSerializer,
     ProposalDetailSerializer,
     ProposalListSerializer,
     ProposalSectionDetailSerializer,
@@ -21,8 +25,11 @@ from .serializers import (
     ReviewCommentSerializer,
     ReviewCycleDetailSerializer,
     ReviewCycleListSerializer,
+    SolutionValidationReportSerializer,
     SourcesSoughtResponseSerializer,
     SubmissionEmailSerializer,
+    TechnicalSolutionDetailSerializer,
+    TechnicalSolutionListSerializer,
 )
 
 
@@ -202,3 +209,70 @@ class SubmissionEmailViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return SubmissionEmail.objects.select_related("proposal", "sources_sought").all()
+
+
+# ── Solution Architecture ─────────────────────────────────────────────────────
+
+class TechnicalSolutionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only ViewSet for technical solutions.
+
+    Supports filtering by deal. Returns a summary serializer on list
+    and the full detail serializer on retrieve.
+    """
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = {
+        "deal": ["exact"],
+    }
+    ordering_fields = ["iteration_count", "created_at"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        return TechnicalSolution.objects.select_related("deal").all()
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return TechnicalSolutionListSerializer
+        return TechnicalSolutionDetailSerializer
+
+
+class ArchitectureDiagramViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only ViewSet for architecture diagrams.
+
+    Supports filtering by technical_solution.
+    """
+    serializer_class = ArchitectureDiagramSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = {
+        "technical_solution": ["exact"],
+        "diagram_type": ["exact"],
+    }
+    ordering_fields = ["diagram_type", "created_at"]
+    ordering = ["diagram_type"]
+
+    def get_queryset(self):
+        return ArchitectureDiagram.objects.select_related("technical_solution").all()
+
+
+class SolutionValidationReportViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only ViewSet for solution validation reports.
+
+    Supports filtering by technical_solution.
+    """
+    serializer_class = SolutionValidationReportSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = {
+        "technical_solution": ["exact"],
+        "passed": ["exact"],
+        "overall_quality": ["exact"],
+    }
+    ordering_fields = ["score", "created_at"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        return SolutionValidationReport.objects.select_related("technical_solution").all()

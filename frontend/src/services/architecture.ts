@@ -1,4 +1,4 @@
-import api from "@/lib/api";
+import api, { orchestratorApi } from "@/lib/api";
 import { ArchitectureResult } from "@/types/architecture";
 
 /**
@@ -74,7 +74,9 @@ export async function startAgentRun(
   agentType: string,
   params: Record<string, unknown>
 ): Promise<{ run_id: string; status: string }> {
-  const response = await api.post(`/ai/agents/${agentType}/run`, params, {
+  // Uses orchestratorApi (baseURL: /ai) so this hits /ai/agents/{type}/run via Nginx,
+  // NOT Django's /api/ai/agents/... which would 404.
+  const response = await orchestratorApi.post(`/agents/${agentType}/run`, params, {
     timeout: 30_000,
   });
   return response.data;
@@ -86,6 +88,7 @@ export async function startAgentRun(
 export async function getAgentRunStatus(
   runId: string
 ): Promise<{ run_id: string; status: string; result?: Record<string, unknown> }> {
-  const response = await api.get(`/ai/agents/runs/${runId}`);
+  // Uses orchestratorApi (baseURL: /ai) so this hits /ai/agents/runs/{id} via Nginx.
+  const response = await orchestratorApi.get(`/agents/runs/${runId}`);
   return response.data;
 }
