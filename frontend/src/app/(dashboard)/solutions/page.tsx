@@ -291,8 +291,12 @@ function sanitizeMermaid(code: string): string {
   // Remove `title` lines (not valid in graph/flowchart)
   fixed = fixed.replace(/^\s*title\s+.+$/gm, "");
 
-  // Replace / in node IDs (e.g. CI/CDPipeline → CICDPipeline) but not in labels
-  fixed = fixed.replace(/\b([A-Za-z]+)\/([A-Za-z]+)/g, "$1$2");
+  // Replace / in node IDs (e.g. CI/CDPipeline → CICDPipeline)
+  // Only replace when NOT inside brackets [...] or pipes |...|
+  fixed = fixed.split("\n").map(line => {
+    // Process each part of the line that's outside brackets and pipes
+    return line.replace(/^([^[\]|]*?)([A-Za-z]+)\/([A-Za-z]+)/g, "$1$2$3");
+  }).join("\n");
 
   // Fix "pods, containers" style node references — split into separate lines
   fixed = fixed.replace(
@@ -306,6 +310,54 @@ function sanitizeMermaid(code: string): string {
 
   // Fix "Subgraph" (capitalized) → "subgraph"
   fixed = fixed.replace(/^\s*Subgraph\b/gm, (m) => m.replace("Subgraph", "subgraph"));
+
+  // Fix node IDs that contain spaces or parens: "Application Execution (Lambda)" → AppExecLambda
+  // Match: word spaces word --> or word spaces word[ or start-of-arrow-line patterns
+  fixed = fixed.split("\n").map(line => {
+    // Don't touch graph/subgraph/end/style/class lines
+    if (/^\s*(graph|flowchart|subgraph|end|style|classDef|class)\b/i.test(line)) return line;
+
+    // Replace bare multi-word node refs (not inside brackets) with camelCase IDs
+    // Match sequences like "Some Node Name" that appear as source or target of arrows
+    line = line.replace(
+      /([A-Z][a-z]+(?:\s+[A-Za-z()]+)+)(\s*(?:-->|---|\[))/g,
+      (_, words, suffix) => {
+        const id = words.replace(/[^A-Za-z0-9]/g, "");
+        return id + suffix;
+      }
+    );
+    line = line.replace(
+      /(-->(?:\|[^|]*\|)?\s*)([A-Z][a-z]+(?:\s+[A-Za-z()]+)+)(\s*$|\s*\[)/gm,
+      (_, prefix, words, suffix) => {
+        const id = words.replace(/[^A-Za-z0-9]/g, "");
+        return prefix + id + suffix;
+      }
+    );
+
+    // Fix remaining node IDs with parens: NodeName(stuff) → NodeNameStuff
+    line = line.replace(/\b([A-Za-z]\w*)\(([^)]*)\)(?!\s*-->)/g, (_, id, inner) => {
+      return id + inner.replace(/[^A-Za-z0-9]/g, "");
+    });
+
+    // Fix pipe chars inside node labels (not edge labels): [Build | Deploy] → [Build, Deploy]
+    line = line.replace(/\[([^\]]*\|[^\]]*)\]/g, (_, content) => {
+      return "[" + content.replace(/\|/g, ",") + "]";
+    });
+
+    return line;
+  }).join("\n");
+
+  // Ensure the diagram starts with a valid declaration (graph/flowchart)
+  // Strip any leading text/whitespace before the declaration
+  const declMatch = fixed.match(/^(.*?)((?:graph|flowchart)\s+(?:TD|TB|LR|RL|BT))/m);
+  if (declMatch && declMatch.index !== undefined && declMatch.index > 0) {
+    fixed = fixed.substring(declMatch.index);
+  }
+
+  // If no declaration at all, prepend graph TD
+  if (!/^(graph|flowchart)\s+(TD|TB|LR|RL|BT)/m.test(fixed.trim())) {
+    fixed = "graph TD\n" + fixed;
+  }
 
   // Remove nested subgraph declarations inside other subgraph blocks
   // (Mermaid supports nested subgraphs but LLMs often produce broken nesting)
@@ -363,25 +415,37 @@ function rebuildMermaid(code: string): string | null {
   const nodes = new Set<string>();
   const edges: string[] = [];
 
+  // Sanitize node ID: replace non-alphanumeric chars with nothing
+  const cleanId = (id: string) => id.replace(/[^A-Za-z0-9_]/g, "");
+
   for (const line of code.split("\n")) {
     const trimmed = line.trim();
-    // Match arrows: A -->|label| B, A --> B, A -->|label| B[Label]
+
+    // Skip graph/subgraph/end/style/class lines
+    if (/^(graph|flowchart|subgraph|end|style|classDef|class)\b/i.test(trimmed)) continue;
+    // Skip lines with broken subgraph-inside-brackets
+    if (trimmed.includes("[subgraph")) continue;
+
+    // Match arrows with various patterns:
+    // A -->|label| B, A --> B, A -->|label| B[Label], A[Label] --> B[Label]
     const arrowMatch = trimmed.match(
-      /^\s*(\w+)(?:\[[^\]]*\])?\s*-->(?:\|([^|]*)\|)?\s*(\w+)/
+      /^\s*([A-Za-z0-9_/.:-]+)(?:\[[^\]]*\])?\s*--+>(?:\|([^|]*)\|)?\s*([A-Za-z0-9_/.:-]+)/
     );
     if (arrowMatch) {
-      const from = arrowMatch[1];
+      const from = cleanId(arrowMatch[1]);
       const label = arrowMatch[2]?.trim();
-      const to = arrowMatch[3];
-      nodes.add(from);
-      nodes.add(to);
-      edges.push(
-        label ? `    ${from} -->|${label}| ${to}` : `    ${from} --> ${to}`
-      );
+      const to = cleanId(arrowMatch[3]);
+      if (from && to && from !== to) {
+        nodes.add(from);
+        nodes.add(to);
+        edges.push(
+          label ? `    ${from} -->|${label}| ${to}` : `    ${from} --> ${to}`
+        );
+      }
     }
   }
 
-  if (nodes.size < 2) return null;
+  if (nodes.size < 2 || edges.length === 0) return null;
 
   return ["graph TD", ...edges].join("\n");
 }
@@ -408,15 +472,16 @@ function MermaidRenderer({ code, id }: { code: string; id: string }) {
         // Attempt 1: original code
         // Attempt 2: sanitized code
         // Attempt 3: rebuilt minimal graph from extracted nodes/edges
-        const attempts = [
+        const candidates = [
           code,
           sanitizeMermaid(code),
           rebuildMermaid(code),
-        ].filter((c): c is string => c !== null && c !== code || c === code);
+        ];
 
-        // Deduplicate while preserving order
+        // Deduplicate while preserving order, skip nulls
         const seen = new Set<string>();
-        const unique = attempts.filter((c) => {
+        const unique = candidates.filter((c): c is string => {
+          if (c === null) return false;
           if (seen.has(c)) return false;
           seen.add(c);
           return true;
