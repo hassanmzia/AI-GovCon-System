@@ -223,6 +223,8 @@ services:
       - LANGFUSE_HOST=http://langfuse:8004
       - DJANGO_API_URL=http://django-api:8001
       - DJANGO_SERVICE_TOKEN=${DJANGO_SERVICE_TOKEN:-dev-service-token-change-in-prod}
+    volumes:
+      - ./ai_orchestrator:/app
     depends_on:
       postgres:
         condition: service_healthy

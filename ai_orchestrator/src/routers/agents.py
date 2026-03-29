@@ -243,3 +243,12 @@ async def get_agent_run(run_id: str) -> AgentRunResponse:
     if run is None:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
     return AgentRunResponse(run_id=run_id, status=run["status"], result=run["result"])
+
+
+# ── LLM Config ───────────────────────────────────────────────────────────────
+
+@router.get("/ai/llm-config", tags=["config"])
+async def get_llm_config():
+    """Return the current LLM provider configuration (for debugging)."""
+    from src.llm_provider import get_provider_info
+    return get_provider_info()
