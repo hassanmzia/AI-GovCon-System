@@ -4,7 +4,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
-import { runSolutionArchitect } from "@/services/architecture";
+import {
+  runSolutionArchitect,
+  getTechnicalSolution,
+  getArchitectureDiagrams,
+  getValidationReport,
+} from "@/services/architecture";
 import { getDeals } from "@/services/deals";
 import { Deal } from "@/types/deal";
 import {
@@ -666,6 +671,8 @@ export default function SolutionsPage() {
   const [result, setResult] = useState<ArchitectureResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("requirements");
+  const [fromCache, setFromCache] = useState(false);
+  const [cacheLoading, setCacheLoading] = useState(false);
 
   const loadDeals = useCallback(async () => {
     setDealsLoading(true);
@@ -686,11 +693,74 @@ export default function SolutionsPage() {
     loadDeals();
   }, [loadDeals]);
 
+  // When the selected deal changes, try to load a previously persisted solution.
+  useEffect(() => {
+    if (!selectedDealId) return;
+
+    let cancelled = false;
+    setCacheLoading(true);
+
+    (async () => {
+      try {
+        const solution = await getTechnicalSolution(selectedDealId);
+        if (cancelled || !solution) return;
+
+        // Enrich with persisted diagrams and validation report if available.
+        const solutionId = solution.id as string | undefined;
+        const [diagrams, validationReport] = await Promise.all([
+          solutionId ? getArchitectureDiagrams(solutionId) : Promise.resolve([]),
+          solutionId ? getValidationReport(solutionId) : Promise.resolve(null),
+        ]);
+
+        if (cancelled) return;
+
+        // Merge persisted diagrams/validation into the result if they exist.
+        const mappedDiagrams: ArchitectureDiagram[] = diagrams.length > 0
+          ? diagrams.map((d) => ({
+              title: d.title,
+              type: d.diagram_type,
+              mermaid: d.mermaid_code,
+              mermaid_code: d.mermaid_code,
+              description: d.description,
+            }))
+          : (solution.diagrams ?? []);
+
+        const mappedValidation: ValidationReport = validationReport
+          ? {
+              overall_quality: validationReport.overall_quality,
+              score: validationReport.score ?? undefined,
+              issues: validationReport.issues,
+              suggestions: validationReport.suggestions,
+              compliance_gaps: validationReport.compliance_gaps,
+              pass: validationReport.passed,
+            }
+          : (solution.validation_report ?? {} as ValidationReport);
+
+        const merged: ArchitectureResult = {
+          ...solution,
+          diagrams: mappedDiagrams,
+          validation_report: mappedValidation,
+        };
+
+        setResult(merged);
+        setFromCache(true);
+        setActiveTab("requirements");
+      } catch {
+        // Non-fatal — just don't pre-populate.
+      } finally {
+        if (!cancelled) setCacheLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [selectedDealId]);
+
   const handleRun = async () => {
     if (!selectedDealId) return;
     setRunning(true);
     setError(null);
     setResult(null);
+    setFromCache(false);
     try {
       const data = await runSolutionArchitect(selectedDealId);
       if (data.error) {
@@ -766,6 +836,7 @@ export default function SolutionsPage() {
                     setSelectedDealId(e.target.value);
                     setResult(null);
                     setError(null);
+                    setFromCache(false);
                   }}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
@@ -781,7 +852,7 @@ export default function SolutionsPage() {
 
             <Button
               onClick={handleRun}
-              disabled={!selectedDealId || running}
+              disabled={!selectedDealId || running || cacheLoading}
               className="flex items-center gap-2"
             >
               {running ? (
@@ -830,6 +901,14 @@ export default function SolutionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Cache loading indicator */}
+      {cacheLoading && !running && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Checking for previous run...
+        </div>
+      )}
 
       {/* Running indicator */}
       {running && (
@@ -889,6 +968,12 @@ export default function SolutionsPage() {
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="font-medium text-foreground">Architecture Complete</span>
             </div>
+            {fromCache && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                <RefreshCw className="h-3 w-3" />
+                Loaded from previous run
+              </span>
+            )}
             <span className="text-muted-foreground">
               {result.selected_frameworks.join(" · ")}
             </span>
@@ -945,7 +1030,7 @@ export default function SolutionsPage() {
       )}
 
       {/* Empty state */}
-      {!result && !running && !error && (
+      {!result && !running && !error && !cacheLoading && (
         <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
           <Cpu className="h-12 w-12 text-muted-foreground" />
           <div>

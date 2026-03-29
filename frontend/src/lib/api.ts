@@ -105,3 +105,35 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+/**
+ * Separate axios instance for calls to the AI Orchestrator service.
+ * The orchestrator is exposed at /ai/ via Nginx, NOT through the Django /api/ prefix.
+ */
+export const orchestratorApi = axios.create({
+  baseURL: "/ai",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Inject JWT token for orchestrator requests as well
+orchestratorApi.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      const tokensRaw = localStorage.getItem("auth-tokens");
+      if (tokensRaw) {
+        try {
+          const tokens = JSON.parse(tokensRaw);
+          if (tokens?.access) {
+            config.headers.Authorization = `Bearer ${tokens.access}`;
+          }
+        } catch {
+          // Invalid JSON in localStorage, ignore
+        }
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);

@@ -1,13 +1,16 @@
 from rest_framework import serializers
 
 from .models import (
+    ArchitectureDiagram,
     Proposal,
     ProposalSection,
     ProposalTemplate,
     ReviewComment,
     ReviewCycle,
+    SolutionValidationReport,
     SourcesSoughtResponse,
     SubmissionEmail,
+    TechnicalSolution,
 )
 
 
@@ -279,6 +282,101 @@ class SubmissionEmailSerializer(serializers.ModelSerializer):
             "attachments_list",
             "is_sent",
             "sent_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+# ── Solution Architecture ─────────────────────────────────────────────────────
+
+class TechnicalSolutionListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for technical solution list views."""
+    deal_title = serializers.CharField(source="deal.title", read_only=True)
+
+    class Meta:
+        model = TechnicalSolution
+        fields = [
+            "id",
+            "deal",
+            "deal_title",
+            "iteration_count",
+            "selected_frameworks",
+            "architecture_pattern",
+            "deployment_model",
+            "created_at",
+        ]
+
+
+class TechnicalSolutionDetailSerializer(serializers.ModelSerializer):
+    """Full serializer for technical solution detail views."""
+    deal_title = serializers.CharField(source="deal.title", read_only=True)
+
+    class Meta:
+        model = TechnicalSolution
+        fields = [
+            "id",
+            "deal",
+            "deal_title",
+            "iteration_count",
+            "selected_frameworks",
+            "requirement_analysis",
+            "executive_summary",
+            "architecture_pattern",
+            "core_components",
+            "technology_stack",
+            "integration_points",
+            "scalability_approach",
+            "security_architecture",
+            "deployment_model",
+            "technical_volume",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ArchitectureDiagramSerializer(serializers.ModelSerializer):
+    """Serializer for architecture diagrams."""
+    diagram_type_display = serializers.CharField(
+        source="get_diagram_type_display", read_only=True
+    )
+
+    class Meta:
+        model = ArchitectureDiagram
+        fields = [
+            "id",
+            "technical_solution",
+            "title",
+            "diagram_type",
+            "diagram_type_display",
+            "mermaid_code",
+            "d2_code",
+            "description",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class SolutionValidationReportSerializer(serializers.ModelSerializer):
+    """Serializer for solution validation reports."""
+    overall_quality_display = serializers.CharField(
+        source="get_overall_quality_display", read_only=True
+    )
+
+    class Meta:
+        model = SolutionValidationReport
+        fields = [
+            "id",
+            "technical_solution",
+            "overall_quality",
+            "overall_quality_display",
+            "score",
+            "passed",
+            "issues",
+            "suggestions",
+            "compliance_gaps",
             "created_at",
             "updated_at",
         ]
