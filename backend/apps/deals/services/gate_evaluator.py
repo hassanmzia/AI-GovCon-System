@@ -73,14 +73,14 @@ def _evaluate_bid_no_bid(deal) -> GateEvaluation:
         detail=deal.ai_recommendation[:100] if has_strategy else "No AI recommendation yet",
     ))
 
-    # 3. Deal must have an owner assigned
+    # 3. Deal should have an owner assigned
     has_owner = deal.owner is not None
     criteria.append(GateCriterion(
         name="Owner Assigned",
-        description="Deal must have a designated owner",
-        is_critical=True,
-        status="green" if has_owner else "red",
-        detail=str(deal.owner) if has_owner else "No owner assigned",
+        description="Deal should have a designated owner",
+        is_critical=False,
+        status="green" if has_owner else "amber",
+        detail=str(deal.owner) if has_owner else "No owner assigned — recommended before bid decision",
     ))
 
     # 4. Minimum information available
