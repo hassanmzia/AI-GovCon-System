@@ -439,7 +439,7 @@ class DealViewSet(viewsets.ModelViewSet):
         )
 
         try:
-            client = httpx.Client(timeout=30)
+            client = httpx.Client(timeout=60)
 
             # 1. Kick off the agent run via the AI Orchestrator service
             start_resp = client.post(
@@ -453,9 +453,9 @@ class DealViewSet(viewsets.ModelViewSet):
             run_data = start_resp.json()
             run_id = run_data["run_id"]
 
-            # 2. Poll for completion (the agent pipeline can take 30-120s)
-            max_wait = 180  # seconds
-            poll_interval = 3  # seconds
+            # 2. Poll for completion (local LLMs like DeepSeek may take 5-10 min)
+            max_wait = 600  # seconds
+            poll_interval = 5  # seconds
             elapsed = 0
             result = None
 
@@ -506,7 +506,7 @@ class DealViewSet(viewsets.ModelViewSet):
 
             if result is None:
                 return Response(
-                    {"error": "Solution Architect Agent timed out after 180 seconds"},
+                    {"error": "Solution Architect Agent timed out after 600 seconds"},
                     status=status.HTTP_504_GATEWAY_TIMEOUT,
                 )
 
