@@ -136,30 +136,48 @@ class OpportunityViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def trigger_scan(self, request):
-        """Trigger async scans for SAM.gov and all national lab sources.
+        """Trigger async scans for SAM.gov, FPDS.gov, and national lab sources.
 
         Pass ``{"force": true}`` in the request body to clear stale rate-limit
         locks before queuing (useful when retries are exhausted but the lock
         TTL hasn't expired yet).
+
+        Pass ``{"sources": ["samgov", "fpds"]}`` to scan specific sources only.
+        Defaults to all sources if omitted.
         """
         from django.core.cache import cache
         from .tasks import (
             scan_samgov_opportunities,
+            scan_fpds_opportunities,
             scan_national_labs,
             _SAMGOV_LOCK_KEY,
+            _FPDS_LOCK_KEY,
             _NATIONAL_LABS_LOCK_KEY,
         )
 
         force = bool(request.data.get("force", False))
+        requested_sources = request.data.get("sources")  # None = all
+
         if force:
             cache.delete(_SAMGOV_LOCK_KEY)
+            cache.delete(_FPDS_LOCK_KEY)
             cache.delete(_NATIONAL_LABS_LOCK_KEY)
 
-        scan_samgov_opportunities.delay()
-        scan_national_labs.delay()
+        queued = []
+        if not requested_sources or "samgov" in requested_sources:
+            scan_samgov_opportunities.delay()
+            queued.append("SAM.gov")
+        if not requested_sources or "fpds" in requested_sources:
+            scan_fpds_opportunities.delay()
+            queued.append("FPDS.gov")
+        if not requested_sources or "national_labs" in requested_sources:
+            scan_national_labs.delay()
+            queued.append("National Labs")
+
         return Response(
             {
-                "message": "Scan queued for SAM.gov and national labs. Results will appear shortly.",
+                "message": f"Scan queued for {', '.join(queued)}. Results will appear shortly.",
+                "sources": queued,
                 "locks_cleared": force,
             },
             status=status.HTTP_202_ACCEPTED,

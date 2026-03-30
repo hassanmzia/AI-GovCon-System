@@ -13,8 +13,14 @@ export async function getOpportunity(id: string): Promise<Opportunity> {
   return response.data;
 }
 
-export async function triggerScan(): Promise<{ message: string }> {
-  const response = await api.post("/opportunities/trigger_scan/");
+export async function triggerScan(
+  sources?: string[],
+  force?: boolean
+): Promise<{ message: string; sources: string[] }> {
+  const response = await api.post("/opportunities/trigger_scan/", {
+    ...(sources ? { sources } : {}),
+    ...(force ? { force: true } : {}),
+  });
   return response.data;
 }
 

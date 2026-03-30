@@ -15,9 +15,13 @@ import {
   runAllAgents,
   getApprovals,
   decideApproval,
+  getDealActivities,
+  getDealAgentRuns,
+  DealActivity,
+  AgentRun,
 } from "@/services/deals";
 import { Deal, DealStage, DealStageHistory, DealApproval, CreateDealPayload } from "@/types/deal";
-import { Search, Plus, Loader2, X, ChevronRight, AlertCircle, ExternalLink, ShieldCheck, ShieldAlert, Clock } from "lucide-react";
+import { Search, Plus, Loader2, X, ChevronRight, AlertCircle, ExternalLink, ShieldCheck, ShieldAlert, Clock, Activity, Bot, CheckCircle2, XCircle, Timer, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // ---------------------------------------------------------------------------
@@ -313,12 +317,43 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
   const [approvals, setApprovals] = useState<DealApproval[]>([]);
   const [approvalsLoading, setApprovalsLoading] = useState(true);
   const [decidingApproval, setDecidingApproval] = useState<string | null>(null);
+  const [activities, setActivities] = useState<DealActivity[]>([]);
+  const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
+  const [agentRunsLoading, setAgentRunsLoading] = useState(true);
+  const [showBehindScenes, setShowBehindScenes] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const nextStages = NEXT_STAGES[deal.stage] || [];
 
   useEffect(() => {
     getDealArtifacts(deal.id).then(setArtifacts).catch(() => {});
   }, [deal.id]);
+
+  const loadAgentData = useCallback(async () => {
+    try {
+      const [actData, runData] = await Promise.all([
+        getDealActivities(deal.id),
+        getDealAgentRuns(deal.id),
+      ]);
+      setActivities(actData.results || []);
+      setAgentRuns(runData.results || []);
+    } catch {
+      // ignore
+    } finally {
+      setAgentRunsLoading(false);
+    }
+  }, [deal.id]);
+
+  useEffect(() => {
+    loadAgentData();
+  }, [loadAgentData]);
+
+  // Auto-refresh agent runs every 5s when enabled (to watch running agents)
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(loadAgentData, 5000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, loadAgentData]);
 
   useEffect(() => {
     const loadApprovals = async () => {
@@ -675,6 +710,157 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
               </div>
             </div>
           )}
+
+          {/* Behind the Scenes — Agent Activity */}
+          <div className="border-t border-border pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setShowBehindScenes(!showBehindScenes)}
+                className="flex items-center gap-1.5 text-sm font-semibold hover:text-primary transition-colors"
+              >
+                <Activity className="h-4 w-4" />
+                Behind the Scenes
+                <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showBehindScenes ? "rotate-90" : ""}`} />
+              </button>
+              <div className="flex items-center gap-1.5">
+                {agentRuns.some((r) => r.status === "running") && (
+                  <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Agents running
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => {
+                    setAutoRefresh(!autoRefresh);
+                    loadAgentData();
+                  }}
+                  title={autoRefresh ? "Stop auto-refresh" : "Auto-refresh every 5s"}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${autoRefresh ? "animate-spin text-primary" : "text-muted-foreground"}`} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Agent run summary bar */}
+            {!agentRunsLoading && agentRuns.length > 0 && (
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Bot className="h-3 w-3" />
+                  {agentRuns.length} runs
+                </span>
+                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {agentRuns.filter((r) => r.success).length} passed
+                </span>
+                {agentRuns.filter((r) => r.status === "failed").length > 0 && (
+                  <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                    <XCircle className="h-3 w-3" />
+                    {agentRuns.filter((r) => r.status === "failed").length} failed
+                  </span>
+                )}
+                {agentRuns.filter((r) => r.status === "running").length > 0 && (
+                  <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                    <Timer className="h-3 w-3" />
+                    {agentRuns.filter((r) => r.status === "running").length} running
+                  </span>
+                )}
+              </div>
+            )}
+
+            {showBehindScenes && (
+              <div className="space-y-3">
+                {/* Agent Runs Table */}
+                {agentRunsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading agent runs...
+                  </div>
+                ) : agentRuns.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No agent runs recorded for this deal yet.</p>
+                ) : (
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/50 text-muted-foreground">
+                          <th className="text-left px-2.5 py-1.5 font-medium">Agent</th>
+                          <th className="text-left px-2.5 py-1.5 font-medium">Action</th>
+                          <th className="text-left px-2.5 py-1.5 font-medium">Status</th>
+                          <th className="text-right px-2.5 py-1.5 font-medium">Latency</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {agentRuns.map((run) => {
+                          const agentLabel = run.agent_name.replace(/_/g, " ").replace(/\bagent\b/gi, "").trim().replace(/\b\w/g, (c) => c.toUpperCase());
+                          const statusColor =
+                            run.status === "completed" && run.success ? "text-green-600 dark:text-green-400" :
+                            run.status === "failed" ? "text-red-600 dark:text-red-400" :
+                            run.status === "running" ? "text-amber-600 dark:text-amber-400" :
+                            "text-muted-foreground";
+                          const statusIcon =
+                            run.status === "completed" && run.success ? <CheckCircle2 className="h-3 w-3" /> :
+                            run.status === "failed" ? <XCircle className="h-3 w-3" /> :
+                            run.status === "running" ? <Loader2 className="h-3 w-3 animate-spin" /> :
+                            <Clock className="h-3 w-3" />;
+
+                          return (
+                            <tr key={run.id} className="hover:bg-muted/30">
+                              <td className="px-2.5 py-1.5 font-medium text-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Bot className="h-3 w-3 text-muted-foreground" />
+                                  {agentLabel}
+                                </span>
+                              </td>
+                              <td className="px-2.5 py-1.5 text-muted-foreground">
+                                {(run.action || "run").replace(/_/g, " ")}
+                              </td>
+                              <td className={`px-2.5 py-1.5 font-medium ${statusColor}`}>
+                                <span className="flex items-center gap-1">
+                                  {statusIcon}
+                                  {run.status === "completed" && run.success ? "Success" :
+                                   run.status === "completed" && !run.success ? "Error" :
+                                   run.status.charAt(0).toUpperCase() + run.status.slice(1)}
+                                </span>
+                                {run.error_message && (
+                                  <span className="block text-red-500 dark:text-red-400 mt-0.5 truncate max-w-[200px]" title={run.error_message}>
+                                    {run.error_message}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-2.5 py-1.5 text-right text-muted-foreground tabular-nums">
+                                {run.latency_ms != null ? `${(run.latency_ms / 1000).toFixed(1)}s` : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Activity Timeline */}
+                {activities.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Activity Timeline</h4>
+                    {activities.slice(0, 15).map((act) => (
+                      <div key={act.id} className="flex items-start gap-2 text-xs">
+                        <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${act.is_ai_action ? "bg-blue-500" : "bg-muted-foreground"}`} />
+                        <div className="min-w-0">
+                          <span className="text-foreground">{act.description}</span>
+                          <div className="text-muted-foreground/70 flex items-center gap-1">
+                            {act.is_ai_action && <Bot className="h-2.5 w-2.5" />}
+                            {act.actor_name || "System"} &middot;{" "}
+                            {new Date(act.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Stage Transition */}
           {nextStages.length > 0 && (
