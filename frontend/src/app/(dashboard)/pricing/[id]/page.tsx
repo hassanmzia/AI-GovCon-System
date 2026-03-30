@@ -393,25 +393,27 @@ export default function PricingDetailPage() {
             ) : (
               <div className="space-y-2">
                 <div className="grid grid-cols-4 gap-1 text-xs text-muted-foreground pb-1 border-b">
-                  <span>Category</span>
-                  <span className="text-right">Hours/Mo</span>
-                  <span className="text-right">Months</span>
-                  <span className="text-right">Total Cost</span>
+                  <span>Task / Category</span>
+                  <span className="text-right">WBS</span>
+                  <span className="text-right">Est. Hours</span>
+                  <span className="text-right">Total Hours</span>
                 </div>
-                {loeEstimates.map((e) => (
-                  <div key={e.id} className="grid grid-cols-4 gap-1 text-sm py-1 border-b last:border-0">
-                    <span className="truncate">{e.labor_category}</span>
-                    <span className="text-right">{e.hours_per_month}</span>
-                    <span className="text-right">{e.months}</span>
-                    <span className="text-right font-medium">{formatCurrency(e.total_cost)}</span>
-                  </div>
-                ))}
+                {loeEstimates.flatMap((loe) =>
+                  (loe.wbs_elements || []).map((wbs, idx) => (
+                    <div key={`${loe.id}-${idx}`} className="grid grid-cols-4 gap-1 text-sm py-1 border-b last:border-0">
+                      <span className="truncate">{wbs.name} <span className="text-xs text-muted-foreground">({wbs.labor_category})</span></span>
+                      <span className="text-right font-mono text-xs">{wbs.wbs_id}</span>
+                      <span className="text-right">{wbs.hours_estimated?.toLocaleString() || "--"}</span>
+                      <span className="text-right font-medium">--</span>
+                    </div>
+                  ))
+                )}
                 <div className="grid grid-cols-4 gap-1 text-sm pt-2 font-bold">
                   <span>Total</span>
                   <span></span>
                   <span></span>
                   <span className="text-right text-blue-700">
-                    {formatCurrency(loeEstimates.reduce((s, e) => s + e.total_cost, 0))}
+                    {loeEstimates.reduce((s, e) => s + (e.total_hours || 0), 0).toLocaleString()} hrs
                   </span>
                 </div>
               </div>
