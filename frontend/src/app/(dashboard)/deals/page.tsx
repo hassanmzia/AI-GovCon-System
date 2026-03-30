@@ -850,7 +850,7 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
                           <span className="text-foreground">{act.description}</span>
                           <div className="text-muted-foreground/70 flex items-center gap-1">
                             {act.is_ai_action && <Bot className="h-2.5 w-2.5" />}
-                            {act.actor_name || "System"} &middot;{" "}
+                            {act.actor_detail?.full_name || "System"} &middot;{" "}
                             {new Date(act.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </div>
                         </div>
