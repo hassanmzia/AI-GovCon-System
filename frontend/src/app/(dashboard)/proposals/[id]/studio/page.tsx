@@ -21,6 +21,7 @@ import {
   SectionStatus,
   ReviewCycle,
 } from "@/types/proposal";
+import ReactMarkdown from "react-markdown";
 import {
   Loader2,
   ArrowLeft,
@@ -312,7 +313,7 @@ function SectionRow({
           {/* Content area */}
           {editing ? (
             <textarea
-              className="w-full min-h-[250px] text-sm border rounded p-3 font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full min-h-[250px] text-sm border rounded p-4 font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               value={localContent[activeTab]}
               onChange={(e) =>
                 setLocalContent((prev) => ({ ...prev, [activeTab]: e.target.value }))
@@ -320,11 +321,13 @@ function SectionRow({
               placeholder={`Enter ${contentTabs.find((t) => t.key === activeTab)?.label || "content"}...`}
             />
           ) : currentContent ? (
-            <div className="text-sm whitespace-pre-wrap bg-white rounded p-3 border max-h-[400px] overflow-y-auto prose prose-sm max-w-none">
-              {currentContent}
+            <div className="bg-white rounded border max-h-[500px] overflow-y-auto p-5">
+              <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-headings:font-semibold prose-h2:text-base prose-h3:text-sm prose-p:text-gray-800 prose-p:leading-relaxed prose-li:text-gray-800 prose-strong:text-gray-900 prose-strong:font-semibold prose-table:text-sm prose-th:bg-gray-50 prose-th:text-gray-700 prose-th:font-semibold prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:text-gray-700 prose-td:border-gray-200 prose-hr:border-gray-200 prose-a:text-blue-600">
+                <ReactMarkdown>{currentContent}</ReactMarkdown>
+              </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground bg-white rounded border border-dashed">
+            <div className="flex flex-col items-center justify-center py-8 text-gray-500 bg-white rounded border border-dashed">
               <Edit3 className="h-6 w-6 mb-2" />
               <p className="text-sm">No {contentTabs.find((t) => t.key === activeTab)?.label || "content"} yet</p>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="mt-2 gap-1 text-xs">
@@ -905,9 +908,9 @@ export default function ProposalStudioPage() {
                   placeholder="Write the executive summary..."
                 />
               ) : proposal.executive_summary ? (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {proposal.executive_summary}
-                </p>
+                <div className="prose prose-sm max-w-none prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-li:text-gray-700">
+                  <ReactMarkdown>{proposal.executive_summary}</ReactMarkdown>
+                </div>
               ) : (
                 <div className="text-center py-4">
                   <p className="text-sm text-muted-foreground mb-2">No executive summary yet</p>
