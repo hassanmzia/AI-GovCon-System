@@ -90,20 +90,20 @@ export function MarkdownContent({ content }: { content: string }) {
   const processed = preprocessMarkdown(content);
 
   return (
-    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 prose-li:text-gray-800">
+    <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-li:text-foreground/90">
       <ReactMarkdown
         components={{
           h1: ({ children }) => (
-            <h3 className="text-base font-bold mt-4 mb-2 text-gray-900">{children}</h3>
+            <h3 className="text-base font-bold mt-4 mb-2 text-foreground">{children}</h3>
           ),
           h2: ({ children }) => (
-            <h4 className="text-sm font-bold mt-3 mb-1.5 text-gray-900">{children}</h4>
+            <h4 className="text-sm font-bold mt-3 mb-1.5 text-foreground">{children}</h4>
           ),
           h3: ({ children }) => (
-            <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-900">{children}</h5>
+            <h5 className="text-sm font-semibold mt-2 mb-1 text-foreground">{children}</h5>
           ),
           p: ({ children }) => (
-            <p className="text-sm leading-relaxed mb-2 text-gray-800">{children}</p>
+            <p className="text-sm leading-relaxed mb-2 text-foreground/90">{children}</p>
           ),
           ul: ({ children }) => (
             <ul className="text-sm space-y-1 mb-3 ml-1">{children}</ul>
@@ -112,41 +112,41 @@ export function MarkdownContent({ content }: { content: string }) {
             <ol className="text-sm space-y-1 mb-3 ml-1 list-decimal list-inside">{children}</ol>
           ),
           li: ({ children }) => (
-            <li className="text-sm leading-relaxed text-gray-800 flex items-start gap-2">
+            <li className="text-sm leading-relaxed text-foreground/90 flex items-start gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue-500/60 shrink-0" />
               <span>{children}</span>
             </li>
           ),
           strong: ({ children }) => (
-            <strong className="font-semibold text-gray-900">{children}</strong>
+            <strong className="font-semibold text-foreground">{children}</strong>
           ),
           table: ({ children }) => (
-            <div className="overflow-x-auto my-4 rounded-lg border border-gray-200 shadow-sm">
+            <div className="overflow-x-auto my-4 rounded-lg border border-border shadow-sm">
               <table className="w-full text-sm border-collapse">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
+          thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
           th: ({ children }) => (
-            <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-200">
+            <th className="px-4 py-2.5 text-left text-xs font-bold text-foreground/80 uppercase tracking-wider border-b-2 border-border">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-4 py-2.5 text-sm text-gray-700 border-b border-gray-100">
+            <td className="px-4 py-2.5 text-sm text-foreground/80 border-b border-border/50">
               {children}
             </td>
           ),
           tr: ({ children }) => (
-            <tr className="even:bg-gray-50/50 hover:bg-blue-50/30 transition-colors">
+            <tr className="even:bg-muted/50 hover:bg-accent/30 transition-colors">
               {children}
             </tr>
           ),
           code: ({ children }) => (
-            <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-800">
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground/90">
               {children}
             </code>
           ),
-          hr: () => <hr className="my-4 border-gray-200" />,
+          hr: () => <hr className="my-4 border-border" />,
         }}
       >
         {processed}
@@ -399,12 +399,12 @@ export function MermaidRenderer({ code, id }: { code: string; id: string }) {
 
   if (renderError) {
     return (
-      <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+      <div className="rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30 p-4 text-sm text-orange-800 dark:text-orange-300">
         <p className="font-medium mb-1">Diagram render failed — showing source code:</p>
-        <pre className="overflow-x-auto rounded bg-white p-3 text-xs leading-relaxed text-gray-800 border">
+        <pre className="overflow-x-auto rounded bg-background p-3 text-xs leading-relaxed text-foreground/90 border border-border">
           <code>{code}</code>
         </pre>
-        <p className="mt-2 text-xs text-orange-700">
+        <p className="mt-2 text-xs text-orange-700 dark:text-orange-400">
           Copy this code and paste it into{" "}
           <a href="https://mermaid.live" target="_blank" rel="noreferrer" className="underline font-medium">
             mermaid.live
@@ -417,7 +417,7 @@ export function MermaidRenderer({ code, id }: { code: string; id: string }) {
 
   if (!svg) {
     return (
-      <div className="flex items-center justify-center py-8 text-sm text-gray-500">
+      <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin mr-2" /> Rendering diagram...
       </div>
     );
@@ -426,7 +426,7 @@ export function MermaidRenderer({ code, id }: { code: string; id: string }) {
   return (
     <div
       ref={containerRef}
-      className="rounded-lg border bg-white p-4 overflow-x-auto"
+      className="rounded-lg border bg-background p-4 overflow-x-auto"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
@@ -448,9 +448,9 @@ export function DiagramCard({ diagram, index }: { diagram: ArchitectureDiagram; 
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-sm font-semibold text-gray-900">{diagram.title}</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">{diagram.title}</CardTitle>
             {diagram.type && (
-              <span className="mt-0.5 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+              <span className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                 {diagram.type}
               </span>
             )}
@@ -468,8 +468,8 @@ export function DiagramCard({ diagram, index }: { diagram: ArchitectureDiagram; 
       </CardHeader>
       <CardContent className="space-y-3">
         {diagram.description && (
-          <div className="rounded-md bg-gray-50 px-3 py-2">
-            <p className="text-sm text-gray-700 leading-relaxed">
+          <div className="rounded-md bg-muted px-3 py-2">
+            <p className="text-sm text-foreground/80 leading-relaxed">
               {diagram.description
                 .replace(/^\*?\*?Description\*?\*?:?\s*/i, "")
                 .replace(/^---+\s*/, "")
@@ -483,7 +483,7 @@ export function DiagramCard({ diagram, index }: { diagram: ArchitectureDiagram; 
         )}
         {mermaidCode && <MermaidRenderer code={mermaidCode} id={`diagram-${index}`} />}
         {showCode && mermaidCode && (
-          <pre className="overflow-x-auto rounded-lg bg-gray-50 p-4 text-xs leading-relaxed text-gray-800 border">
+          <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-relaxed text-foreground/90 border border-border">
             <code>{mermaidCode}</code>
           </pre>
         )}

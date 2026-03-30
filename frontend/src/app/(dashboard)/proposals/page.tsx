@@ -31,20 +31,20 @@ const STATUS_LABELS: Record<ProposalStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<ProposalStatus, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  pink_team: "bg-pink-100 text-pink-700",
-  red_team: "bg-red-100 text-red-700",
-  gold_team: "bg-yellow-100 text-yellow-700",
-  final: "bg-blue-100 text-blue-700",
-  submitted: "bg-green-100 text-green-700",
+  draft: "bg-muted text-muted-foreground",
+  pink_team: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
+  red_team: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  gold_team: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
+  final: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  submitted: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
 };
 
 const SECTION_STATUS_CLASSES: Record<string, string> = {
-  not_started: "bg-gray-100 text-gray-600",
-  ai_drafted: "bg-purple-100 text-purple-700",
-  in_review: "bg-yellow-100 text-yellow-700",
-  revised: "bg-blue-100 text-blue-700",
-  approved: "bg-green-100 text-green-700",
+  not_started: "bg-muted text-muted-foreground",
+  ai_drafted: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  in_review: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
+  revised: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  approved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
 };
 
 const SECTION_STATUS_LABELS: Record<string, string> = {
@@ -58,7 +58,7 @@ const SECTION_STATUS_LABELS: Record<string, string> = {
 function StatusBadge({ status }: { status: ProposalStatus }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[status] || "bg-gray-100 text-gray-700"}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[status] || "bg-muted text-muted-foreground"}`}
     >
       {STATUS_LABELS[status] || status}
     </span>
@@ -68,7 +68,7 @@ function StatusBadge({ status }: { status: ProposalStatus }) {
 function SectionStatusBadge({ status }: { status: string }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${SECTION_STATUS_CLASSES[status] || "bg-gray-100 text-gray-600"}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${SECTION_STATUS_CLASSES[status] || "bg-muted text-muted-foreground"}`}
     >
       {SECTION_STATUS_LABELS[status] || status}
     </span>
@@ -177,11 +177,11 @@ function ProposalDetailPanel({ proposal, onClose }: ProposalDetailPanelProps) {
         <div>
           <h4 className="text-sm font-semibold mb-1.5">Executive Summary</h4>
           {proposal.executive_summary ? (
-            <div className="prose prose-sm max-w-none prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-li:text-gray-700">
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:text-foreground/80 prose-p:leading-relaxed prose-strong:text-foreground prose-li:text-foreground/80">
               <ReactMarkdown>{proposal.executive_summary}</ReactMarkdown>
             </div>
           ) : (
-            <p className="text-sm text-gray-500 italic">
+            <p className="text-sm text-muted-foreground italic">
               No executive summary yet.
             </p>
           )}

@@ -75,7 +75,7 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
+  draft: "bg-muted text-muted-foreground",
   pink_team: "bg-pink-100 text-pink-700",
   red_team: "bg-red-100 text-red-700",
   gold_team: "bg-yellow-100 text-yellow-700",
@@ -93,7 +93,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const SECTION_STATUS_COLORS: Record<string, string> = {
-  not_started: "bg-gray-100 text-gray-600",
+  not_started: "bg-muted text-muted-foreground",
   ai_drafted: "bg-blue-100 text-blue-700",
   in_review: "bg-yellow-100 text-yellow-700",
   revised: "bg-orange-100 text-orange-700",
@@ -115,7 +115,7 @@ const REVIEW_TYPE_COLORS: Record<string, string> = {
 };
 
 const REVIEW_STATUS_COLORS: Record<string, string> = {
-  scheduled: "bg-gray-100 text-gray-600",
+  scheduled: "bg-muted text-muted-foreground",
   in_progress: "bg-blue-100 text-blue-700",
   completed: "bg-green-100 text-green-700",
 };
@@ -289,7 +289,7 @@ function SectionRow({
       </div>
 
       {expanded && (
-        <div className="border-t bg-gray-50 p-4 space-y-3">
+        <div className="border-t bg-muted/50 p-4 space-y-3">
           {/* Content tabs */}
           <div className="flex items-center gap-1 border-b pb-2">
             {contentTabs.map((t) => {
@@ -300,7 +300,7 @@ function SectionRow({
                   onClick={() => setActiveTab(t.key)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
                     activeTab === t.key
-                      ? `bg-white border border-b-white -mb-[1px] ${t.color}`
+                      ? `bg-background border border-b-background -mb-[1px] ${t.color}`
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -330,7 +330,7 @@ function SectionRow({
           {/* Content area */}
           {editing ? (
             <textarea
-              className="w-full min-h-[250px] text-sm border rounded p-4 font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+              className="w-full min-h-[250px] text-sm border rounded p-4 font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background text-foreground"
               value={localContent[activeTab]}
               onChange={(e) =>
                 setLocalContent((prev) => ({ ...prev, [activeTab]: e.target.value }))
@@ -338,13 +338,13 @@ function SectionRow({
               placeholder={`Enter ${contentTabs.find((t) => t.key === activeTab)?.label || "content"}...`}
             />
           ) : currentContent ? (
-            <div className="bg-white rounded border max-h-[500px] overflow-y-auto p-5">
-              <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-headings:font-semibold prose-h2:text-base prose-h3:text-sm prose-p:text-gray-800 prose-p:leading-relaxed prose-li:text-gray-800 prose-strong:text-gray-900 prose-strong:font-semibold prose-table:text-sm prose-th:bg-gray-50 prose-th:text-gray-700 prose-th:font-semibold prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:text-gray-700 prose-td:border-gray-200 prose-hr:border-gray-200 prose-a:text-blue-600">
+            <div className="bg-background rounded border max-h-[500px] overflow-y-auto p-5">
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-headings:font-semibold prose-h2:text-base prose-h3:text-sm prose-p:text-foreground/90 prose-p:leading-relaxed prose-li:text-foreground/90 prose-strong:text-foreground prose-strong:font-semibold prose-table:text-sm prose-th:bg-muted prose-th:text-foreground/80 prose-th:font-semibold prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 prose-td:text-foreground/80 prose-td:border-border prose-hr:border-border prose-a:text-blue-600 dark:prose-a:text-blue-400">
                 <ReactMarkdown>{currentContent}</ReactMarkdown>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-500 bg-white rounded border border-dashed">
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground bg-background rounded border border-dashed">
               <Edit3 className="h-6 w-6 mb-2" />
               <p className="text-sm">No {contentTabs.find((t) => t.key === activeTab)?.label || "content"} yet</p>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="mt-2 gap-1 text-xs">
@@ -770,7 +770,7 @@ export default function ProposalStudioPage() {
             <span className="text-sm font-medium">Overall Progress</span>
             <span className="text-sm font-medium">{sections.length > 0 ? Math.round((draftedCount / sections.length) * 100) : 0}%</span>
           </div>
-          <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden flex">
+          <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex">
             <div
               className="h-full bg-green-500 transition-all"
               style={{ width: `${sections.length > 0 ? (approvedCount / sections.length) * 100 : 0}%` }}
@@ -925,7 +925,7 @@ export default function ProposalStudioPage() {
                     .map(([key, value]) => (
                       <Card key={key}>
                         <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                             <Cpu className="h-4 w-4 text-blue-500" />
                             {key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                           </CardTitle>
@@ -939,7 +939,7 @@ export default function ProposalStudioPage() {
                   {/* Technical Volume sections */}
                   {solutionResult.technical_volume?.sections && Object.keys(solutionResult.technical_volume.sections).length > 0 && (
                     <>
-                      <h3 className="text-sm font-semibold text-gray-900 mt-6 flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground mt-6 flex items-center gap-2">
                         <FileText className="h-4 w-4 text-green-500" />
                         Technical Volume Sections
                         <span className="text-xs font-normal text-muted-foreground">
@@ -950,7 +950,7 @@ export default function ProposalStudioPage() {
                       {Object.entries(solutionResult.technical_volume.sections).map(([title, content]) => (
                         <Card key={title}>
                           <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-gray-900">{title}</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
                           </CardHeader>
                           <CardContent>
                             <MarkdownContent content={content} />
@@ -987,7 +987,7 @@ export default function ProposalStudioPage() {
                     <CardContent className="pt-5">
                       <div className="flex items-center gap-4">
                         <div className={`flex h-16 w-16 items-center justify-center rounded-full ${
-                          validationReport.pass !== false ? "bg-green-100" : "bg-red-100"
+                          validationReport.pass !== false ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30"
                         }`}>
                           {validationReport.pass !== false ? (
                             <CheckCircle className="h-8 w-8 text-green-600" />
@@ -996,10 +996,10 @@ export default function ProposalStudioPage() {
                           )}
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-gray-900">
+                          <p className="text-lg font-bold text-foreground">
                             {validationReport.verdict || (validationReport.pass !== false ? "PASS" : "NEEDS REVISION")}
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             Quality: <span className="font-medium capitalize">{validationReport.overall_quality}</span>
                             {validationReport.score != null && (
                               <> &middot; Score: <span className="font-medium">{validationReport.score}/100</span></>
@@ -1014,7 +1014,7 @@ export default function ProposalStudioPage() {
                   {validationReport.issues && validationReport.issues.length > 0 && (
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-amber-500" />
                           Issues ({validationReport.issues.length})
                         </CardTitle>
@@ -1022,7 +1022,7 @@ export default function ProposalStudioPage() {
                       <CardContent>
                         <ul className="space-y-2">
                           {validationReport.issues.map((issue, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                            <li key={i} className="flex items-start gap-2 text-sm text-foreground/90">
                               <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
                               {issue}
                             </li>
@@ -1036,7 +1036,7 @@ export default function ProposalStudioPage() {
                   {validationReport.compliance_gaps && validationReport.compliance_gaps.length > 0 && (
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                           <Shield className="h-4 w-4 text-red-500" />
                           Compliance Gaps ({validationReport.compliance_gaps.length})
                         </CardTitle>
@@ -1044,7 +1044,7 @@ export default function ProposalStudioPage() {
                       <CardContent>
                         <ul className="space-y-2">
                           {validationReport.compliance_gaps.map((gap, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                            <li key={i} className="flex items-start gap-2 text-sm text-foreground/90">
                               <Shield className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
                               {gap}
                             </li>
@@ -1058,7 +1058,7 @@ export default function ProposalStudioPage() {
                   {validationReport.suggestions && validationReport.suggestions.length > 0 && (
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
                           <Zap className="h-4 w-4 text-blue-500" />
                           Suggestions ({validationReport.suggestions.length})
                         </CardTitle>
@@ -1066,7 +1066,7 @@ export default function ProposalStudioPage() {
                       <CardContent>
                         <ul className="space-y-2">
                           {validationReport.suggestions.map((sug, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                            <li key={i} className="flex items-start gap-2 text-sm text-foreground/90">
                               <Zap className="h-3.5 w-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
                               {sug}
                             </li>
@@ -1080,7 +1080,7 @@ export default function ProposalStudioPage() {
                   {validationReport.review_text && (
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-semibold text-gray-900">Full Validation Review</CardTitle>
+                        <CardTitle className="text-sm font-semibold text-foreground">Full Validation Review</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <MarkdownContent content={validationReport.review_text} />
@@ -1239,7 +1239,7 @@ export default function ProposalStudioPage() {
                   placeholder="Write the executive summary..."
                 />
               ) : proposal.executive_summary ? (
-                <div className="prose prose-sm max-w-none prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-li:text-gray-700">
+                <div className="prose prose-sm max-w-none dark:prose-invert prose-p:text-foreground/80 prose-p:leading-relaxed prose-strong:text-foreground prose-li:text-foreground/80">
                   <ReactMarkdown>{proposal.executive_summary}</ReactMarkdown>
                 </div>
               ) : (
