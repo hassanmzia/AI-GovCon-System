@@ -113,3 +113,8 @@ export async function getDealArtifacts(dealId: string): Promise<DealArtifacts> {
 export async function rescoreDeal(dealId: string): Promise<void> {
   await api.post(`/deals/deals/${dealId}/rescore/`);
 }
+
+export async function runAllAgents(dealId: string): Promise<{ agents: string[] }> {
+  const response = await api.post(`/deals/deals/${dealId}/run-agents/`);
+  return response.data;
+}

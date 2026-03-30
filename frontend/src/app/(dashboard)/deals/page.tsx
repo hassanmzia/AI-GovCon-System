@@ -12,6 +12,7 @@ import {
   getDealArtifacts,
   DealArtifacts,
   rescoreDeal,
+  runAllAgents,
 } from "@/services/deals";
 import { Deal, DealStage, DealStageHistory, CreateDealPayload } from "@/types/deal";
 import { Search, Plus, Loader2, X, ChevronRight, AlertCircle, ExternalLink } from "lucide-react";
@@ -306,6 +307,7 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [artifacts, setArtifacts] = useState<DealArtifacts | null>(null);
   const [rescoring, setRescoring] = useState(false);
+  const [runningAgents, setRunningAgents] = useState(false);
 
   const nextStages = NEXT_STAGES[deal.stage] || [];
 
@@ -428,29 +430,57 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
             <div className="border-t border-border pt-4 space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Pipeline Artifacts</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={rescoring}
-                  onClick={async () => {
-                    setRescoring(true);
-                    try {
-                      await rescoreDeal(deal.id);
-                      // Poll for updated artifacts after a short delay
-                      setTimeout(async () => {
-                        const updated = await getDealArtifacts(deal.id);
-                        setArtifacts(updated);
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={rescoring}
+                    onClick={async () => {
+                      setRescoring(true);
+                      try {
+                        await rescoreDeal(deal.id);
+                        setTimeout(async () => {
+                          const updated = await getDealArtifacts(deal.id);
+                          setArtifacts(updated);
+                          setRescoring(false);
+                        }, 3000);
+                      } catch {
                         setRescoring(false);
-                      }, 3000);
-                    } catch {
-                      setRescoring(false);
-                    }
-                  }}
-                  className="text-xs h-7 px-2"
-                >
-                  {rescoring ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                  {rescoring ? "Scoring..." : "Re-score"}
-                </Button>
+                      }
+                    }}
+                    className="text-xs h-7 px-2"
+                  >
+                    {rescoring ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    {rescoring ? "Scoring..." : "Re-score"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={runningAgents}
+                    onClick={async () => {
+                      setRunningAgents(true);
+                      try {
+                        await runAllAgents(deal.id);
+                        // Poll for artifacts after agents have time to run
+                        const poll = setInterval(async () => {
+                          const updated = await getDealArtifacts(deal.id);
+                          setArtifacts(updated);
+                        }, 5000);
+                        // Stop polling after 60s
+                        setTimeout(() => {
+                          clearInterval(poll);
+                          setRunningAgents(false);
+                        }, 60000);
+                      } catch {
+                        setRunningAgents(false);
+                      }
+                    }}
+                    className="text-xs h-7 px-2"
+                  >
+                    {runningAgents ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    {runningAgents ? "Running..." : "Run All Agents"}
+                  </Button>
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-1.5">
                 {/* Opportunity Score */}

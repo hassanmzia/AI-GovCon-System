@@ -366,6 +366,61 @@ class DealViewSet(viewsets.ModelViewSet):
         auto_score_opportunity.delay(str(deal.id))
         return Response({"detail": "Scoring queued"}, status=status.HTTP_202_ACCEPTED)
 
+    @action(detail=True, methods=["post"], url_path="run-agents")
+    def run_agents(self, request, pk=None):
+        """Re-trigger the full agent pipeline for this deal regardless of stage.
+
+        Useful when agents failed on initial transition or need to be re-run.
+        """
+        deal = self.get_object()
+        deal_id = str(deal.id)
+        queued = []
+
+        from apps.deals.tasks import (
+            auto_score_opportunity,
+            auto_run_solution_architect,
+            auto_run_rfp_analyst,
+            auto_run_management_approach,
+            auto_run_capture_agent,
+            auto_run_red_team,
+            auto_run_compliance,
+            auto_run_cui_handler,
+        )
+
+        # Always re-score
+        auto_score_opportunity.delay(deal_id)
+        queued.append("scoring")
+
+        # Solution Architect → Pricing → Proposal chain
+        auto_run_solution_architect.delay(deal_id)
+        queued.append("solution_architect")
+
+        # RFP Analyst
+        auto_run_rfp_analyst.delay(deal_id)
+        queued.append("rfp_analyst")
+
+        # Management Approach
+        auto_run_management_approach.delay(deal_id)
+        queued.append("management_approach")
+
+        # Capture Agent
+        auto_run_capture_agent.delay(deal_id)
+        queued.append("capture_agent")
+
+        # Red Team + Compliance
+        auto_run_red_team.delay(deal_id)
+        auto_run_compliance.delay(deal_id)
+        queued.extend(["red_team", "compliance"])
+
+        # CUI Handler
+        auto_run_cui_handler.delay(deal_id)
+        queued.append("cui_handler")
+
+        return Response(
+            {"detail": f"Queued {len(queued)} agents", "agents": queued},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
     @action(detail=True, methods=["post"], url_path="run-solution-architect")
     def run_solution_architect(self, request, pk=None):
         """Trigger the Solution Architect Agent for this deal.
