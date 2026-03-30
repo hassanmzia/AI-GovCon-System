@@ -78,6 +78,7 @@ services:
       python manage.py seed_frameworks &&
       python manage.py seed_marketing &&
       python manage.py seed_campaigns &&
+      python manage.py seed_proposals &&
       python manage.py collectstatic --noinput &&
       gunicorn config.wsgi:application --bind 0.0.0.0:8001 --workers 4 --timeout 300"
     environment:

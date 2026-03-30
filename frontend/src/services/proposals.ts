@@ -44,12 +44,40 @@ export async function getProposalSections(
   return response.data;
 }
 
+export async function updateProposalSection(
+  id: string,
+  data: Partial<ProposalSection>
+): Promise<ProposalSection> {
+  const response = await api.patch(
+    `/proposals/proposal-sections/${id}/`,
+    data
+  );
+  return response.data;
+}
+
 export async function getReviewCycles(
   proposalId: string
 ): Promise<{ results: ReviewCycle[]; count: number }> {
   const response = await api.get("/proposals/review-cycles/", {
     params: { proposal: proposalId },
   });
+  return response.data;
+}
+
+export async function createReviewCycle(data: {
+  proposal: string;
+  review_type: string;
+  scheduled_date?: string;
+}): Promise<ReviewCycle> {
+  const response = await api.post("/proposals/review-cycles/", data);
+  return response.data;
+}
+
+export async function updateReviewCycle(
+  id: string,
+  data: Partial<ReviewCycle>
+): Promise<ReviewCycle> {
+  const response = await api.patch(`/proposals/review-cycles/${id}/`, data);
   return response.data;
 }
 
