@@ -109,3 +109,7 @@ export async function getDealArtifacts(dealId: string): Promise<DealArtifacts> {
   const response = await api.get(`/deals/deals/${dealId}/artifacts/`);
   return response.data;
 }
+
+export async function rescoreDeal(dealId: string): Promise<void> {
+  await api.post(`/deals/deals/${dealId}/rescore/`);
+}

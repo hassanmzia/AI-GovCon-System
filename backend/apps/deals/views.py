@@ -358,6 +358,14 @@ class DealViewSet(viewsets.ModelViewSet):
 
         return Response(result)
 
+    @action(detail=True, methods=["post"], url_path="rescore")
+    def rescore(self, request, pk=None):
+        """Trigger (re-)scoring of the deal's opportunity and update deal fields."""
+        deal = self.get_object()
+        from apps.deals.tasks import auto_score_opportunity
+        auto_score_opportunity.delay(str(deal.id))
+        return Response({"detail": "Scoring queued"}, status=status.HTTP_202_ACCEPTED)
+
     @action(detail=True, methods=["post"], url_path="run-solution-architect")
     def run_solution_architect(self, request, pk=None):
         """Trigger the Solution Architect Agent for this deal.
