@@ -67,6 +67,56 @@ class OpportunityNormalizer:
             "raw_data": raw,
         }
 
+    def normalize_fpds(self, raw: dict) -> dict:
+        """Normalize a single FPDS award record into the Opportunity model schema.
+
+        FPDS records are contract *awards*, not solicitations, so we map them
+        with notice_type='Award' and status='awarded'.
+        """
+        contract_id = _str(raw.get("contract_id"))[:255]
+        agency = _str(raw.get("agency"))[:500]
+        description = _str(raw.get("description"))[:50000]
+        naics = _str(raw.get("naics_code"))[:10]
+        vendor = _str(raw.get("vendor_name"))[:500]
+        value = raw.get("total_value") or 0
+        signed = _str(raw.get("signed_date"))
+
+        return {
+            "notice_id": f"FPDS-{contract_id}" if contract_id else f"FPDS-{id(raw)}",
+            "title": f"{description[:200]}" if description else f"Contract {contract_id}",
+            "description": (
+                f"Contract awarded to {vendor}.\n\n{description}"
+                if vendor else description
+            ),
+            "agency": agency,
+            "sub_agency": "",
+            "office": "",
+            "notice_type": "Award",
+            "sol_number": contract_id,
+            "naics_code": naics,
+            "naics_description": "",
+            "psc_code": "",
+            "set_aside": _str(raw.get("set_aside"))[:200],
+            "classification_code": "",
+            "posted_date": self._parse_date(signed),
+            "response_deadline": None,
+            "archive_date": None,
+            "estimated_value": float(value) if value else None,
+            "award_type": _str(raw.get("contract_type"))[:100],
+            "place_of_performance": "",
+            "place_city": "",
+            "place_state": "",
+            "contacts": [],
+            "attachments": [],
+            "incumbent": vendor,
+            "source_url": (
+                f"https://www.fpds.gov/ezsearch/fpdsportal?q=PIID%3A%22{contract_id}%22&s=FPDS"
+                if contract_id else ""
+            ),
+            "raw_data": raw,
+            "status": "awarded",
+        }
+
     def _parse_date(self, date_str: str | None) -> datetime | None:
         if not date_str:
             return None

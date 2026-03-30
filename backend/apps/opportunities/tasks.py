@@ -9,6 +9,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 _SAMGOV_LOCK_KEY = "lock:scan_samgov_opportunities"
+_FPDS_LOCK_KEY = "lock:scan_fpds_opportunities"
 _NATIONAL_LABS_LOCK_KEY = "lock:scan_national_labs"
 _LOCK_RUN_TIMEOUT = 1800   # 30 min — maximum expected single-run duration
 _NATIONAL_LABS_COOLDOWN = 300  # 5 min cooldown after a successful national-labs run
@@ -250,6 +251,127 @@ def scan_samgov_opportunities(self):
     except Exception as exc:
         _release_lock(_SAMGOV_LOCK_KEY)
         logger.error(f"SAM.gov scan failed: {exc}")
+        try:
+            source.last_scan_status = "failed"
+            source.save(update_fields=["last_scan_status"])
+        except Exception:
+            pass
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def scan_fpds_opportunities(self):
+    """
+    Scan FPDS.gov for recent contract awards matching the company's NAICS codes.
+
+    FPDS records are *awards* (past/current contracts), not solicitations.
+    They provide competitive intelligence: who won what, at what price, and
+    from which agency.  Importing them as Opportunity records with
+    status='awarded' lets users browse historical awards alongside active
+    solicitations.
+    """
+    from .models import CompanyProfile, Opportunity, OpportunitySource
+    from .services.fpds_client import FPDSClient
+    from .services.normalizer import OpportunityNormalizer
+    from .services.enricher import OpportunityEnricher
+
+    if not _acquire_lock(_FPDS_LOCK_KEY):
+        logger.warning("scan_fpds_opportunities lock held — skipping")
+        return {"skipped": "already_running"}
+
+    logger.info("Starting FPDS.gov contract award scan...")
+
+    try:
+        source, _ = OpportunitySource.objects.get_or_create(
+            source_type="fpds",
+            defaults={
+                "name": "FPDS.gov",
+                "base_url": "https://www.fpds.gov/ezsearch/fpdsportal",
+                "is_active": True,
+                "scan_frequency_hours": 12,
+            },
+        )
+        source.last_scan_at = timezone.now()
+        source.last_scan_status = "running"
+        source.save(update_fields=["last_scan_at", "last_scan_status"])
+
+        client = FPDSClient()
+        normalizer = OpportunityNormalizer()
+        enricher = OpportunityEnricher()
+
+        # Use the company's NAICS codes
+        profile = CompanyProfile.objects.filter(is_primary=True).first()
+        naics_codes = profile.naics_codes if profile else []
+        if not naics_codes:
+            naics_codes = ["541512", "541511", "541519"]  # Default IT/software NAICS
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        all_awards: list[dict] = []
+        seen_ids: set[str] = set()
+
+        try:
+            for naics in naics_codes[:10]:  # Cap to avoid excessive requests
+                awards = loop.run_until_complete(
+                    client.search_awards(naics_code=naics, limit=50)
+                )
+                for a in awards:
+                    cid = a.get("contract_id", "")
+                    if cid and cid not in seen_ids:
+                        all_awards.append(a)
+                        seen_ids.add(cid)
+                logger.info("FPDS NAICS %s: %d awards fetched", naics, len(awards))
+        finally:
+            loop.close()
+
+        created_count = 0
+        updated_count = 0
+        error_count = 0
+
+        for raw in all_awards:
+            try:
+                normalized = normalizer.normalize_fpds(raw)
+                enriched = enricher.enrich(normalized)
+
+                notice_id = enriched.pop("notice_id")
+                raw_data_field = enriched.pop("raw_data")
+
+                _, created = Opportunity.objects.update_or_create(
+                    notice_id=notice_id,
+                    defaults={
+                        "source": source,
+                        "raw_data": raw_data_field,
+                        **enriched,
+                    },
+                )
+                if created:
+                    created_count += 1
+                else:
+                    updated_count += 1
+            except Exception as exc:
+                error_count += 1
+                if error_count <= 5:
+                    logger.warning("Skipping FPDS record: %s", exc)
+
+        source.last_scan_status = "success"
+        source.save(update_fields=["last_scan_status"])
+
+        _release_lock(_FPDS_LOCK_KEY)
+        logger.info(
+            "FPDS scan complete: %d new, %d updated, %d errors out of %d awards",
+            created_count, updated_count, error_count, len(all_awards),
+        )
+        return {
+            "new": created_count,
+            "updated": updated_count,
+            "skipped": error_count,
+            "total": len(all_awards),
+        }
+
+    except Exception as exc:
+        _release_lock(_FPDS_LOCK_KEY)
+        logger.error("FPDS scan failed: %s", exc)
         try:
             source.last_scan_status = "failed"
             source.save(update_fields=["last_scan_status"])

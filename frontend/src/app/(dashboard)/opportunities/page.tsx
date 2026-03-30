@@ -100,12 +100,15 @@ export default function OpportunitiesPage() {
     fetchOpportunities();
   }, [fetchOpportunities]);
 
-  const handleTriggerScan = async () => {
+  const handleTriggerScan = async (sources?: string[]) => {
     setScanning(true);
     try {
-      await triggerScan();
-      getOpportunityFilters().then(setFilterOptions).catch(() => {});
-      await fetchOpportunities();
+      await triggerScan(sources);
+      // Refresh filters and results after a short delay to let tasks start
+      setTimeout(() => {
+        getOpportunityFilters().then(setFilterOptions).catch(() => {});
+        fetchOpportunities();
+      }, 2000);
     } catch (err) {
       console.error("Error triggering scan:", err);
     } finally {
@@ -163,14 +166,34 @@ export default function OpportunitiesPage() {
             Discover and evaluate government contract opportunities
           </p>
         </div>
-        <Button onClick={handleTriggerScan} disabled={scanning}>
-          {scanning ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Trigger Scan
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleTriggerScan(["samgov"])}
+            disabled={scanning}
+          >
+            {scanning ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+            SAM.gov
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleTriggerScan(["fpds"])}
+            disabled={scanning}
+          >
+            {scanning ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+            FPDS.gov
+          </Button>
+          <Button onClick={() => handleTriggerScan()} disabled={scanning}>
+            {scanning ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Scan All
+          </Button>
+        </div>
       </div>
 
       {/* Filter Bar */}
