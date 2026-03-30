@@ -119,28 +119,45 @@ async def parse_rfp_sections(state: RFPAnalystState) -> dict:
 
 
 async def extract_requirements(state: RFPAnalystState) -> dict:
-    """Extract shall/must/will requirements using the RFP parser service."""
+    """Extract shall/must/will requirements using LLM-based parsing."""
     logger.info("RFPAnalyst: extracting requirements for deal %s", state["deal_id"])
-    from apps.rfp.services.parser import RFPParser  # type: ignore
 
     doc = state["rfp_document_text"]
     if not doc:
         return {"requirements": [], "key_dates": {}, "page_limits": {}, "evaluation_criteria": [],
                 "messages": [HumanMessage(content="No document text — skipping extraction.")]}
 
-    import asyncio
-    parser = RFPParser()
+    import json as _json
+
+    # Use LLM to extract requirements from the RFP text
+    extraction_result = await _llm(
+        system=(
+            "You are an expert RFP analyst for U.S. government contracts. "
+            "Extract structured information from the RFP text provided. "
+            "Return a JSON object with these keys:\n"
+            '- "requirements": array of {requirement_id, requirement_text, section, type} '
+            '  where type is "shall"|"must"|"will"|"should"\n'
+            '- "key_dates": object mapping date labels to ISO date strings\n'
+            '- "page_limits": object mapping volume names to page limits\n'
+            '- "evaluation_criteria": array of {factor, weight, description}\n'
+            "Return ONLY valid JSON, no other text."
+        ),
+        human=f"RFP TEXT (first 10000 chars):\n{doc[:10000]}",
+    )
+
+    reqs, dates, limits, criteria = [], {}, {}, []
     try:
-        loop = asyncio.get_event_loop()
-        reqs, dates, limits, criteria = await asyncio.gather(
-            parser.extract_requirements(doc),
-            parser.extract_dates(doc),
-            parser.extract_page_limits(doc),
-            parser.extract_evaluation_criteria(doc),
-        )
+        text = extraction_result.strip()
+        # Strip markdown code fences if present
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+        parsed = _json.loads(text)
+        reqs = parsed.get("requirements", [])
+        dates = parsed.get("key_dates", {})
+        limits = parsed.get("page_limits", {})
+        criteria = parsed.get("evaluation_criteria", [])
     except Exception as exc:
-        logger.error("RFP parser failed: %s", exc)
-        reqs, dates, limits, criteria = [], {}, {}, []
+        logger.warning("Failed to parse LLM extraction output: %s", exc)
 
     return {
         "requirements": reqs,
