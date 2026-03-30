@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import api from "@/lib/api";
+import { useState, useEffect, useCallback, useRef } from "react";
+import api, { orchestratorApi } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -26,6 +26,10 @@ import {
   RefreshCw,
   BarChart2,
   Cpu,
+  GitBranch,
+  Copy,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -65,6 +69,74 @@ interface ForecastQuarter {
   deal_count: number;
   low?: number;
   high?: number;
+}
+
+interface GraphMeta {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+}
+
+// --- Mermaid Renderer for Graph Visualization ---
+function InlineMermaidRenderer({ code, id }: { code: string; id: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState<string>("");
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!code) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const mermaidModule = await import("mermaid");
+        const mermaid = mermaidModule.default;
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "default",
+          securityLevel: "loose",
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          flowchart: { curve: "basis", padding: 15 },
+        });
+        const stale = document.getElementById(`gmermaid-${id}`);
+        if (stale) stale.remove();
+        const result = await mermaid.render(`gmermaid-${id}`, code);
+        if (!cancelled) {
+          setSvg(result.svg);
+          setError(false);
+        }
+      } catch {
+        if (!cancelled) setError(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [code, id]);
+
+  if (error) {
+    return (
+      <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-relaxed text-foreground/80 border border-border">
+        <code>{code}</code>
+      </pre>
+    );
+  }
+
+  if (!svg) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin mr-2" /> Rendering graph...
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="rounded-lg border bg-background p-4 overflow-x-auto"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
 }
 
 // --- Constants ---
@@ -173,6 +245,14 @@ export default function AICommandCenterPage() {
   // Risk score for display stub
   const [riskScore] = useState(null);
 
+  // Graph visualization
+  const [graphs, setGraphs] = useState<GraphMeta[]>([]);
+  const [selectedGraph, setSelectedGraph] = useState<string | null>(null);
+  const [graphMermaid, setGraphMermaid] = useState<string>("");
+  const [graphTitle, setGraphTitle] = useState<string>("");
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [showGraphSource, setShowGraphSource] = useState(false);
+
   const fetchAgentRuns = useCallback(async () => {
     setAgentRunsLoading(true);
     setAgentRunsError(null);
@@ -244,13 +324,44 @@ export default function AICommandCenterPage() {
     }
   }, []);
 
+  const fetchGraphs = useCallback(async () => {
+    try {
+      const res = await orchestratorApi.get("/graphs");
+      setGraphs(res.data?.graphs ?? []);
+      // Auto-select the first graph
+      if (res.data?.graphs?.length > 0 && !selectedGraph) {
+        const first = res.data.graphs[0];
+        setSelectedGraph(first.id);
+        loadGraphMermaid(first.id);
+      }
+    } catch {
+      // non-critical
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadGraphMermaid = async (graphId: string) => {
+    setGraphLoading(true);
+    setGraphMermaid("");
+    setGraphTitle("");
+    try {
+      const res = await orchestratorApi.get(`/graphs/${graphId}/mermaid`);
+      setGraphMermaid(res.data?.mermaid ?? "");
+      setGraphTitle(res.data?.title ?? graphId);
+    } catch {
+      setGraphMermaid("");
+    } finally {
+      setGraphLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchAgentRuns();
     fetchWinLoss();
     fetchEnforcement();
     fetchRecentRuns();
     fetchForecast();
-  }, [fetchAgentRuns, fetchWinLoss, fetchEnforcement, fetchRecentRuns, fetchForecast]);
+    fetchGraphs();
+  }, [fetchAgentRuns, fetchWinLoss, fetchEnforcement, fetchRecentRuns, fetchForecast, fetchGraphs]);
 
   // --- Computed KPIs ---
   const winRate =
@@ -436,6 +547,93 @@ export default function AICommandCenterPage() {
                   runs={runsByAgent[agentName] ?? []}
                 />
               ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 3b. LangGraph Workflow Visualization */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-purple-500" />
+            Agent Workflow Graphs
+          </CardTitle>
+          <CardDescription>
+            Visual diagrams of LangGraph workflows showing how agents are designed and connected
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {graphs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No graph visualizations available — ensure the AI Orchestrator is running
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {/* Graph selector tabs */}
+              <div className="flex flex-wrap gap-2">
+                {graphs.map((g) => (
+                  <Button
+                    key={g.id}
+                    size="sm"
+                    variant={selectedGraph === g.id ? "default" : "outline"}
+                    onClick={() => {
+                      setSelectedGraph(g.id);
+                      setShowGraphSource(false);
+                      loadGraphMermaid(g.id);
+                    }}
+                    className="text-xs"
+                  >
+                    {g.title}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Graph description */}
+              {selectedGraph && (
+                <p className="text-xs text-muted-foreground">
+                  {graphs.find((g) => g.id === selectedGraph)?.description}
+                </p>
+              )}
+
+              {/* Graph content */}
+              {graphLoading ? (
+                <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading graph...
+                </div>
+              ) : graphMermaid ? (
+                <div className="space-y-2">
+                  <InlineMermaidRenderer code={graphMermaid} id={selectedGraph ?? "graph"} />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs gap-1"
+                      onClick={() => setShowGraphSource((v) => !v)}
+                    >
+                      {showGraphSource ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                      {showGraphSource ? "Hide" : "Show"} Mermaid Source
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs gap-1"
+                      onClick={() => navigator.clipboard.writeText(graphMermaid)}
+                    >
+                      <Copy className="h-3 w-3" /> Copy
+                    </Button>
+                  </div>
+                  {showGraphSource && (
+                    <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-relaxed text-foreground/80 border border-border max-h-[300px] overflow-y-auto">
+                      <code>{graphMermaid}</code>
+                    </pre>
+                  )}
+                </div>
+              ) : selectedGraph ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Could not load graph visualization
+                </p>
+              ) : null}
             </div>
           )}
         </CardContent>

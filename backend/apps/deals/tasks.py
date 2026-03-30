@@ -237,6 +237,31 @@ def auto_run_solution_architect(self, deal_id: str):
         raise self.retry(exc=exc)
 
 
+def _build_technical_volume(result, ts_data):
+    """Build the technical_volume JSONField value, preserving all agent output.
+
+    Stores:
+      - sections: the technical volume sections (from result["technical_volume"]["sections"]
+        or the flat technical_volume dict if agent returned it that way)
+      - full_solution: the complete technical_solution dict (all 17 areas)
+    """
+    tv_raw = result.get("technical_volume", {})
+    if isinstance(tv_raw, dict) and "sections" in tv_raw:
+        sections = tv_raw["sections"]
+    elif isinstance(tv_raw, dict):
+        # Agent returned flat dict — use it as sections directly
+        sections = tv_raw
+    else:
+        sections = {}
+
+    return {
+        "sections": sections,
+        "full_solution": ts_data or {},
+        "diagram_count": len(result.get("diagrams", [])),
+        "word_count": tv_raw.get("word_count") if isinstance(tv_raw, dict) else 0,
+    }
+
+
 def _persist_solution_result(deal, result):
     """Persist Solution Architect result to Django models."""
     from apps.proposals.models import (
@@ -275,7 +300,7 @@ def _persist_solution_result(deal, result):
                 ts_data.get("deployment_model")
                 or ts_data.get("infrastructure_and_cloud_design", "")
             )[:100],
-            "technical_volume": result.get("technical_volume", {}).get("sections", {}),
+            "technical_volume": _build_technical_volume(result, ts_data),
         },
     )
 
@@ -307,8 +332,9 @@ def _persist_solution_result(deal, result):
 
     # Populate proposal sections from technical volume
     proposal = Proposal.objects.filter(deal=deal).first()
-    if proposal and ts.technical_volume:
-        for i, (title, content) in enumerate(ts.technical_volume.items()):
+    tv_sections = (ts.technical_volume or {}).get("sections", {})
+    if proposal and tv_sections:
+        for i, (title, content) in enumerate(tv_sections.items()):
             ProposalSection.objects.update_or_create(
                 proposal=proposal,
                 volume="Volume I - Technical",

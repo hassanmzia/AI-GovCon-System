@@ -11,6 +11,8 @@ import asyncio
 import json
 import logging
 import os
+import time
+import uuid
 from typing import Any
 
 logger = logging.getLogger("ai_orchestrator.graphs.stage_trigger")
@@ -140,6 +142,8 @@ async def execute_agent_chain(event: dict) -> list[dict]:
 
     registry = get_registry()
 
+    from src.run_recorder import record_run_completed, record_run_failed, record_run_started
+
     for step in agent_chain:
         agent_name = step["agent"]
         action = step.get("action", "run")
@@ -154,6 +158,10 @@ async def execute_agent_chain(event: dict) -> list[dict]:
             })
             continue
 
+        run_id = str(uuid.uuid4())
+        t0 = time.time()
+        await record_run_started(run_id, agent_name, deal_id, action=action)
+
         try:
             logger.info("Running agent '%s' (action=%s) for deal %s", agent_name, action, deal_id)
             result = await agent.run({
@@ -162,6 +170,12 @@ async def execute_agent_chain(event: dict) -> list[dict]:
                 "stage": to_stage,
                 "from_stage": event.get("from_stage", ""),
             })
+            latency = int((time.time() - t0) * 1000)
+            has_error = result.get("error") if isinstance(result, dict) else False
+            if has_error:
+                await record_run_failed(run_id, str(has_error), latency_ms=latency)
+            else:
+                await record_run_completed(run_id, latency_ms=latency, success=True)
             results.append({
                 "agent": agent_name,
                 "action": action,
@@ -171,6 +185,8 @@ async def execute_agent_chain(event: dict) -> list[dict]:
             logger.info("Agent '%s' completed for deal %s", agent_name, deal_id)
 
         except Exception as exc:
+            latency = int((time.time() - t0) * 1000)
+            await record_run_failed(run_id, str(exc), latency_ms=latency)
             logger.error(
                 "Agent '%s' failed for deal %s: %s",
                 agent_name, deal_id, exc,

@@ -95,7 +95,11 @@ class AIAgentRunSerializer(serializers.ModelSerializer):
             "error_message",
             "user",
         ]
-        read_only_fields = ["id", "started_at"]
+        read_only_fields = ["started_at"]
+        extra_kwargs = {
+            # Allow the orchestrator to set the run ID to match its internal tracking
+            "id": {"read_only": False, "required": False},
+        }
 
     def get_duration_seconds(self, obj):
         if obj.completed_at and obj.started_at:
