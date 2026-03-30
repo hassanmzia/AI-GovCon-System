@@ -187,23 +187,32 @@ async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
 
 _AGENT_REGISTRY: dict[str, tuple[str, str, str]] = {
     # slug -> (module_path, class_name, description)
-    "solution-architect": ("src.agents.solution_architect_agent", "SolutionArchitectAgent", "Starting solution architecture design..."),
-    "capture": ("src.agents.capture_agent", "CaptureAgent", "Generating capture plan..."),
-    "red-team": ("src.agents.red_team_agent", "RedTeamAgent", "Running adversarial red team review..."),
-    "compliance": ("src.agents.compliance_agent", "ComplianceAgent", "Verifying compliance matrix..."),
-    "learning": ("src.agents.learning_agent", "LearningAgent", "Analyzing win/loss patterns..."),
+    # ── Core pipeline agents (19 GovCon agents) ──
+    "scout": ("src.agents.scout_agent", "ScoutAgent", "Scanning SAM.gov for opportunities..."),
+    "fit": ("src.agents.fit_agent", "FitAgent", "Scoring probability of win..."),
+    "competitor-sim": ("src.agents.competitor_sim_agent", "CompetitorSimAgent", "Analyzing competitive intelligence..."),
+    "compliance": ("src.agents.compliance_agent", "ComplianceAgent", "Verifying FAR/DFARS compliance..."),
+    "teaming": ("src.agents.teaming_agent", "TeamingAgent", "Identifying teaming partners..."),
     "rfp-analyst": ("src.agents.rfp_analyst_agent", "RFPAnalystAgent", "Parsing RFP requirements..."),
-    "past-performance": ("src.agents.past_performance_agent", "PastPerformanceAgent", "Matching past performance records..."),
+    "marketing": ("src.agents.marketing_agent", "MarketingAgent", "Generating win themes..."),
     "proposal-writer": ("src.agents.proposal_writer_agent", "ProposalWriterAgent", "Drafting proposal sections..."),
-    "pricing": ("src.agents.pricing_agent", "PricingAgent", "Building pricing scenarios..."),
+    "past-performance": ("src.agents.past_performance_agent", "PastPerformanceAgent", "Matching past performance records..."),
+    "management-approach": ("src.agents.management_approach_agent", "ManagementApproachAgent", "Drafting management approach..."),
+    "pricing": ("src.agents.pricing_agent", "PricingAgent", "Building price-to-win analysis..."),
+    "solution-architect": ("src.agents.solution_architect_agent", "SolutionArchitectAgent", "Starting solution architecture design..."),
+    "red-team": ("src.agents.red_team_agent", "RedTeamAgent", "Running adversarial red team review..."),
+    "security-compliance": ("src.agents.security_compliance_agent", "SecurityComplianceAgent", "Checking Section 508 and security compliance..."),
+    "cui-handler": ("src.agents.cui_handler_agent", "CUIHandlerAgent", "Scanning for Controlled Unclassified Information..."),
+    "submission": ("src.agents.submission_agent", "SubmissionAgent", "Packaging submission..."),
+    "learning": ("src.agents.learning_agent", "LearningAgent", "Analyzing win/loss patterns..."),
+    "deal-pipeline": ("src.agents.deal_pipeline_agent", "DealPipelineAgent", "Orchestrating pipeline..."),
+    # ── Supporting agents ──
+    "capture": ("src.agents.capture_agent", "CaptureAgent", "Generating capture plan..."),
+    "strategy": ("src.agents.strategy_agent", "StrategyAgent", "Running strategy analysis..."),
+    "research": ("src.agents.research_agent", "ResearchAgent", "Running competitive research..."),
+    "legal": ("src.agents.legal_agent", "LegalAgent", "Running legal review..."),
     "qa": ("src.agents.qa_agent", "QAAgent", "Running quality checks..."),
     "contract": ("src.agents.contract_agent", "ContractAgent", "Generating contract..."),
-    "teaming": ("src.agents.teaming_agent", "TeamingAgent", "Identifying teaming partners..."),
-    "submission": ("src.agents.submission_agent", "SubmissionAgent", "Packaging submission..."),
-    "strategy": ("src.agents.strategy_agent", "StrategyAgent", "Running strategy analysis..."),
-    "research": ("src.agents.research_agent", "ResearchAgent", "Running research..."),
-    "legal": ("src.agents.legal_agent", "LegalAgent", "Running legal review..."),
-    "marketing": ("src.agents.marketing_agent", "MarketingAgent", "Running marketing analysis..."),
 }
 
 

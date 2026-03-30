@@ -1076,3 +1076,114 @@ def check_overdue_tasks(self):
         "check_overdue_tasks: Flagged %d overdue task(s) and sent notifications.",
         flagged_count,
     )
+
+
+# ── Management Approach Agent ─────────────────────────────────────────────────
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def auto_run_management_approach(self, deal_id: str):
+    """Run the Management Approach Agent to draft Vol II management sections."""
+    from apps.deals.models import Activity, Deal
+    from apps.proposals.models import Proposal, ProposalSection
+
+    try:
+        deal = Deal.objects.get(pk=deal_id)
+    except Deal.DoesNotExist:
+        logger.error("auto_run_management_approach: Deal %s not found", deal_id)
+        return
+
+    result = _call_orchestrator_agent("management-approach", deal_id, max_wait=180)
+
+    if "error" in result:
+        logger.error("Management Approach Agent failed for deal %s: %s", deal_id, result["error"])
+        return result
+
+    # Persist as proposal section (Vol II - Management)
+    proposal = Proposal.objects.filter(deal=deal).first()
+    if proposal:
+        management_text = result.get("management_approach", "")
+        if management_text:
+            ProposalSection.objects.update_or_create(
+                proposal=proposal,
+                title="Management Approach",
+                defaults={
+                    "volume": "II",
+                    "section_number": "2.0",
+                    "content": management_text,
+                    "status": "draft",
+                    "word_count": len(management_text.split()),
+                },
+            )
+            logger.info("Persisted management approach section for deal %s", deal_id)
+
+        # Also persist org structure if available
+        org_chart = result.get("org_chart_description", "")
+        if org_chart:
+            ProposalSection.objects.update_or_create(
+                proposal=proposal,
+                title="Organizational Structure",
+                defaults={
+                    "volume": "II",
+                    "section_number": "2.1",
+                    "content": org_chart,
+                    "status": "draft",
+                    "word_count": len(org_chart.split()),
+                },
+            )
+
+    Activity.objects.create(
+        deal=deal,
+        actor=None,
+        action="management_approach_drafted",
+        description="Management approach (Vol II) auto-drafted by AI agent",
+        metadata={"deal_id": deal_id},
+        is_ai_action=True,
+    )
+
+    return result
+
+
+# ── CUI Handler Agent ─────────────────────────────────────────────────────────
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def auto_run_cui_handler(self, deal_id: str):
+    """Run the CUI Handler Agent to scan proposal for Controlled Unclassified Information."""
+    from apps.deals.models import Activity, Deal
+
+    try:
+        deal = Deal.objects.get(pk=deal_id)
+    except Deal.DoesNotExist:
+        logger.error("auto_run_cui_handler: Deal %s not found", deal_id)
+        return
+
+    result = _call_orchestrator_agent("cui-handler", deal_id, max_wait=120)
+
+    if "error" in result:
+        logger.error("CUI Handler Agent failed for deal %s: %s", deal_id, result["error"])
+        return result
+
+    total_detections = result.get("total_detections", 0)
+    compliant = result.get("compliant", True)
+
+    Activity.objects.create(
+        deal=deal,
+        actor=None,
+        action="cui_scan_completed",
+        description=(
+            f"CUI scan complete: {total_detections} detection(s), "
+            f"{'compliant' if compliant else 'review required'}"
+        ),
+        metadata={
+            "total_detections": total_detections,
+            "high_severity": result.get("high_severity", 0),
+            "compliant": compliant,
+            "recommendation": result.get("recommendation", ""),
+        },
+        is_ai_action=True,
+    )
+
+    logger.info(
+        "auto_run_cui_handler: deal=%s detections=%d compliant=%s",
+        deal_id, total_detections, compliant,
+    )
+    return result
