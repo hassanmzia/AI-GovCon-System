@@ -21,11 +21,13 @@ export interface SecurityFramework {
   name: string;
   version: string;
   description: string;
-  framework_type: string;
-  controls_count: number;
+  framework_type?: string;
+  controls_count?: number;
+  control_count?: number;
   control_families?: string[];
   is_active?: boolean;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface SecurityControl {
