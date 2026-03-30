@@ -13,9 +13,11 @@ import {
   DealArtifacts,
   rescoreDeal,
   runAllAgents,
+  getApprovals,
+  decideApproval,
 } from "@/services/deals";
-import { Deal, DealStage, DealStageHistory, CreateDealPayload } from "@/types/deal";
-import { Search, Plus, Loader2, X, ChevronRight, AlertCircle, ExternalLink } from "lucide-react";
+import { Deal, DealStage, DealStageHistory, DealApproval, CreateDealPayload } from "@/types/deal";
+import { Search, Plus, Loader2, X, ChevronRight, AlertCircle, ExternalLink, ShieldCheck, ShieldAlert, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // ---------------------------------------------------------------------------
@@ -308,12 +310,44 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
   const [artifacts, setArtifacts] = useState<DealArtifacts | null>(null);
   const [rescoring, setRescoring] = useState(false);
   const [runningAgents, setRunningAgents] = useState(false);
+  const [approvals, setApprovals] = useState<DealApproval[]>([]);
+  const [approvalsLoading, setApprovalsLoading] = useState(true);
+  const [decidingApproval, setDecidingApproval] = useState<string | null>(null);
 
   const nextStages = NEXT_STAGES[deal.stage] || [];
 
   useEffect(() => {
     getDealArtifacts(deal.id).then(setArtifacts).catch(() => {});
   }, [deal.id]);
+
+  useEffect(() => {
+    const loadApprovals = async () => {
+      setApprovalsLoading(true);
+      try {
+        const data = await getApprovals({ deal: deal.id });
+        setApprovals(data.results || []);
+      } catch {
+        setApprovals([]);
+      } finally {
+        setApprovalsLoading(false);
+      }
+    };
+    loadApprovals();
+  }, [deal.id]);
+
+  const handleApprovalDecision = async (approvalId: string, status: "approved" | "rejected", rationale: string) => {
+    setDecidingApproval(approvalId);
+    try {
+      const updated = await decideApproval(approvalId, { status, decision_rationale: rationale });
+      setApprovals((prev) =>
+        prev.map((a) => (a.id === approvalId ? { ...a, ...updated } : a))
+      );
+    } catch {
+      // Ignore errors silently
+    } finally {
+      setDecidingApproval(null);
+    }
+  };
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -550,6 +584,94 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
                     </span>
                   </button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* HITL Approvals */}
+          {!approvalsLoading && approvals.length > 0 && (
+            <div className="border-t border-border pt-4 space-y-3">
+              <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                <ShieldAlert className="h-4 w-4 text-amber-500" />
+                HITL Approval Gates
+              </h3>
+              <div className="space-y-2">
+                {approvals.map((approval) => {
+                  const isPending = approval.status === "pending";
+                  const isApproved = approval.status === "approved";
+                  const statusIcon = isPending ? (
+                    <Clock className="h-3.5 w-3.5 text-amber-500" />
+                  ) : isApproved ? (
+                    <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                  );
+                  const statusBg = isPending
+                    ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
+                    : isApproved
+                    ? "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800"
+                    : "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800";
+                  const typeLabel = (approval.approval_type || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+                  return (
+                    <div key={approval.id} className={`rounded-lg border p-3 ${statusBg}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          {statusIcon}
+                          {typeLabel}
+                        </span>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                          isPending ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                          : isApproved ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
+                        }`}>
+                          {approval.status}
+                        </span>
+                      </div>
+
+                      {approval.ai_recommendation && (
+                        <p className="text-xs text-muted-foreground mb-1.5">
+                          AI recommends: <span className="font-medium text-foreground">{approval.ai_recommendation}</span>
+                          {approval.ai_confidence != null && (
+                            <span className="ml-1 text-muted-foreground/70">
+                              ({Math.round(approval.ai_confidence * 100)}% confidence)
+                            </span>
+                          )}
+                        </p>
+                      )}
+
+                      {isPending && (
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                            disabled={decidingApproval === approval.id}
+                            onClick={() => handleApprovalDecision(approval.id, "approved", "Approved by reviewer")}
+                          >
+                            {decidingApproval === approval.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                            disabled={decidingApproval === approval.id}
+                            onClick={() => handleApprovalDecision(approval.id, "rejected", "Rejected by reviewer")}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+
+                      {approval.decision_rationale && !isPending && (
+                        <p className="text-xs text-muted-foreground mt-1 italic">
+                          &ldquo;{approval.decision_rationale}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
