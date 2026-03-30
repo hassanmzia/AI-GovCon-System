@@ -69,12 +69,25 @@ interface ForecastQuarter {
 
 // --- Constants ---
 const KNOWN_AGENTS = [
-  "opportunity_agent",
-  "proposal_writer_agent",
-  "pricing_agent",
-  "compliance_agent",
-  "red_team_agent",
-  "synthetic_evaluator_agent",
+  "scout_agent",               // 01 · Opportunity Scout
+  "fit_agent",                 // 02 · PWin Analyst
+  "competitor_sim_agent",      // 03 · Competitive Intel
+  "compliance_agent",          // 04 · Compliance Checker
+  "teaming_agent",             // 05 · Teaming Advisor
+  "rfp_analyst_agent",         // 06 · RFP Parser
+  "marketing_agent",           // 07 · Win Theme Generator
+  "proposal_writer_agent",     // 08 · Technical Approach Drafter
+  "past_performance_agent",    // 09 · Past Performance Mapper
+  "management_approach_agent", // 10 · Management Approach Drafter
+  "pricing_agent",             // 11 · Price-to-Win Analyst
+  "solution_architect_agent",  // 12 · Cost Volume Builder
+  "red_team_agent",            // 13 · Discriminator Reviewer
+  "security_compliance_agent", // 14 · Section 508 Checker
+  "cui_handler_agent",         // 15 · CUI Handler
+  "submission_agent",          // 16 · Submission Packager
+  "learning_agent",            // 17 · Award Tracker
+  "deal_pipeline_agent",       // 18 · Pipeline Orchestrator
+  "synthetic_evaluator_agent", // 19 · Synthetic Evaluator
 ];
 
 // --- Helpers ---
