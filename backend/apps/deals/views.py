@@ -512,6 +512,7 @@ class DealViewSet(viewsets.ModelViewSet):
 
             # 3. Persist the solution as TechnicalSolution + ArchitectureDiagram models
             try:
+                from apps.deals.tasks import _build_technical_volume
                 from apps.proposals.models import (
                     ArchitectureDiagram,
                     Proposal,
@@ -548,7 +549,7 @@ class DealViewSet(viewsets.ModelViewSet):
                             ts_data.get("deployment_model")
                             or ts_data.get("infrastructure_and_cloud_design", "")
                         )[:100],
-                        "technical_volume": result.get("technical_volume", {}).get("sections", {}),
+                        "technical_volume": _build_technical_volume(result, ts_data),
                     },
                 )
 
@@ -580,8 +581,9 @@ class DealViewSet(viewsets.ModelViewSet):
 
                 # Also persist technical volume sections as ProposalSection if proposal exists
                 proposal = Proposal.objects.filter(deal=deal).first()
-                if proposal and ts.technical_volume:
-                    for i, (title, content) in enumerate(ts.technical_volume.items()):
+                tv_sections = (ts.technical_volume or {}).get("sections", {})
+                if proposal and tv_sections:
+                    for i, (title, content) in enumerate(tv_sections.items()):
                         ProposalSection.objects.update_or_create(
                             proposal=proposal,
                             volume="Volume I - Technical",

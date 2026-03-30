@@ -339,8 +339,7 @@ class TechnicalSolutionDetailSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # Wrap flat technical_volume dict into the shape the frontend expects:
-        # { sections: {...}, diagram_count: N, word_count: N }
+        # Ensure technical_volume has the shape: { sections, diagram_count, word_count }
         tv = data.get("technical_volume") or {}
         if isinstance(tv, dict) and "sections" not in tv:
             word_count = sum(len(str(v).split()) for v in tv.values()) if tv else 0
@@ -350,18 +349,33 @@ class TechnicalSolutionDetailSerializer(serializers.ModelSerializer):
                 "diagram_count": diagram_count,
                 "word_count": word_count,
             }
+        else:
+            # Already has sections key — ensure diagram_count is present
+            if "diagram_count" not in tv:
+                tv["diagram_count"] = instance.diagrams.count() if hasattr(instance, "diagrams") else 0
+            if "word_count" not in tv:
+                sections = tv.get("sections", {})
+                tv["word_count"] = sum(len(str(v).split()) for v in sections.values()) if sections else 0
+        # Strip full_solution from technical_volume (it's served via technical_solution field)
+        if isinstance(data.get("technical_volume"), dict):
+            data["technical_volume"].pop("full_solution", None)
         return data
 
     def get_technical_solution(self, obj):
-        """Build the technical_solution dict from flat model fields.
+        """Build the technical_solution dict for the frontend.
 
-        The frontend SolutionTab iterates Object.entries() and renders any
-        non-empty string values as markdown sections. We include all DB fields
-        and convert JSON fields (list/dict) to readable markdown.
+        First checks for the full_solution stored in technical_volume (all 17 areas
+        from the agent). Falls back to the 8 flat model fields for older data.
         """
-        result = {}
+        # Try full_solution first (stored by updated persist logic)
+        tv = obj.technical_volume or {}
+        full = tv.get("full_solution", {}) if isinstance(tv, dict) else {}
+        if full:
+            # Filter to non-empty string values
+            return {k: v for k, v in full.items() if v and isinstance(v, str)}
 
-        # Map flat model fields → readable keys
+        # Fallback: build from flat model fields (legacy data)
+        result = {}
         field_map = {
             "executive_summary": obj.executive_summary,
             "architecture_pattern": obj.architecture_pattern,
