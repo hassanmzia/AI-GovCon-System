@@ -185,6 +185,68 @@ async def _create_hitl_approval(
     return None
 
 
+async def _fetch_deal_context(deal_id: str) -> dict:
+    """Fetch deal details from Django to provide proper input to agents.
+
+    Some agents need fields beyond deal_id (e.g. StrategyAgent needs
+    opportunity_id, ResearchAgent needs a query string).  We fetch the
+    deal once and derive these fields.
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{DJANGO_API_URL}/api/deals/deals/{deal_id}/",
+                headers=_auth_headers(),
+            )
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception as exc:
+        logger.warning("Could not fetch deal context for %s: %s", deal_id, exc)
+    return {}
+
+
+def _build_agent_input(
+    agent_name: str,
+    action: str,
+    deal_id: str,
+    to_stage: str,
+    from_stage: str,
+    deal_context: dict,
+) -> dict:
+    """Build the input dict tailored to each agent's expected schema.
+
+    Most agents just need deal_id, but some require specific fields.
+    """
+    base = {
+        "deal_id": deal_id,
+        "action": action,
+        "stage": to_stage,
+        "from_stage": from_stage,
+    }
+
+    opportunity_id = str(deal_context.get("opportunity") or deal_context.get("opportunity_id") or "")
+
+    if agent_name == "strategy_agent":
+        base["opportunity_id"] = opportunity_id
+    elif agent_name == "research_agent":
+        # Build a meaningful research query from the deal/action context
+        title = deal_context.get("title") or deal_context.get("opportunity_title") or ""
+        agency = deal_context.get("agency") or ""
+        query_map = {
+            "agency_due_diligence": f"Agency background and procurement history for {agency or title}",
+            "competitor_intelligence": f"Competitor landscape analysis for {title}",
+            "market_analysis": f"Market analysis for {title}",
+        }
+        base["query"] = query_map.get(action, f"Research for deal: {title}")
+        base["research_type"] = action
+    elif agent_name in ("fit_agent", "scout_agent", "opportunity_agent"):
+        base["opportunity_id"] = opportunity_id
+
+    return base
+
+
 async def execute_agent_chain(event: dict) -> list[dict]:
     """
     Execute the agent chain specified in a stage-change event.
@@ -198,6 +260,7 @@ async def execute_agent_chain(event: dict) -> list[dict]:
     """
     deal_id = event.get("deal_id", "")
     to_stage = event.get("to_stage", "")
+    from_stage = event.get("from_stage", "")
     agent_chain = event.get("agent_chain", [])
     results = []
 
@@ -208,6 +271,9 @@ async def execute_agent_chain(event: dict) -> list[dict]:
     )
 
     registry = get_registry()
+
+    # Fetch deal context once so we can build proper inputs for each agent
+    deal_context = await _fetch_deal_context(deal_id) if deal_id else {}
 
     from src.run_recorder import record_run_completed, record_run_failed, record_run_started
 
@@ -229,14 +295,13 @@ async def execute_agent_chain(event: dict) -> list[dict]:
         t0 = time.time()
         await record_run_started(run_id, agent_name, deal_id, action=action)
 
+        input_data = _build_agent_input(
+            agent_name, action, deal_id, to_stage, from_stage, deal_context,
+        )
+
         try:
             logger.info("Running agent '%s' (action=%s) for deal %s", agent_name, action, deal_id)
-            result = await agent.run({
-                "deal_id": deal_id,
-                "action": action,
-                "stage": to_stage,
-                "from_stage": event.get("from_stage", ""),
-            })
+            result = await agent.run(input_data)
             latency = int((time.time() - t0) * 1000)
             has_error = result.get("error") if isinstance(result, dict) else False
             if has_error:
