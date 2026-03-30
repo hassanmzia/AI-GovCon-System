@@ -272,11 +272,24 @@ export default function GovernancePage() {
           ? `${(policy.pricing_floor_margin * 100).toFixed(1)}%`
           : "N/A",
         "Risk Thresholds": policy.risk_thresholds
-          ? JSON.stringify(policy.risk_thresholds, null, 2)
+          ? Object.entries(policy.risk_thresholds)
+              .map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`)
+              .join(", ")
           : "N/A",
-        "HITL Gates": policy.hitl_gates?.join(", ") ?? "N/A",
-        "Agency Allowlist": policy.agency_allowlist?.join(", ") || "All agencies",
-        "Agency Blocklist": policy.agency_blocklist?.join(", ") || "None",
+        "HITL Gates": policy.hitl_gates?.length
+          ? policy.hitl_gates
+              .map((g) => g.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()))
+              .join(", ")
+          : "None",
+        "Agency Allowlist": policy.agency_allowlist?.length
+          ? policy.agency_allowlist.join(", ")
+          : "All agencies",
+        "Agency Blocklist": policy.agency_blocklist?.length
+          ? policy.agency_blocklist.join(", ")
+          : "None",
+        "Autonomy Level": `L${policy.level}`,
+        "Kill Switch": policy.kill_switch_active ? "ACTIVE" : "Off",
+        "Policy Version": `v${policy.version}`,
       }
     : null;
 
@@ -437,29 +450,53 @@ export default function GovernancePage() {
           <CardContent className="space-y-4">
             {policy ? (
               <>
-                {/* Key settings */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {policyKeys &&
-                    Object.entries(policyKeys).map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="rounded-lg bg-gray-50 border border-gray-200 p-3"
-                      >
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                          {label}
-                        </p>
-                        <p className="text-sm text-gray-800 font-mono break-words whitespace-pre-wrap">
-                          {value}
-                        </p>
-                      </div>
-                    ))}
+                {/* Policy name and description */}
+                <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+                  <p className="font-semibold text-gray-900">{(policy as Record<string, unknown>).name as string || "AI Governance Policy"}</p>
+                  <p className="text-sm text-gray-600 mt-1">{(policy as Record<string, unknown>).description as string || ""}</p>
+                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                    <span>Created: {formatTs((policy as Record<string, unknown>).created_at as string || "")}</span>
+                    <span>Updated: {formatTs(policy.updated_at)}</span>
+                    {(policy as Record<string, unknown>).effective_from && <span>Effective from: {formatTs((policy as Record<string, unknown>).effective_from as string)}</span>}
+                    {(policy as Record<string, unknown>).effective_to && <span>Effective to: {formatTs((policy as Record<string, unknown>).effective_to as string)}</span>}
+                  </div>
                 </div>
 
-                {/* Full JSON */}
-                <div className="rounded-lg bg-gray-900 p-4 overflow-auto max-h-64">
-                  <pre className="text-xs text-green-400 font-mono">
-                    {JSON.stringify(policy, null, 2)}
-                  </pre>
+                {/* Key settings grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {policyKeys &&
+                    Object.entries(policyKeys).map(([label, value]) => {
+                      const isKillSwitch = label === "Kill Switch";
+                      const isActive = isKillSwitch && value === "ACTIVE";
+                      return (
+                        <div
+                          key={label}
+                          className={`rounded-lg border p-3 ${
+                            isActive
+                              ? "bg-red-50 border-red-300"
+                              : "bg-gray-50 border-gray-200"
+                          }`}
+                        >
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                            {label}
+                          </p>
+                          <p className={`text-sm font-medium break-words ${
+                            isActive ? "text-red-700" : "text-gray-800"
+                          }`}>
+                            {value}
+                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* Approval info */}
+                <div className="flex items-center gap-6 text-xs text-gray-500 border-t pt-3">
+                  <span>Created by: {(policy as Record<string, unknown>).created_by_username as string || "System"}</span>
+                  <span>Approved by: {(policy as Record<string, unknown>).approved_by_username as string || "Auto-approved"}</span>
+                  {(policy as Record<string, unknown>).approved_at && (
+                    <span>Approved at: {formatTs((policy as Record<string, unknown>).approved_at as string)}</span>
+                  )}
                 </div>
               </>
             ) : (
