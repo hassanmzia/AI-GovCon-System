@@ -7,6 +7,7 @@ from apps.pricing.views import (
     LOEEstimateViewSet,
     PricingApprovalViewSet,
     PricingScenarioViewSet,
+    PricingVolumeViewSet,
     RateCardViewSet,
 )
 
@@ -17,6 +18,7 @@ router.register(r"loe-estimates", LOEEstimateViewSet, basename="loeestimate")
 router.register(r"cost-models", CostModelViewSet, basename="costmodel")
 router.register(r"scenarios", PricingScenarioViewSet, basename="pricingscenario")
 router.register(r"approvals", PricingApprovalViewSet, basename="pricingapproval")
+router.register(r"volumes", PricingVolumeViewSet, basename="pricingvolume")
 
 urlpatterns = [
     path("", include(router.urls)),

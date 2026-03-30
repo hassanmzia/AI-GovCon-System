@@ -7,6 +7,7 @@ from apps.pricing.models import (
     PricingApproval,
     PricingIntelligence,
     PricingScenario,
+    PricingVolume,
     RateCard,
 )
 
@@ -212,6 +213,46 @@ class PricingApprovalSerializer(serializers.ModelSerializer):
             "id",
             "requested_by",
             "decided_at",
+            "created_at",
+            "updated_at",
+        ]
+
+
+# ── PricingVolume ─────────────────────────────────────
+
+
+class PricingVolumeSerializer(serializers.ModelSerializer):
+    scenario_detail = PricingScenarioSerializer(
+        source="selected_scenario", read_only=True
+    )
+    status_display = serializers.CharField(
+        source="get_status_display", read_only=True
+    )
+
+    class Meta:
+        model = PricingVolume
+        fields = [
+            "id",
+            "deal",
+            "proposal",
+            "selected_scenario",
+            "scenario_detail",
+            "status",
+            "status_display",
+            "total_price",
+            "labor_cost",
+            "odc_cost",
+            "profit_margin",
+            "price_defense_document",
+            "approved_by",
+            "approved_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "approved_by",
+            "approved_at",
             "created_at",
             "updated_at",
         ]

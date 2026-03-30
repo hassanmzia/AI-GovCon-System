@@ -8,6 +8,7 @@ from apps.pricing.models import (
     LOEEstimate,
     PricingApproval,
     PricingScenario,
+    PricingVolume,
     RateCard,
 )
 from apps.pricing.serializers import (
@@ -16,6 +17,7 @@ from apps.pricing.serializers import (
     LOEEstimateSerializer,
     PricingApprovalSerializer,
     PricingScenarioSerializer,
+    PricingVolumeSerializer,
     RateCardSerializer,
 )
 
@@ -95,3 +97,15 @@ class PricingApprovalViewSet(viewsets.ModelViewSet):
             extra["approved_by"] = self.request.user
             extra["decided_at"] = timezone.now()
         serializer.save(**extra)
+
+
+class PricingVolumeViewSet(viewsets.ModelViewSet):
+    """CRUD for pricing volumes linked to proposals."""
+    queryset = PricingVolume.objects.select_related(
+        "deal", "proposal", "selected_scenario", "approved_by"
+    ).all()
+    serializer_class = PricingVolumeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["deal", "proposal", "status"]
+    ordering_fields = ["total_price", "status", "created_at"]

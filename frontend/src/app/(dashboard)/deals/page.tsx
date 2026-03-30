@@ -9,6 +9,8 @@ import {
   createDeal,
   transitionDealStage,
   getDealStageHistory,
+  getDealArtifacts,
+  DealArtifacts,
 } from "@/services/deals";
 import { Deal, DealStage, DealStageHistory, CreateDealPayload } from "@/types/deal";
 import { Search, Plus, Loader2, X, ChevronRight, AlertCircle } from "lucide-react";
@@ -299,8 +301,13 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
   const [reason, setReason] = useState("");
   const [stageHistory, setStageHistory] = useState<DealStageHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [artifacts, setArtifacts] = useState<DealArtifacts | null>(null);
 
   const nextStages = NEXT_STAGES[deal.stage] || [];
+
+  useEffect(() => {
+    getDealArtifacts(deal.id).then(setArtifacts).catch(() => {});
+  }, [deal.id]);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -411,6 +418,66 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
               </div>
             )}
           </div>
+
+          {/* Pipeline Artifacts */}
+          {artifacts && (
+            <div className="border-t border-border pt-4 space-y-2">
+              <h3 className="text-sm font-semibold">Pipeline Artifacts</h3>
+              <div className="grid grid-cols-1 gap-1.5">
+                {/* Opportunity Score */}
+                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded ${artifacts.opportunity_score ? "bg-green-50 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                  <span>Opportunity Score</span>
+                  <span className="font-medium">
+                    {artifacts.opportunity_score
+                      ? `${artifacts.opportunity_score.total_score}/100 — ${artifacts.opportunity_score.recommendation.replace("_", " ")}`
+                      : "Not scored"}
+                  </span>
+                </div>
+
+                {/* Technical Solution */}
+                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded ${artifacts.technical_solution ? "bg-green-50 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                  <span>Technical Solution</span>
+                  <span className="font-medium">
+                    {artifacts.technical_solution
+                      ? `${artifacts.technical_solution.architecture_pattern || "Generated"} · ${artifacts.technical_solution.diagram_count} diagrams`
+                      : "Not generated"}
+                  </span>
+                </div>
+
+                {/* Pricing */}
+                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded ${artifacts.pricing ? "bg-green-50 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                  <span>Pricing</span>
+                  <span className="font-medium">
+                    {artifacts.pricing?.recommended
+                      ? `${artifacts.pricing.recommended.name} · $${Number(artifacts.pricing.recommended.total_price).toLocaleString()} · ${(artifacts.pricing.recommended.probability_of_win * 100).toFixed(0)}% P(win)`
+                      : artifacts.pricing
+                        ? `${artifacts.pricing.scenario_count} scenarios`
+                        : "Not generated"}
+                  </span>
+                </div>
+
+                {/* Proposal */}
+                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded ${artifacts.proposal && artifacts.proposal.section_count > 0 ? "bg-green-50 text-green-700" : artifacts.proposal ? "bg-amber-50 text-amber-700" : "bg-muted text-muted-foreground"}`}>
+                  <span>Proposal</span>
+                  <span className="font-medium">
+                    {artifacts.proposal
+                      ? `${artifacts.proposal.status} · ${artifacts.proposal.section_count} sections`
+                      : "Not created"}
+                  </span>
+                </div>
+
+                {/* Pricing Volume */}
+                {artifacts.pricing_volume && (
+                  <div className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded bg-green-50 text-green-700">
+                    <span>Pricing Volume</span>
+                    <span className="font-medium">
+                      {artifacts.pricing_volume.status} · ${Number(artifacts.pricing_volume.total_price).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Stage Transition */}
           {nextStages.length > 0 && (

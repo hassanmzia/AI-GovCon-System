@@ -94,3 +94,18 @@ export async function decideApproval(
   );
   return response.data;
 }
+
+// ── Pipeline Artifacts ──────────────────────────────────────────────────────
+
+export interface DealArtifacts {
+  opportunity_score: { total_score: number; recommendation: string } | null;
+  technical_solution: { id: string; executive_summary: string; architecture_pattern: string; diagram_count: number } | null;
+  pricing: { scenario_count: number; recommended: { name: string; total_price: string; margin_pct: number; probability_of_win: number } | null; cost_model: { total_cost: string; direct_labor: string } | null } | null;
+  proposal: { id: string; title: string; status: string; section_count: number } | null;
+  pricing_volume: { id: string; status: string; total_price: string } | null;
+}
+
+export async function getDealArtifacts(dealId: string): Promise<DealArtifacts> {
+  const response = await api.get(`/deals/deals/${dealId}/artifacts/`);
+  return response.data;
+}
