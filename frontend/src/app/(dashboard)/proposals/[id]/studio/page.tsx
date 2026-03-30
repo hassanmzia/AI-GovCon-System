@@ -15,12 +15,25 @@ import {
   createReviewCycle,
 } from "@/services/proposals";
 import {
+  getTechnicalSolution,
+  getArchitectureDiagrams,
+  getValidationReport,
+} from "@/services/architecture";
+import {
   Proposal,
   ProposalSection,
   ProposalStatus,
   SectionStatus,
   ReviewCycle,
 } from "@/types/proposal";
+import {
+  ArchitectureResult,
+  ArchitectureDiagram as ArchDiagram,
+  TechnicalSolution,
+  TechnicalVolume,
+  ValidationReport,
+} from "@/types/architecture";
+import { MarkdownContent, MermaidRenderer, DiagramCard } from "@/components/proposals/solution-content";
 import ReactMarkdown from "react-markdown";
 import {
   Loader2,
@@ -42,6 +55,10 @@ import {
   Plus,
   Trash2,
   RotateCcw,
+  Layers,
+  Cpu,
+  ShieldCheck,
+  AlertTriangle,
   Wand2,
   Send,
   Eye,
@@ -482,6 +499,16 @@ export default function ProposalStudioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Main tab: "sections" or "solution"
+  type MainTab = "sections" | "diagrams" | "solution" | "validation";
+  const [mainTab, setMainTab] = useState<MainTab>("sections");
+
+  // Solution data
+  const [solutionResult, setSolutionResult] = useState<ArchitectureResult | null>(null);
+  const [diagrams, setDiagrams] = useState<ArchDiagram[]>([]);
+  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
+  const [solutionLoading, setSolutionLoading] = useState(false);
+
   // Executive summary editing
   const [editingExecSummary, setEditingExecSummary] = useState(false);
   const [execSummaryDraft, setExecSummaryDraft] = useState("");
@@ -503,6 +530,44 @@ export default function ProposalStudioPage() {
       ]);
       setSections(sRes.results);
       setReviews(rRes.results);
+
+      // Load solution data for this deal
+      if (p.deal) {
+        setSolutionLoading(true);
+        try {
+          const sol = await getTechnicalSolution(p.deal);
+          if (sol) {
+            setSolutionResult(sol);
+            // Load diagrams and validation if we have a persisted solution ID
+            if (sol.id) {
+              const [diags, valReport] = await Promise.all([
+                getArchitectureDiagrams(sol.id).catch(() => []),
+                getValidationReport(sol.id).catch(() => null),
+              ]);
+              // Merge persisted diagrams with agent result diagrams
+              const mergedDiagrams = diags.length > 0
+                ? diags.map((d: { mermaid_code: string; diagram_type: string; title: string; description: string }) => ({
+                    mermaid: d.mermaid_code,
+                    mermaid_code: d.mermaid_code,
+                    type: d.diagram_type,
+                    title: d.title,
+                    description: d.description,
+                  }))
+                : sol.diagrams || [];
+              setDiagrams(mergedDiagrams);
+              if (valReport) setValidationReport(valReport as unknown as ValidationReport);
+              else if (sol.validation_report) setValidationReport(sol.validation_report);
+            } else {
+              setDiagrams(sol.diagrams || []);
+              if (sol.validation_report) setValidationReport(sol.validation_report);
+            }
+          }
+        } catch {
+          // Solution data is optional - don't fail the whole page
+        } finally {
+          setSolutionLoading(false);
+        }
+      }
     } catch {
       setError("Failed to load proposal studio.");
     } finally {
@@ -725,40 +790,306 @@ export default function ProposalStudioPage() {
         </CardContent>
       </Card>
 
+      {/* Main Tab Navigation */}
+      <div className="border-b">
+        <div className="flex gap-0">
+          {([
+            { id: "sections" as MainTab, label: "Proposal Sections", icon: FileText, count: sections.length },
+            { id: "diagrams" as MainTab, label: "Diagrams", icon: Layers, count: diagrams.length },
+            { id: "solution" as MainTab, label: "Technical Solution", icon: Cpu, count: solutionResult ? Object.keys(solutionResult.technical_solution || {}).filter(k => solutionResult.technical_solution?.[k]).length : 0 },
+            { id: "validation" as MainTab, label: "Validation", icon: ShieldCheck, count: validationReport ? 1 : 0 },
+          ]).map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setMainTab(tab.id)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  mainTab === tab.id
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className="ml-1 text-xs text-muted-foreground">({tab.count})</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main content - Sections by Volume */}
+        {/* Main content area */}
         <div className="lg:col-span-2 space-y-6">
-          {Object.keys(byVolume).length === 0 ? (
-            <Card>
-              <CardContent className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                No sections created yet
-              </CardContent>
-            </Card>
-          ) : (
-            Object.entries(byVolume).map(([vol, secs]) => (
-              <Card key={vol}>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" /> {vol}
-                    <span className="text-xs text-muted-foreground font-normal ml-1">
-                      ({secs.filter((s) => s.status === "approved").length}/{secs.length} approved)
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {secs
-                    .sort((a, b) => a.order - b.order)
-                    .map((s) => (
-                      <SectionRow
-                        key={s.id}
-                        section={s}
-                        onSave={handleSaveSection}
-                        onStatusChange={handleSectionStatusChange}
-                      />
+
+          {/* ── Sections Tab ── */}
+          {mainTab === "sections" && (
+            <>
+              {Object.keys(byVolume).length === 0 ? (
+                <Card>
+                  <CardContent className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                    No sections created yet
+                  </CardContent>
+                </Card>
+              ) : (
+                Object.entries(byVolume).map(([vol, secs]) => (
+                  <Card key={vol}>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" /> {vol}
+                        <span className="text-xs text-muted-foreground font-normal ml-1">
+                          ({secs.filter((s) => s.status === "approved").length}/{secs.length} approved)
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {secs
+                        .sort((a, b) => a.order - b.order)
+                        .map((s) => (
+                          <SectionRow
+                            key={s.id}
+                            section={s}
+                            onSave={handleSaveSection}
+                            onStatusChange={handleSectionStatusChange}
+                          />
+                        ))}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </>
+          )}
+
+          {/* ── Diagrams Tab ── */}
+          {mainTab === "diagrams" && (
+            <>
+              {solutionLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading diagrams...</span>
+                </div>
+              ) : diagrams.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <Layers className="h-10 w-10 mb-3 opacity-40" />
+                    <p className="text-sm font-medium">No architecture diagrams available</p>
+                    <p className="text-xs mt-1">Run the Solution Architect agent on the linked deal to generate diagrams.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Layers className="h-4 w-4" />
+                    {diagrams.length} architecture diagram{diagrams.length !== 1 ? "s" : ""} from Solution Architect
+                  </div>
+                  {diagrams.map((d, i) => (
+                    <DiagramCard key={i} diagram={d} index={i} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Technical Solution Tab ── */}
+          {mainTab === "solution" && (
+            <>
+              {solutionLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading solution...</span>
+                </div>
+              ) : !solutionResult?.technical_solution ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <Cpu className="h-10 w-10 mb-3 opacity-40" />
+                    <p className="text-sm font-medium">No technical solution available</p>
+                    <p className="text-xs mt-1">Run the Solution Architect agent on the linked deal to generate the solution.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {solutionResult.selected_frameworks && solutionResult.selected_frameworks.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {solutionResult.selected_frameworks.map((fw, i) => (
+                        <span key={i} className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-xs font-medium">
+                          {fw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {Object.entries(solutionResult.technical_solution)
+                    .filter(([, v]) => typeof v === "string" && (v as string).trim())
+                    .map(([key, value]) => (
+                      <Card key={key}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                            <Cpu className="h-4 w-4 text-blue-500" />
+                            {key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <MarkdownContent content={value as string} />
+                        </CardContent>
+                      </Card>
                     ))}
-                </CardContent>
-              </Card>
-            ))
+
+                  {/* Technical Volume sections */}
+                  {solutionResult.technical_volume?.sections && Object.keys(solutionResult.technical_volume.sections).length > 0 && (
+                    <>
+                      <h3 className="text-sm font-semibold text-gray-900 mt-6 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-green-500" />
+                        Technical Volume Sections
+                        <span className="text-xs font-normal text-muted-foreground">
+                          ({Object.keys(solutionResult.technical_volume.sections).length} sections
+                          {solutionResult.technical_volume.word_count ? `, ~${solutionResult.technical_volume.word_count} words` : ""})
+                        </span>
+                      </h3>
+                      {Object.entries(solutionResult.technical_volume.sections).map(([title, content]) => (
+                        <Card key={title}>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-semibold text-gray-900">{title}</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <MarkdownContent content={content} />
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Validation Tab ── */}
+          {mainTab === "validation" && (
+            <>
+              {solutionLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading validation...</span>
+                </div>
+              ) : !validationReport ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <ShieldCheck className="h-10 w-10 mb-3 opacity-40" />
+                    <p className="text-sm font-medium">No validation report available</p>
+                    <p className="text-xs mt-1">Run the Solution Architect agent on the linked deal to generate a validation report.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {/* Overall Score */}
+                  <Card>
+                    <CardContent className="pt-5">
+                      <div className="flex items-center gap-4">
+                        <div className={`flex h-16 w-16 items-center justify-center rounded-full ${
+                          validationReport.pass !== false ? "bg-green-100" : "bg-red-100"
+                        }`}>
+                          {validationReport.pass !== false ? (
+                            <CheckCircle className="h-8 w-8 text-green-600" />
+                          ) : (
+                            <AlertTriangle className="h-8 w-8 text-red-600" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-gray-900">
+                            {validationReport.verdict || (validationReport.pass !== false ? "PASS" : "NEEDS REVISION")}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Quality: <span className="font-medium capitalize">{validationReport.overall_quality}</span>
+                            {validationReport.score != null && (
+                              <> &middot; Score: <span className="font-medium">{validationReport.score}/100</span></>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Issues */}
+                  {validationReport.issues && validationReport.issues.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          Issues ({validationReport.issues.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {validationReport.issues.map((issue, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                              {issue}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Compliance Gaps */}
+                  {validationReport.compliance_gaps && validationReport.compliance_gaps.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-red-500" />
+                          Compliance Gaps ({validationReport.compliance_gaps.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {validationReport.compliance_gaps.map((gap, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                              <Shield className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                              {gap}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Suggestions */}
+                  {validationReport.suggestions && validationReport.suggestions.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <Zap className="h-4 w-4 text-blue-500" />
+                          Suggestions ({validationReport.suggestions.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {validationReport.suggestions.map((sug, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                              <Zap className="h-3.5 w-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                              {sug}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Review Text */}
+                  {validationReport.review_text && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold text-gray-900">Full Validation Review</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <MarkdownContent content={validationReport.review_text} />
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 
