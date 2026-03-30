@@ -353,26 +353,39 @@ class TechnicalSolutionDetailSerializer(serializers.ModelSerializer):
         return data
 
     def get_technical_solution(self, obj):
-        """Nest flat model fields into the technical_solution dict the frontend expects."""
-        return {
-            "executive_summary": obj.executive_summary or "",
-            "architecture_pattern": obj.architecture_pattern or "",
-            "core_components": obj.core_components if isinstance(obj.core_components, str) else str(obj.core_components) if obj.core_components else "",
-            "integration_approach": (obj.integration_points if isinstance(obj.integration_points, str) else str(obj.integration_points)) if obj.integration_points else "",
-            "data_architecture": "",
-            "security_architecture": obj.security_architecture or "",
-            "infrastructure": "",
-            "ai_ml_components": "",
-            "devops_cicd": "",
-            "monitoring_observability": "",
-            "disaster_recovery": "",
-            "scalability": obj.scalability_approach or "",
-            "compliance_implementation": "",
-            "innovation_differentiators": "",
-            "risk_mitigation": "",
-            "loe_estimates": "",
-            "technology_stack": obj.technology_stack if isinstance(obj.technology_stack, str) else str(obj.technology_stack) if obj.technology_stack else "",
+        """Build the technical_solution dict from flat model fields.
+
+        The frontend SolutionTab iterates Object.entries() and renders any
+        non-empty string values as markdown sections. We include all DB fields
+        and convert JSON fields (list/dict) to readable markdown.
+        """
+        result = {}
+
+        # Map flat model fields → readable keys
+        field_map = {
+            "executive_summary": obj.executive_summary,
+            "architecture_pattern": obj.architecture_pattern,
+            "core_components": obj.core_components,
+            "technology_stack": obj.technology_stack,
+            "integration_points": obj.integration_points,
+            "scalability_approach": obj.scalability_approach,
+            "security_architecture": obj.security_architecture,
+            "deployment_model": obj.deployment_model,
         }
+
+        for key, val in field_map.items():
+            if not val:
+                continue
+            if isinstance(val, str):
+                result[key] = val
+            elif isinstance(val, list):
+                result[key] = "\n".join(f"- {item}" for item in val) if val else ""
+            elif isinstance(val, dict):
+                result[key] = "\n".join(
+                    f"- **{k}**: {v}" for k, v in val.items()
+                ) if val else ""
+
+        return result
 
 
 class ArchitectureDiagramSerializer(serializers.ModelSerializer):
