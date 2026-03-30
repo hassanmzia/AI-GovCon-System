@@ -110,8 +110,8 @@ class ProposalSectionViewSet(viewsets.ModelViewSet):
         ).all()
 
     def get_serializer_class(self):
-        if self.action == "list":
-            return ProposalSectionListSerializer
+        # Always return full detail serializer so section content
+        # (ai_draft, human_content, final_content) is included in list views.
         return ProposalSectionDetailSerializer
 
 
@@ -229,11 +229,12 @@ class TechnicalSolutionViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return TechnicalSolution.objects.select_related("deal").all()
+        return TechnicalSolution.objects.select_related("deal").prefetch_related("diagrams").all()
 
     def get_serializer_class(self):
-        if self.action == "list":
-            return TechnicalSolutionListSerializer
+        # Always return the full detail serializer so the frontend gets
+        # the nested ArchitectureResult shape (requirement_analysis,
+        # technical_solution, technical_volume).
         return TechnicalSolutionDetailSerializer
 
 
