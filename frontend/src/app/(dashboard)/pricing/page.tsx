@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   getRateCards,
   getScenarios,
@@ -22,8 +21,6 @@ import { Deal } from "@/types/deal";
 import {
   Loader2,
   Plus,
-  ChevronDown,
-  ChevronRight,
   DollarSign,
   TrendingUp,
   CheckCircle,
@@ -43,13 +40,21 @@ const STRATEGY_TYPE_LABELS: Record<string, string> = {
   floor: "Floor",
 };
 
-function formatCurrency(value: number | null | undefined): string {
+function toNum(value: string | number | null | undefined): number {
+  if (value == null) return 0;
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  return isNaN(n) ? 0 : n;
+}
+
+function formatCurrency(value: string | number | null | undefined): string {
   if (value == null) return "--";
+  const n = toNum(value);
+  if (n === 0 && value !== 0 && value !== "0") return "--";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(n);
 }
 
 function formatDate(dateStr: string | null): string {
@@ -171,9 +176,6 @@ export default function PricingPage() {
   // UI state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedRateCards, setExpandedRateCards] = useState<Set<string>>(
-    new Set()
-  );
   const [selectedScenario, setSelectedScenario] =
     useState<PricingScenario | null>(null);
   const [scenarioLOEs, setScenarioLOEs] = useState<LOEEstimate[]>([]);
@@ -222,7 +224,7 @@ export default function PricingPage() {
     setSelectedScenario(scenario);
     setLoadingLOEs(true);
     try {
-      const data = await getLOEEstimates({ scenario: scenario.id });
+      const data = await getLOEEstimates({ deal: scenario.deal });
       setScenarioLOEs(data.results || []);
     } catch (err) {
       console.error("Error fetching scenario LOEs:", err);
@@ -232,27 +234,15 @@ export default function PricingPage() {
     }
   };
 
-  const toggleRateCardExpand = (id: string) => {
-    setExpandedRateCards((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
   // Computed summary stats
   const recommendedScenarios = scenarios.filter((s) => s.is_recommended);
   const totalPipelineValue = scenarios.reduce(
-    (sum, s) => sum + (s.total_price || 0),
+    (sum, s) => sum + toNum(s.total_price),
     0
   );
   const avgMargin =
     scenarios.length > 0
-      ? scenarios.reduce((sum, s) => sum + (s.margin_pct || 0), 0) /
+      ? scenarios.reduce((sum, s) => sum + toNum(s.margin_pct), 0) /
         scenarios.length
       : 0;
 
@@ -592,34 +582,35 @@ export default function PricingPage() {
                           </div>
                         ) : scenarioLOEs.length === 0 ? (
                           <p className="text-xs text-muted-foreground">
-                            No LOE estimates for this scenario.
+                            No LOE estimates linked to this deal.
                           </p>
                         ) : (
                           <div className="space-y-2">
                             <div className="grid grid-cols-3 text-xs text-muted-foreground font-medium border-b pb-1">
-                              <span>Category</span>
-                              <span className="text-right">Hours</span>
-                              <span className="text-right">Cost</span>
+                              <span>Task / Category</span>
+                              <span className="text-right">WBS</span>
+                              <span className="text-right">Est. Hours</span>
                             </div>
-                            {scenarioLOEs.map((loe) => (
-                              <div
-                                key={loe.id}
-                                className="grid grid-cols-3 text-xs"
-                              >
-                                <span className="text-muted-foreground truncate">
-                                  {loe.labor_category}
-                                  {loe.level ? ` (${loe.level})` : ""}
-                                </span>
-                                <span className="text-right">
-                                  {loe.total_hours?.toLocaleString() || "--"}
-                                </span>
-                                <span className="text-right font-medium">
-                                  {formatCurrency(loe.total_cost)}
-                                </span>
-                              </div>
-                            ))}
+                            {scenarioLOEs.flatMap((loe) =>
+                              (loe.wbs_elements || []).map((wbs, idx) => (
+                                <div
+                                  key={`${loe.id}-${idx}`}
+                                  className="grid grid-cols-3 text-xs"
+                                >
+                                  <span className="text-muted-foreground truncate">
+                                    {wbs.name}
+                                    <span className="ml-1 text-[10px] opacity-60">({wbs.labor_category})</span>
+                                  </span>
+                                  <span className="text-right font-mono">{wbs.wbs_id}</span>
+                                  <span className="text-right font-medium">
+                                    {wbs.hours_estimated?.toLocaleString() || "--"}
+                                  </span>
+                                </div>
+                              ))
+                            )}
                             <div className="grid grid-cols-3 text-xs font-semibold border-t pt-1">
                               <span>Total</span>
+                              <span></span>
                               <span className="text-right">
                                 {scenarioLOEs
                                   .reduce(
@@ -627,14 +618,6 @@ export default function PricingPage() {
                                     0
                                   )
                                   .toLocaleString()}
-                              </span>
-                              <span className="text-right">
-                                {formatCurrency(
-                                  scenarioLOEs.reduce(
-                                    (sum, l) => sum + (l.total_cost || 0),
-                                    0
-                                  )
-                                )}
                               </span>
                             </div>
                           </div>
@@ -664,7 +647,7 @@ export default function PricingPage() {
                 <CardTitle className="text-lg">
                   Rate Cards
                   <span className="ml-2 text-sm font-normal text-muted-foreground">
-                    ({rateCards.length} results)
+                    ({rateCards.length} labor categories)
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -676,196 +659,50 @@ export default function PricingPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {rateCards.map((card) => {
-                      const isExpanded = expandedRateCards.has(card.id);
-                      return (
-                        <div
-                          key={card.id}
-                          className="border rounded-lg overflow-hidden"
-                        >
-                          <button
-                            onClick={() => toggleRateCardExpand(card.id)}
-                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
-                          >
-                            <div className="flex items-center gap-4">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              )}
-                              <div>
-                                <span className="font-medium text-sm">
-                                  {card.name}
-                                </span>
-                                <span className="ml-3 text-xs text-muted-foreground">
-                                  FY {card.fiscal_year}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                  card.is_active
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-500"
-                                }`}
-                              >
-                                {card.is_active ? "Active" : "Inactive"}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {card.rates?.length || 0} rates
-                              </span>
-                            </div>
-                          </button>
-
-                          {isExpanded && card.rates && card.rates.length > 0 && (
-                            <div className="border-t bg-muted/20 px-4 py-3">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="border-b text-left">
-                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">
-                                      Labor Category
-                                    </th>
-                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">
-                                      Level
-                                    </th>
-                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">
-                                      Hourly Rate
-                                    </th>
-                                    <th className="pb-2 pr-4 font-medium text-muted-foreground">
-                                      Indirect Rate
-                                    </th>
-                                    <th className="pb-2 font-medium text-muted-foreground">
-                                      Escalation
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {card.rates.map((rate, idx) => (
-                                    <tr
-                                      key={idx}
-                                      className="border-b last:border-0"
-                                    >
-                                      <td className="py-2 pr-4 font-medium">
-                                        {rate.labor_category || "--"}
-                                      </td>
-                                      <td className="py-2 pr-4 text-muted-foreground">
-                                        {rate.level || "--"}
-                                      </td>
-                                      <td className="py-2 pr-4">
-                                        $
-                                        {Number(rate.hourly_rate).toFixed(2)}
-                                        /hr
-                                      </td>
-                                      <td className="py-2 pr-4 text-muted-foreground">
-                                        {rate.indirect_rate != null
-                                          ? `${(Number(rate.indirect_rate) * 100).toFixed(1)}%`
-                                          : "--"}
-                                      </td>
-                                      <td className="py-2 text-muted-foreground">
-                                        {rate.escalation_rate != null
-                                          ? `${(Number(rate.escalation_rate) * 100).toFixed(1)}%`
-                                          : "--"}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-
-                          {isExpanded &&
-                            (!card.rates || card.rates.length === 0) && (
-                              <div className="border-t bg-muted/20 px-4 py-4">
-                                <p className="text-xs text-muted-foreground text-center">
-                                  No rates defined for this rate card.
-                                </p>
-                              </div>
-                            )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* LOE Estimates Tab */}
-          {activeTab === "loe-estimates" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  LOE Estimates
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">
-                    ({loeEstimates.length} results)
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loeEstimates.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <p className="text-muted-foreground">
-                      No LOE estimates found.
-                    </p>
-                  </div>
-                ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b text-left">
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                            Labor Category
-                          </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                            Level
-                          </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                            Hrs/Month
-                          </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                            Months
-                          </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                            Total Hours
-                          </th>
-                          <th className="pb-3 pr-4 font-medium text-muted-foreground">
-                            Hourly Rate
-                          </th>
-                          <th className="pb-3 font-medium text-muted-foreground">
-                            Total Cost
-                          </th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">Labor Category</th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">GSA Equivalent</th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">Internal Rate</th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">GSA Rate</th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">Proposed Rate</th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">Market Range</th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">Exp (yrs)</th>
+                          <th className="pb-3 pr-4 font-medium text-muted-foreground">Clearance</th>
+                          <th className="pb-3 font-medium text-muted-foreground">Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {loeEstimates.map((loe) => (
-                          <tr
-                            key={loe.id}
-                            className="border-b transition-colors hover:bg-muted/50"
-                          >
-                            <td className="py-3 pr-4 font-medium">
-                              {loe.labor_category || "--"}
-                            </td>
+                        {rateCards.map((card) => (
+                          <tr key={card.id} className="border-b transition-colors hover:bg-muted/50">
+                            <td className="py-3 pr-4 font-medium">{card.labor_category}</td>
+                            <td className="py-3 pr-4 text-muted-foreground">{card.gsa_equivalent || "--"}</td>
+                            <td className="py-3 pr-4">${toNum(card.internal_rate).toFixed(2)}/hr</td>
                             <td className="py-3 pr-4 text-muted-foreground">
-                              {loe.level || "--"}
+                              {card.gsa_rate ? `$${toNum(card.gsa_rate).toFixed(2)}/hr` : "--"}
                             </td>
-                            <td className="py-3 pr-4 text-muted-foreground">
-                              {loe.hours_per_month?.toLocaleString() || "--"}
-                            </td>
-                            <td className="py-3 pr-4 text-muted-foreground">
-                              {loe.months || "--"}
-                            </td>
-                            <td className="py-3 pr-4 font-medium">
-                              {loe.total_hours?.toLocaleString() || "--"}
-                            </td>
-                            <td className="py-3 pr-4 text-muted-foreground">
-                              {loe.hourly_rate != null
-                                ? `$${Number(loe.hourly_rate).toFixed(2)}/hr`
+                            <td className="py-3 pr-4 font-medium">${toNum(card.proposed_rate).toFixed(2)}/hr</td>
+                            <td className="py-3 pr-4 text-xs text-muted-foreground">
+                              {card.market_low && card.market_high
+                                ? `$${toNum(card.market_low).toFixed(0)} – $${toNum(card.market_high).toFixed(0)}`
                                 : "--"}
                             </td>
-                            <td className="py-3 font-medium">
-                              {formatCurrency(loe.total_cost)}
+                            <td className="py-3 pr-4 text-muted-foreground">{card.experience_years || "--"}</td>
+                            <td className="py-3 pr-4">
+                              {card.clearance_required ? (
+                                <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium">Required</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">None</span>
+                              )}
+                            </td>
+                            <td className="py-3">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                card.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                              }`}>
+                                {card.is_active ? "Active" : "Inactive"}
+                              </span>
                             </td>
                           </tr>
                         ))}
@@ -875,6 +712,84 @@ export default function PricingPage() {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* LOE Estimates Tab */}
+          {activeTab === "loe-estimates" && (
+            <div className="space-y-4">
+              {loeEstimates.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <p className="text-muted-foreground">
+                      No LOE estimates found.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                loeEstimates.map((loe) => (
+                  <Card key={loe.id}>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        <span>
+                          LOE Estimate v{loe.version}
+                          <span className="ml-2 text-sm font-normal text-muted-foreground">
+                            {loe.estimation_method_display || loe.estimation_method}
+                          </span>
+                        </span>
+                        <div className="flex items-center gap-4 text-sm font-normal text-muted-foreground">
+                          <span>{loe.total_hours?.toLocaleString() || 0} total hrs</span>
+                          <span>{loe.total_ftes?.toFixed(1) || 0} FTEs</span>
+                          <span>{loe.duration_months || 0} months</span>
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            loe.confidence_level >= 0.7 ? "bg-green-100 text-green-700" :
+                            loe.confidence_level >= 0.5 ? "bg-amber-100 text-amber-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>
+                            {(loe.confidence_level * 100).toFixed(0)}% confidence
+                          </span>
+                        </div>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {loe.wbs_elements && loe.wbs_elements.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b text-left">
+                                <th className="pb-3 pr-4 font-medium text-muted-foreground">WBS ID</th>
+                                <th className="pb-3 pr-4 font-medium text-muted-foreground">Task</th>
+                                <th className="pb-3 pr-4 font-medium text-muted-foreground">Labor Category</th>
+                                <th className="pb-3 pr-4 font-medium text-muted-foreground">Optimistic</th>
+                                <th className="pb-3 pr-4 font-medium text-muted-foreground">Likely</th>
+                                <th className="pb-3 pr-4 font-medium text-muted-foreground">Pessimistic</th>
+                                <th className="pb-3 font-medium text-muted-foreground">Estimated Hrs</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {loe.wbs_elements.map((wbs, idx) => (
+                                <tr key={idx} className="border-b transition-colors hover:bg-muted/50">
+                                  <td className="py-3 pr-4 font-mono text-xs">{wbs.wbs_id}</td>
+                                  <td className="py-3 pr-4 font-medium">{wbs.name}</td>
+                                  <td className="py-3 pr-4 text-muted-foreground">{wbs.labor_category}</td>
+                                  <td className="py-3 pr-4 text-muted-foreground">{wbs.hours_optimistic?.toLocaleString() || "--"}</td>
+                                  <td className="py-3 pr-4 text-muted-foreground">{wbs.hours_likely?.toLocaleString() || "--"}</td>
+                                  <td className="py-3 pr-4 text-muted-foreground">{wbs.hours_pessimistic?.toLocaleString() || "--"}</td>
+                                  <td className="py-3 font-medium">{wbs.hours_estimated?.toLocaleString() || "--"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No WBS elements in this estimate.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           )}
         </>
       )}
