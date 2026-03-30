@@ -285,7 +285,7 @@ function FrameworksTab({
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {frameworks.map((fw) => {
-        const controlCount = fw.controls_count ?? fw.control_families?.length ?? 0;
+        const controlCount = fw.control_count ?? fw.controls_count ?? fw.control_families?.length ?? 0;
         const isActive = fw.is_active !== false;
         return (
           <Card key={fw.id} className="hover:shadow-md transition-shadow">
@@ -327,18 +327,25 @@ function FrameworksTab({
                   {controlCount}
                 </span>
               </div>
-              {fw.framework_type && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Type</span>
-                  <span className="font-medium text-gray-700 capitalize">
-                    {fw.framework_type.replace(/_/g, " ")}
-                  </span>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Families</span>
+                <span className="font-semibold text-gray-900">
+                  {fw.control_families?.length ?? 0}
+                </span>
+              </div>
+              {fw.control_families && fw.control_families.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {fw.control_families.slice(0, 6).map((fam) => (
+                    <span key={fam} className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                      {fam.split(" - ")[0]}
+                    </span>
+                  ))}
+                  {fw.control_families.length > 6 && (
+                    <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
+                      +{fw.control_families.length - 6} more
+                    </span>
+                  )}
                 </div>
-              )}
-              {fw.created_at && (
-                <p className="text-xs text-gray-400">
-                  Added {formatDate(fw.created_at)}
-                </p>
               )}
             </CardContent>
           </Card>
