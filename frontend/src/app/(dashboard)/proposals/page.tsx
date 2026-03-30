@@ -9,6 +9,7 @@ import { Proposal, ProposalSection, ProposalStatus } from "@/types/proposal";
 import { fetchAllDeals } from "@/services/analytics";
 import { Deal } from "@/types/deal";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import {
   Search,
   Loader2,
@@ -173,21 +174,18 @@ function ProposalDetailPanel({ proposal, onClose }: ProposalDetailPanelProps) {
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Executive Summary */}
-        {proposal.executive_summary ? (
-          <div>
-            <h4 className="text-sm font-semibold mb-1.5">Executive Summary</h4>
-            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-              {proposal.executive_summary}
-            </p>
-          </div>
-        ) : (
-          <div>
-            <h4 className="text-sm font-semibold mb-1.5">Executive Summary</h4>
-            <p className="text-sm text-muted-foreground italic">
+        <div>
+          <h4 className="text-sm font-semibold mb-1.5">Executive Summary</h4>
+          {proposal.executive_summary ? (
+            <div className="prose prose-sm max-w-none prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-li:text-gray-700">
+              <ReactMarkdown>{proposal.executive_summary}</ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic">
               No executive summary yet.
             </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Win Themes */}
         {proposal.win_themes && proposal.win_themes.length > 0 && (
