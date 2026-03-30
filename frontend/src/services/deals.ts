@@ -118,3 +118,46 @@ export async function runAllAgents(dealId: string): Promise<{ agents: string[] }
   const response = await api.post(`/deals/deals/${dealId}/run-agents/`);
   return response.data;
 }
+
+// ── Deal Activities & Agent Runs ────────────────────────────────────────────
+
+export interface DealActivity {
+  id: string;
+  action: string;
+  description: string;
+  is_ai_action: boolean;
+  metadata: Record<string, unknown>;
+  actor_name?: string;
+  created_at: string;
+}
+
+export interface AgentRun {
+  id: string;
+  agent_name: string;
+  deal_id: string;
+  action: string;
+  status: "running" | "completed" | "failed" | "cancelled";
+  started_at: string;
+  completed_at: string | null;
+  latency_ms: number | null;
+  success: boolean | null;
+  error_message: string;
+}
+
+export async function getDealActivities(
+  dealId: string
+): Promise<{ results: DealActivity[] }> {
+  const response = await api.get("/deals/activities/", {
+    params: { deal: dealId, limit: "50" },
+  });
+  return response.data;
+}
+
+export async function getDealAgentRuns(
+  dealId: string
+): Promise<{ results: AgentRun[] }> {
+  const response = await api.get("/analytics/agent-runs/", {
+    params: { deal_id: dealId, limit: "50" },
+  });
+  return response.data;
+}
