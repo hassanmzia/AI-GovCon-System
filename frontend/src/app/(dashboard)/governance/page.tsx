@@ -494,7 +494,7 @@ export default function GovernancePage() {
                 <div className="flex items-center gap-6 text-xs text-gray-500 border-t pt-3">
                   <span>Created by: {(policy as Record<string, unknown>).created_by_username as string || "System"}</span>
                   <span>Approved by: {(policy as Record<string, unknown>).approved_by_username as string || "Auto-approved"}</span>
-                  {(policy as Record<string, unknown>).approved_at && (
+                  {Boolean((policy as Record<string, unknown>).approved_at) && (
                     <span>Approved at: {formatTs((policy as Record<string, unknown>).approved_at as string)}</span>
                   )}
                 </div>
