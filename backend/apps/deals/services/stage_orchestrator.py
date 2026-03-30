@@ -71,6 +71,14 @@ def _on_enter_capture_plan(deal, from_stage, user):
             is_ai_action=True,
         )
 
+    # Fire the Capture Agent to populate the plan
+    try:
+        from apps.deals.tasks import auto_run_capture_agent
+        auto_run_capture_agent.delay(str(deal.id))
+        logger.info("Queued auto_run_capture_agent for deal %s", deal.id)
+    except Exception:
+        logger.warning("Could not queue auto_run_capture_agent for deal %s", deal.id, exc_info=True)
+
 
 def _on_enter_proposal_dev(deal, from_stage, user):
     """Auto-create a Proposal workspace and trigger Solution Architect + Pricing pipeline."""
@@ -105,6 +113,34 @@ def _on_enter_proposal_dev(deal, from_stage, user):
             "Could not queue auto_run_solution_architect for deal %s",
             deal.id, exc_info=True,
         )
+
+    # Fire the RFP Analyst to parse requirements and build compliance matrix
+    try:
+        from apps.deals.tasks import auto_run_rfp_analyst
+        auto_run_rfp_analyst.delay(str(deal.id))
+        logger.info("Queued auto_run_rfp_analyst for deal %s", deal.id)
+    except Exception:
+        logger.warning(
+            "Could not queue auto_run_rfp_analyst for deal %s",
+            deal.id, exc_info=True,
+        )
+
+
+def _on_enter_red_team(deal, from_stage, user):
+    """Fire Red Team review and Compliance check agents."""
+    try:
+        from apps.deals.tasks import auto_run_red_team
+        auto_run_red_team.delay(str(deal.id))
+        logger.info("Queued auto_run_red_team for deal %s", deal.id)
+    except Exception:
+        logger.warning("Could not queue auto_run_red_team for deal %s", deal.id, exc_info=True)
+
+    try:
+        from apps.deals.tasks import auto_run_compliance
+        auto_run_compliance.delay(str(deal.id))
+        logger.info("Queued auto_run_compliance for deal %s", deal.id)
+    except Exception:
+        logger.warning("Could not queue auto_run_compliance for deal %s", deal.id, exc_info=True)
 
 
 def _on_enter_contract_setup(deal, from_stage, user):
@@ -157,7 +193,7 @@ def _on_enter_no_bid(deal, from_stage, user):
 
 
 def _trigger_learning_feedback(deal):
-    """Trigger win/loss analysis, velocity recording, and scoring weight updates."""
+    """Trigger win/loss analysis, velocity recording, scoring weight updates, and AI learning agent."""
     try:
         from apps.analytics.tasks import analyze_win_loss, record_deal_velocity
         analyze_win_loss.delay(str(deal.id))
@@ -170,6 +206,14 @@ def _trigger_learning_feedback(deal):
             exc_info=True,
         )
 
+    # Fire the AI Learning Agent for deeper win/loss pattern analysis
+    try:
+        from apps.deals.tasks import auto_run_learning_agent
+        auto_run_learning_agent.delay(str(deal.id))
+        logger.info("Queued auto_run_learning_agent for deal %s", deal.id)
+    except Exception:
+        logger.warning("Could not queue auto_run_learning_agent for deal %s", deal.id, exc_info=True)
+
 
 # ── Handler Map ──────────────────────────────────────────────────────────────
 
@@ -177,6 +221,7 @@ STAGE_HANDLERS = {
     "qualify": _on_enter_qualify,
     "capture_plan": _on_enter_capture_plan,
     "proposal_dev": _on_enter_proposal_dev,
+    "red_team": _on_enter_red_team,
     "contract_setup": _on_enter_contract_setup,
     "closed_won": _on_enter_closed_won,
     "closed_lost": _on_enter_closed_lost,

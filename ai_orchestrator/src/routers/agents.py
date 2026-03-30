@@ -48,6 +48,12 @@ class MarketingRunRequest(BaseModel):
     context: dict[str, Any] = {}
 
 
+class DealAgentRunRequest(BaseModel):
+    """Generic request for deal-scoped agents (capture, red-team, compliance, learning, etc.)."""
+    deal_id: str
+    context: dict[str, Any] = {}
+
+
 class AgentRunResponse(BaseModel):
     run_id: str
     status: str  # "running" | "completed" | "failed"
@@ -177,7 +183,73 @@ async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
         await _fail_run(run_id, str(exc))
 
 
+# ── Generic agent runner for deal-scoped agents ──────────────────────────────
+
+_AGENT_REGISTRY: dict[str, tuple[str, str, str]] = {
+    # slug -> (module_path, class_name, description)
+    "capture": ("src.agents.capture_agent", "CaptureAgent", "Generating capture plan..."),
+    "red-team": ("src.agents.red_team_agent", "RedTeamAgent", "Running adversarial red team review..."),
+    "compliance": ("src.agents.compliance_agent", "ComplianceAgent", "Verifying compliance matrix..."),
+    "learning": ("src.agents.learning_agent", "LearningAgent", "Analyzing win/loss patterns..."),
+    "rfp-analyst": ("src.agents.rfp_analyst_agent", "RFPAnalystAgent", "Parsing RFP requirements..."),
+    "past-performance": ("src.agents.past_performance_agent", "PastPerformanceAgent", "Matching past performance records..."),
+    "proposal-writer": ("src.agents.proposal_writer_agent", "ProposalWriterAgent", "Drafting proposal sections..."),
+    "pricing": ("src.agents.pricing_agent", "PricingAgent", "Building pricing scenarios..."),
+    "qa": ("src.agents.qa_agent", "QAAgent", "Running quality checks..."),
+    "contract": ("src.agents.contract_agent", "ContractAgent", "Generating contract..."),
+    "teaming": ("src.agents.teaming_agent", "TeamingAgent", "Identifying teaming partners..."),
+    "submission": ("src.agents.submission_agent", "SubmissionAgent", "Packaging submission..."),
+}
+
+
+async def _run_generic_agent(run_id: str, agent_slug: str, input_data: dict) -> None:
+    """Generic runner that loads any agent from the registry."""
+    reg = _AGENT_REGISTRY.get(agent_slug)
+    if not reg:
+        await _fail_run(run_id, f"Unknown agent type: {agent_slug}")
+        return
+
+    module_path, class_name, thinking_msg = reg
+
+    try:
+        import importlib
+        mod = importlib.import_module(module_path)
+        agent_cls = getattr(mod, class_name)
+
+        q = run_event_queues.get(run_id)
+        if q:
+            await q.put({"event": "thinking", "data": {"message": thinking_msg}})
+
+        agent = agent_cls()
+        result = await agent.run(input_data)
+
+        if result.get("error"):
+            await _fail_run(run_id, result["error"])
+        else:
+            await _finalize_run(run_id, result)
+    except Exception as exc:
+        logger.exception("%s agent run %s failed", agent_slug, run_id)
+        await _fail_run(run_id, str(exc))
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+# Generic deal-scoped agent endpoint (covers all agents in the registry)
+@router.post("/ai/agents/{agent_type}/run", response_model=AgentRunResponse, tags=["agents"])
+async def run_deal_agent(
+    agent_type: str,
+    request: DealAgentRunRequest,
+    background_tasks: BackgroundTasks,
+) -> AgentRunResponse:
+    """Run any deal-scoped agent by type slug (capture, red-team, compliance, etc.)."""
+    if agent_type not in _AGENT_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"Agent type '{agent_type}' not found")
+    run_id = str(uuid.uuid4())
+    _create_run(run_id)
+    input_data = {"deal_id": request.deal_id, **request.context}
+    background_tasks.add_task(_run_generic_agent, run_id, agent_type, input_data)
+    return AgentRunResponse(run_id=run_id, status="running")
 
 @router.post("/ai/agents/strategy/run", response_model=AgentRunResponse, tags=["agents"])
 async def run_strategy_agent(
