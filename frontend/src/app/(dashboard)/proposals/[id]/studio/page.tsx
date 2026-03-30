@@ -5,13 +5,22 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   getProposal,
   getProposalSections,
   getReviewCycles,
   updateProposal,
+  updateProposalSection,
+  createReviewCycle,
 } from "@/services/proposals";
-import { Proposal, ProposalSection, ReviewCycle } from "@/types/proposal";
+import {
+  Proposal,
+  ProposalSection,
+  ProposalStatus,
+  SectionStatus,
+  ReviewCycle,
+} from "@/types/proposal";
 import {
   Loader2,
   ArrowLeft,
@@ -27,6 +36,15 @@ import {
   BarChart3,
   Zap,
   Users,
+  Save,
+  X,
+  Plus,
+  Trash2,
+  RotateCcw,
+  Wand2,
+  Send,
+  Eye,
+  PenLine,
 } from "lucide-react";
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -84,6 +102,23 @@ const REVIEW_STATUS_COLORS: Record<string, string> = {
   completed: "bg-green-100 text-green-700",
 };
 
+const ALL_PROPOSAL_STATUSES: ProposalStatus[] = [
+  "draft",
+  "pink_team",
+  "red_team",
+  "gold_team",
+  "final",
+  "submitted",
+];
+
+const ALL_SECTION_STATUSES: SectionStatus[] = [
+  "not_started",
+  "ai_drafted",
+  "in_review",
+  "revised",
+  "approved",
+];
+
 // ── Compliance Meter ─────────────────────────────────────────────────────────
 function ComplianceMeter({ proposal }: { proposal: Proposal }) {
   const pct = proposal.compliance_percentage || 0;
@@ -128,9 +163,65 @@ function ComplianceMeter({ proposal }: { proposal: Proposal }) {
 }
 
 // ── Section Editor Row ───────────────────────────────────────────────────────
-function SectionRow({ section }: { section: ProposalSection }) {
+function SectionRow({
+  section,
+  onSave,
+  onStatusChange,
+}: {
+  section: ProposalSection;
+  onSave: (id: string, data: Partial<ProposalSection>) => Promise<void>;
+  onStatusChange: (id: string, status: SectionStatus) => Promise<void>;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"ai_draft" | "human_content" | "final_content">("ai_draft");
+  const [localContent, setLocalContent] = useState({
+    ai_draft: section.ai_draft || "",
+    human_content: section.human_content || "",
+    final_content: section.final_content || "",
+  });
+  const [saving, setSaving] = useState(false);
+
   const hasContent = section.final_content || section.human_content || section.ai_draft;
+
+  // Determine which tab to show by default
+  useEffect(() => {
+    if (section.final_content) setActiveTab("final_content");
+    else if (section.human_content) setActiveTab("human_content");
+    else setActiveTab("ai_draft");
+  }, [section.final_content, section.human_content]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const wordCount = (localContent[activeTab] || "").trim().split(/\s+/).filter(Boolean).length;
+      await onSave(section.id, {
+        ...localContent,
+        word_count: wordCount,
+      });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setLocalContent({
+      ai_draft: section.ai_draft || "",
+      human_content: section.human_content || "",
+      final_content: section.final_content || "",
+    });
+    setEditing(false);
+  };
+
+  const currentContent = localContent[activeTab] || "";
+  const wordCount = currentContent.trim() ? currentContent.trim().split(/\s+/).length : 0;
+
+  const contentTabs = [
+    { key: "ai_draft" as const, label: "AI Draft", icon: Wand2, color: "text-purple-600", hasContent: !!section.ai_draft },
+    { key: "human_content" as const, label: "Human Draft", icon: PenLine, color: "text-blue-600", hasContent: !!section.human_content },
+    { key: "final_content" as const, label: "Final", icon: CheckCircle, color: "text-green-600", hasContent: !!section.final_content },
+  ];
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -141,53 +232,236 @@ function SectionRow({ section }: { section: ProposalSection }) {
         <button className="text-muted-foreground flex-shrink-0">
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
-        <span className="font-mono text-xs text-muted-foreground w-10">{section.section_number}</span>
+        <span className="font-mono text-xs text-muted-foreground w-12">{section.section_number}</span>
         <span className="flex-1 text-sm font-medium">{section.title}</span>
-        <span className={`px-2 py-0.5 text-xs rounded-full ${SECTION_STATUS_COLORS[section.status]}`}>
-          {SECTION_STATUS_LABELS[section.status]}
-        </span>
+
+        {/* Progress indicator dots */}
+        <div className="flex items-center gap-1">
+          {contentTabs.map((t) => (
+            <div
+              key={t.key}
+              className={`h-2 w-2 rounded-full ${t.hasContent ? "bg-green-500" : "bg-gray-200"}`}
+              title={`${t.label}: ${t.hasContent ? "Has content" : "Empty"}`}
+            />
+          ))}
+        </div>
+
+        {/* Status dropdown (click stops propagation) */}
+        <select
+          value={section.status}
+          onChange={(e) => {
+            e.stopPropagation();
+            onStatusChange(section.id, e.target.value as SectionStatus);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className={`text-xs rounded-full px-2 py-0.5 border-0 cursor-pointer ${SECTION_STATUS_COLORS[section.status]}`}
+        >
+          {ALL_SECTION_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {SECTION_STATUS_LABELS[s]}
+            </option>
+          ))}
+        </select>
+
         {section.page_limit && (
-          <span className="text-xs text-muted-foreground">{section.word_count}w / {section.page_limit}pg</span>
-        )}
-        {section.assigned_to && (
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Users className="h-3 w-3" />
-            Assigned
+          <span className={`text-xs text-muted-foreground ${section.word_count > (section.page_limit * 300) ? "text-red-600 font-semibold" : ""}`}>
+            {section.word_count}w / {section.page_limit}pg
           </span>
         )}
       </div>
+
       {expanded && (
-        <div className="border-t bg-gray-50 p-4">
-          {hasContent ? (
-            <div className="space-y-3">
-              {(section.final_content || section.human_content) && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
-                    {section.final_content ? "Final Content" : "Human Draft"}
-                  </p>
-                  <p className="text-sm whitespace-pre-wrap line-clamp-6">
-                    {section.final_content || section.human_content}
-                  </p>
-                </div>
-              )}
-              {section.ai_draft && !section.final_content && !section.human_content && (
-                <div>
-                  <p className="text-xs font-semibold text-blue-600 mb-1 uppercase tracking-wide flex items-center gap-1">
-                    <Zap className="h-3 w-3" /> AI Draft
-                  </p>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
-                    {section.ai_draft}
-                  </p>
-                </div>
-              )}
+        <div className="border-t bg-gray-50 p-4 space-y-3">
+          {/* Content tabs */}
+          <div className="flex items-center gap-1 border-b pb-2">
+            {contentTabs.map((t) => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
+                    activeTab === t.key
+                      ? `bg-white border border-b-white -mb-[1px] ${t.color}`
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3 w-3" />
+                  {t.label}
+                  {t.hasContent && <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
+                </button>
+              );
+            })}
+            <div className="flex-1" />
+            {!editing ? (
+              <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="gap-1 h-7 text-xs">
+                <Edit3 className="h-3 w-3" /> Edit
+              </Button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1 h-7 text-xs">
+                  <Save className="h-3 w-3" /> {saving ? "Saving..." : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handleCancel} className="h-7 text-xs">
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Content area */}
+          {editing ? (
+            <textarea
+              className="w-full min-h-[250px] text-sm border rounded p-3 font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              value={localContent[activeTab]}
+              onChange={(e) =>
+                setLocalContent((prev) => ({ ...prev, [activeTab]: e.target.value }))
+              }
+              placeholder={`Enter ${contentTabs.find((t) => t.key === activeTab)?.label || "content"}...`}
+            />
+          ) : currentContent ? (
+            <div className="text-sm whitespace-pre-wrap bg-white rounded p-3 border max-h-[400px] overflow-y-auto prose prose-sm max-w-none">
+              {currentContent}
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <Edit3 className="h-4 w-4" />
-              No content yet — trigger AI draft or add manually
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground bg-white rounded border border-dashed">
+              <Edit3 className="h-6 w-6 mb-2" />
+              <p className="text-sm">No {contentTabs.find((t) => t.key === activeTab)?.label || "content"} yet</p>
+              <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="mt-2 gap-1 text-xs">
+                <PenLine className="h-3 w-3" /> Start Writing
+              </Button>
             </div>
           )}
+
+          {/* Footer info */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+            <span>{wordCount} words</span>
+            {section.page_limit && (
+              <span>~{Math.ceil(wordCount / 300)} of {section.page_limit} pages</span>
+            )}
+          </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Editable List (win themes / discriminators) ─────────────────────────────
+function EditableList({
+  title,
+  items,
+  icon: Icon,
+  iconColor,
+  onSave,
+}: {
+  title: string;
+  items: string[];
+  icon: React.ElementType;
+  iconColor: string;
+  onSave: (items: string[]) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [localItems, setLocalItems] = useState(items);
+  const [saving, setSaving] = useState(false);
+  const [newItem, setNewItem] = useState("");
+
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(localItems.filter((t) => t.trim()));
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addItem = () => {
+    if (newItem.trim()) {
+      setLocalItems([...localItems, newItem.trim()]);
+      setNewItem("");
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {title}
+        </p>
+        {!editing ? (
+          <button onClick={() => setEditing(true)} className="text-xs text-blue-600 hover:underline">
+            Edit
+          </button>
+        ) : (
+          <div className="flex gap-1">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="text-xs text-green-600 hover:underline"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => {
+                setLocalItems(items);
+                setEditing(false);
+              }}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+      {editing ? (
+        <div className="space-y-1.5">
+          {localItems.map((item, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <Input
+                value={item}
+                onChange={(e) => {
+                  const updated = [...localItems];
+                  updated[i] = e.target.value;
+                  setLocalItems(updated);
+                }}
+                className="h-7 text-xs"
+              />
+              <button
+                onClick={() => setLocalItems(localItems.filter((_, idx) => idx !== i))}
+                className="text-red-400 hover:text-red-600 mt-1 flex-shrink-0"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <Input
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              placeholder={`Add ${title.toLowerCase().replace(/s$/, "")}...`}
+              className="h-7 text-xs"
+              onKeyDown={(e) => e.key === "Enter" && addItem()}
+            />
+            <button onClick={addItem} className="text-blue-500 hover:text-blue-700 flex-shrink-0">
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : items.length > 0 ? (
+        <ul className="space-y-1">
+          {items.map((item, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm">
+              <Icon className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${iconColor}`} />
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground italic">None defined</p>
       )}
     </div>
   );
@@ -205,12 +479,21 @@ export default function ProposalStudioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Executive summary editing
+  const [editingExecSummary, setEditingExecSummary] = useState(false);
+  const [execSummaryDraft, setExecSummaryDraft] = useState("");
+  const [savingExecSummary, setSavingExecSummary] = useState(false);
+
+  // Status editing
+  const [savingStatus, setSavingStatus] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const p = await getProposal(id);
       setProposal(p);
+      setExecSummaryDraft(p.executive_summary || "");
       const [sRes, rRes] = await Promise.all([
         getProposalSections(id),
         getReviewCycles(id),
@@ -227,6 +510,64 @@ export default function ProposalStudioPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Save section content
+  const handleSaveSection = async (sectionId: string, data: Partial<ProposalSection>) => {
+    const updated = await updateProposalSection(sectionId, data);
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...updated } : s)));
+  };
+
+  // Change section status
+  const handleSectionStatusChange = async (sectionId: string, status: SectionStatus) => {
+    const updated = await updateProposalSection(sectionId, { status });
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...updated } : s)));
+  };
+
+  // Save proposal status
+  const handleStatusChange = async (newStatus: ProposalStatus) => {
+    if (!proposal) return;
+    setSavingStatus(true);
+    try {
+      const updated = await updateProposal(id, { status: newStatus });
+      setProposal(updated);
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  // Save win themes
+  const handleSaveWinThemes = async (themes: string[]) => {
+    const updated = await updateProposal(id, { win_themes: themes } as Partial<Proposal>);
+    setProposal(updated);
+  };
+
+  // Save discriminators
+  const handleSaveDiscriminators = async (discs: string[]) => {
+    const updated = await updateProposal(id, { discriminators: discs } as Partial<Proposal>);
+    setProposal(updated);
+  };
+
+  // Save executive summary
+  const handleSaveExecSummary = async () => {
+    setSavingExecSummary(true);
+    try {
+      const updated = await updateProposal(id, { executive_summary: execSummaryDraft } as Partial<Proposal>);
+      setProposal(updated);
+      setEditingExecSummary(false);
+    } finally {
+      setSavingExecSummary(false);
+    }
+  };
+
+  // Schedule review cycle
+  const handleScheduleReview = async (reviewType: string) => {
+    await createReviewCycle({
+      proposal: id,
+      review_type: reviewType,
+    });
+    const rRes = await getReviewCycles(id);
+    setReviews(rRes.results);
+  };
 
   if (loading) {
     return (
@@ -257,6 +598,10 @@ export default function ProposalStudioPage() {
 
   const approvedCount = sections.filter((s) => s.status === "approved").length;
   const draftedCount = sections.filter((s) => s.status !== "not_started").length;
+  const totalWords = sections.reduce((sum, s) => sum + (s.word_count || 0), 0);
+
+  // Determine which review types are available to schedule
+  const existingReviewTypes = reviews.map((r) => r.review_type);
 
   return (
     <div className="space-y-6 p-6">
@@ -270,9 +615,19 @@ export default function ProposalStudioPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold">{proposal.title}</h1>
-            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${STATUS_COLORS[proposal.status]}`}>
-              {STATUS_LABELS[proposal.status]}
-            </span>
+            {/* Editable status dropdown */}
+            <select
+              value={proposal.status}
+              onChange={(e) => handleStatusChange(e.target.value as ProposalStatus)}
+              disabled={savingStatus}
+              className={`text-xs rounded-full px-3 py-1 font-medium border-0 cursor-pointer ${STATUS_COLORS[proposal.status]}`}
+            >
+              {ALL_PROPOSAL_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
             <span className="text-xs text-muted-foreground">v{proposal.version}</span>
           </div>
           {proposal.deal_name && (
@@ -281,13 +636,13 @@ export default function ProposalStudioPage() {
         </div>
         <Link href={`/proposals/${id}/submit`}>
           <Button>
-            <CheckCircle className="h-4 w-4 mr-2" /> Submission Readiness
+            <Send className="h-4 w-4 mr-2" /> Submission Readiness
           </Button>
         </Link>
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -306,6 +661,16 @@ export default function ProposalStudioPage() {
             </div>
             <div className="text-2xl font-bold">{draftedCount}</div>
             <p className="text-xs text-muted-foreground">of {sections.length} sections</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <BookOpen className="h-4 w-4" />
+              <span className="text-xs">Total Words</span>
+            </div>
+            <div className="text-2xl font-bold">{totalWords.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">~{Math.ceil(totalWords / 300)} pages</p>
           </CardContent>
         </Card>
         <Card>
@@ -330,9 +695,36 @@ export default function ProposalStudioPage() {
         </Card>
       </div>
 
+      {/* Progress bar */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Overall Progress</span>
+            <span className="text-sm font-medium">{sections.length > 0 ? Math.round((draftedCount / sections.length) * 100) : 0}%</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden flex">
+            <div
+              className="h-full bg-green-500 transition-all"
+              style={{ width: `${sections.length > 0 ? (approvedCount / sections.length) * 100 : 0}%` }}
+              title={`${approvedCount} approved`}
+            />
+            <div
+              className="h-full bg-blue-400 transition-all"
+              style={{ width: `${sections.length > 0 ? ((draftedCount - approvedCount) / sections.length) * 100 : 0}%` }}
+              title={`${draftedCount - approvedCount} in progress`}
+            />
+          </div>
+          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" /> Approved ({approvedCount})</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-400" /> In Progress ({draftedCount - approvedCount})</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-gray-200" /> Not Started ({sections.length - draftedCount})</span>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main content - Sections by Volume */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Sections by Volume */}
           {Object.keys(byVolume).length === 0 ? (
             <Card>
               <CardContent className="flex items-center justify-center h-32 text-muted-foreground text-sm">
@@ -354,7 +746,12 @@ export default function ProposalStudioPage() {
                   {secs
                     .sort((a, b) => a.order - b.order)
                     .map((s) => (
-                      <SectionRow key={s.id} section={s} />
+                      <SectionRow
+                        key={s.id}
+                        section={s}
+                        onSave={handleSaveSection}
+                        onStatusChange={handleSectionStatusChange}
+                      />
                     ))}
                 </CardContent>
               </Card>
@@ -362,6 +759,7 @@ export default function ProposalStudioPage() {
           )}
         </div>
 
+        {/* Sidebar */}
         <div className="space-y-6">
           {/* Compliance */}
           <Card>
@@ -375,48 +773,30 @@ export default function ProposalStudioPage() {
             </CardContent>
           </Card>
 
-          {/* Win Themes */}
-          {(proposal.win_themes?.length > 0 || proposal.discriminators?.length > 0) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Star className="h-4 w-4" /> Strategy
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {proposal.win_themes?.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                      Win Themes
-                    </p>
-                    <ul className="space-y-1">
-                      {proposal.win_themes.map((t, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-                          {t}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {proposal.discriminators?.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                      Discriminators
-                    </p>
-                    <ul className="space-y-1">
-                      {proposal.discriminators.map((d, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <Zap className="h-3.5 w-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
-                          {d}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* Strategy - Win Themes & Discriminators */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Star className="h-4 w-4" /> Strategy
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <EditableList
+                title="Win Themes"
+                items={proposal.win_themes || []}
+                icon={CheckCircle}
+                iconColor="text-green-500"
+                onSave={handleSaveWinThemes}
+              />
+              <EditableList
+                title="Discriminators"
+                items={proposal.discriminators || []}
+                icon={Zap}
+                iconColor="text-blue-500"
+                onSave={handleSaveDiscriminators}
+              />
+            </CardContent>
+          </Card>
 
           {/* Review Cycles */}
           <Card>
@@ -439,7 +819,7 @@ export default function ProposalStudioPage() {
                       </span>
                       <div className="flex-1 min-w-0">
                         <span className={`px-2 py-0.5 text-xs rounded-full ${REVIEW_STATUS_COLORS[r.status]}`}>
-                          {r.status}
+                          {r.status.replace("_", " ")}
                         </span>
                         {r.scheduled_date && (
                           <p className="text-xs text-muted-foreground mt-1">
@@ -449,27 +829,100 @@ export default function ProposalStudioPage() {
                         {r.overall_score != null && (
                           <p className="text-xs font-medium mt-1">Score: {r.overall_score}/100</p>
                         )}
+                        {r.summary && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.summary}</p>
+                        )}
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {/* Schedule new review */}
+              {(["pink", "red", "gold"] as const).filter((t) => !existingReviewTypes.includes(t)).length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Schedule Review</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["pink", "red", "gold"] as const)
+                      .filter((t) => !existingReviewTypes.includes(t))
+                      .map((t) => (
+                        <Button
+                          key={t}
+                          size="sm"
+                          variant="outline"
+                          className={`text-xs h-7 gap-1 ${REVIEW_TYPE_COLORS[t]}`}
+                          onClick={() => handleScheduleReview(t)}
+                        >
+                          <Plus className="h-3 w-3" />
+                          {t.charAt(0).toUpperCase() + t.slice(1)} Team
+                        </Button>
+                      ))}
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Executive Summary */}
-          {proposal.executive_summary && (
-            <Card>
-              <CardHeader>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Executive Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-8">
+                {!editingExecSummary ? (
+                  <button
+                    onClick={() => setEditingExecSummary(true)}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={handleSaveExecSummary}
+                      disabled={savingExecSummary}
+                      className="text-xs text-green-600 hover:underline"
+                    >
+                      {savingExecSummary ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setExecSummaryDraft(proposal.executive_summary || "");
+                        setEditingExecSummary(false);
+                      }}
+                      className="text-xs text-muted-foreground hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {editingExecSummary ? (
+                <textarea
+                  className="w-full min-h-[150px] text-sm border rounded p-3 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={execSummaryDraft}
+                  onChange={(e) => setExecSummaryDraft(e.target.value)}
+                  placeholder="Write the executive summary..."
+                />
+              ) : proposal.executive_summary ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {proposal.executive_summary}
                 </p>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-2">No executive summary yet</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingExecSummary(true)}
+                    className="gap-1 text-xs"
+                  >
+                    <PenLine className="h-3 w-3" /> Write Summary
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
