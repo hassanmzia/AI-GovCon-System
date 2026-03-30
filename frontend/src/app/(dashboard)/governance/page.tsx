@@ -457,8 +457,8 @@ export default function GovernancePage() {
                   <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                     <span>Created: {formatTs((policy as Record<string, unknown>).created_at as string || "")}</span>
                     <span>Updated: {formatTs(policy.updated_at)}</span>
-                    {(policy as Record<string, unknown>).effective_from && <span>Effective from: {formatTs((policy as Record<string, unknown>).effective_from as string)}</span>}
-                    {(policy as Record<string, unknown>).effective_to && <span>Effective to: {formatTs((policy as Record<string, unknown>).effective_to as string)}</span>}
+                    {Boolean((policy as Record<string, unknown>).effective_from) && <span>Effective from: {formatTs((policy as Record<string, unknown>).effective_from as string)}</span>}
+                    {Boolean((policy as Record<string, unknown>).effective_to) && <span>Effective to: {formatTs((policy as Record<string, unknown>).effective_to as string)}</span>}
                   </div>
                 </div>
 
