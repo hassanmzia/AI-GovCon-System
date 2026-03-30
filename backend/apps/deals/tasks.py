@@ -254,14 +254,27 @@ def _persist_solution_result(deal, result):
             "iteration_count": result.get("iteration_count", 1),
             "selected_frameworks": result.get("selected_frameworks", []),
             "requirement_analysis": result.get("requirement_analysis", {}),
-            "executive_summary": ts_data.get("executive_summary", ""),
-            "architecture_pattern": ts_data.get("architecture_pattern", ""),
-            "core_components": ts_data.get("core_components", []),
+            # Map agent output keys → model fields
+            "executive_summary": (
+                ts_data.get("executive_summary")
+                or ts_data.get("solution_overview_and_vision", "")
+            ),
+            "architecture_pattern": (
+                ts_data.get("architecture_pattern")
+                or ts_data.get("architecture_approach", "")
+            )[:200],
+            "core_components": ts_data.get("core_components") or ts_data.get("container_architecture", ""),
             "technology_stack": ts_data.get("technology_stack", {}),
-            "integration_points": ts_data.get("integration_points", []),
-            "scalability_approach": ts_data.get("scalability_approach", ""),
+            "integration_points": ts_data.get("integration_points") or ts_data.get("integration_architecture", ""),
+            "scalability_approach": (
+                ts_data.get("scalability_approach")
+                or ts_data.get("scalability_and_performance_design", "")
+            ),
             "security_architecture": ts_data.get("security_architecture", ""),
-            "deployment_model": ts_data.get("deployment_model", ""),
+            "deployment_model": (
+                ts_data.get("deployment_model")
+                or ts_data.get("infrastructure_and_cloud_design", "")
+            )[:100],
             "technical_volume": result.get("technical_volume", {}).get("sections", {}),
         },
     )
