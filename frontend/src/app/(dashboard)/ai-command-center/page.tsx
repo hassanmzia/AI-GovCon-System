@@ -79,6 +79,30 @@ interface GraphMeta {
 }
 
 // --- Mermaid Renderer for Graph Visualization ---
+function sanitizeMermaidForBrowser(code: string): string {
+  // Strip YAML frontmatter
+  let cleaned = code.replace(/^---[\s\S]*?---\s*/m, "");
+  // Remove :::class suffixes
+  cleaned = cleaned.replace(/:::\w+/g, "");
+  // Remove classDef lines
+  cleaned = cleaned.split("\n").filter((l) => !l.trim().startsWith("classDef ")).join("\n");
+  // Remove <p>...</p> HTML in labels
+  cleaned = cleaned.replace(/<p>(.*?)<\/p>/g, "$1");
+  // Rename __start__/__end__ to readable names
+  cleaned = cleaned.replace(/__start__/g, "Start").replace(/__end__/g, "End");
+  // Fix ([...]) round-rect to ((...)) for start/end
+  cleaned = cleaned.replace(/Start\(\[([^\]]*)\]\)/g, "Start(($1))");
+  cleaned = cleaned.replace(/End\(\[([^\]]*)\]\)/g, "End(($1))");
+  // Humanize bare node labels: node_name(node_name) -> node_name[Node Name]
+  cleaned = cleaned.replace(/(\w+)\(\1\)/g, (_, id) => {
+    const label = id.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+    return `${id}[${label}]`;
+  });
+  // Remove trailing semicolons (mermaid.js sometimes chokes on them)
+  cleaned = cleaned.replace(/;\s*$/gm, "");
+  return cleaned.trim();
+}
+
 function InlineMermaidRenderer({ code, id }: { code: string; id: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
@@ -99,12 +123,37 @@ function InlineMermaidRenderer({ code, id }: { code: string; id: string }) {
           fontFamily: "ui-sans-serif, system-ui, sans-serif",
           flowchart: { curve: "basis", padding: 15 },
         });
-        const stale = document.getElementById(`gmermaid-${id}`);
-        if (stale) stale.remove();
-        const result = await mermaid.render(`gmermaid-${id}`, code);
+
+        // Try original first, then sanitized version
+        const candidates = [code, sanitizeMermaidForBrowser(code)];
+        const seen = new Set<string>();
+        let rendered: string | null = null;
+
+        for (let i = 0; i < candidates.length; i++) {
+          const candidate = candidates[i];
+          if (seen.has(candidate)) continue;
+          seen.add(candidate);
+
+          try {
+            const elId = `gmermaid-${id}-${i}`;
+            const stale = document.getElementById(elId);
+            if (stale) stale.remove();
+            const result = await mermaid.render(elId, candidate);
+            rendered = result.svg;
+            break;
+          } catch {
+            const failedEl = document.getElementById(`gmermaid-${id}-${i}`);
+            if (failedEl) failedEl.remove();
+          }
+        }
+
         if (!cancelled) {
-          setSvg(result.svg);
-          setError(false);
+          if (rendered) {
+            setSvg(rendered);
+            setError(false);
+          } else {
+            setError(true);
+          }
         }
       } catch {
         if (!cancelled) setError(true);
@@ -204,15 +253,15 @@ function KpiCard({
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
               {title}
             </p>
             <p className={`text-3xl font-bold ${colorClass}`}>{value}</p>
             {subtitle && (
-              <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{subtitle}</p>
             )}
           </div>
-          <div className="p-2 bg-gray-50 rounded-lg">{icon}</div>
+          <div className="p-2 bg-muted rounded-lg">{icon}</div>
         </div>
       </CardContent>
     </Card>
@@ -454,7 +503,7 @@ export default function AICommandCenterPage() {
             <h1 className="text-2xl font-bold text-gray-900">
               AI Command Center
             </h1>
-            <p className="text-sm text-gray-500 flex items-center gap-1">
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Cpu className="h-3.5 w-3.5" />
               Executive AI performance &amp; trust metrics
             </p>
@@ -477,14 +526,14 @@ export default function AICommandCenterPage() {
               : "No bid data"
           }
           icon={<TrendingUp className="h-5 w-5 text-green-500" />}
-          colorClass="text-green-700"
+          colorClass="text-green-700 dark:text-green-400"
         />
         <KpiCard
           title="Precision@10"
           value={winLossLoading ? "..." : formatPct(precision10)}
           subtitle="Top-10 ranked opps resulting in a bid"
           icon={<Target className="h-5 w-5 text-blue-500" />}
-          colorClass="text-blue-700"
+          colorClass="text-blue-700 dark:text-blue-400"
         />
         <KpiCard
           title="Avg Proposal Cycle"
@@ -497,7 +546,7 @@ export default function AICommandCenterPage() {
           }
           subtitle="Intake to submission"
           icon={<Clock className="h-5 w-5 text-purple-500" />}
-          colorClass="text-purple-700"
+          colorClass="text-purple-700 dark:text-purple-400"
         />
         <KpiCard
           title="AI Override Rate"
@@ -510,8 +559,8 @@ export default function AICommandCenterPage() {
           icon={<Users className="h-5 w-5 text-amber-500" />}
           colorClass={
             overrideRate !== null && overrideRate > 20
-              ? "text-red-700"
-              : "text-amber-700"
+              ? "text-red-700 dark:text-red-400"
+              : "text-amber-700 dark:text-amber-400"
           }
         />
       </div>
@@ -529,12 +578,12 @@ export default function AICommandCenterPage() {
         </CardHeader>
         <CardContent>
           {agentRunsLoading ? (
-            <div className="flex items-center gap-2 text-gray-500 py-6">
+            <div className="flex items-center gap-2 text-muted-foreground py-6">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">Loading agent runs...</span>
             </div>
           ) : agentRunsError ? (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center gap-2">
+            <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               {agentRunsError}
             </div>
@@ -653,17 +702,17 @@ export default function AICommandCenterPage() {
         </CardHeader>
         <CardContent>
           {winLossLoading ? (
-            <div className="flex items-center gap-2 text-gray-500 py-6">
+            <div className="flex items-center gap-2 text-muted-foreground py-6">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">Loading win/loss data...</span>
             </div>
           ) : winLossError ? (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center gap-2">
+            <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               {winLossError}
             </div>
           ) : scatterPoints.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/70">
               <BarChart2 className="h-10 w-10 mb-2 opacity-30" />
               <p className="text-sm">
                 No win/loss data with confidence scores available
@@ -792,7 +841,7 @@ export default function AICommandCenterPage() {
               </svg>
 
               {/* Legend */}
-              <div className="flex items-center gap-4 flex-wrap text-xs text-gray-500 mt-2 px-12">
+              <div className="flex items-center gap-4 flex-wrap text-xs text-muted-foreground mt-2 px-12">
                 {["qualification", "proposal", "review", "submitted", "awarded", "lost"].map(
                   (stage) => (
                     <div key={stage} className="flex items-center gap-1">
@@ -823,60 +872,60 @@ export default function AICommandCenterPage() {
         </CardHeader>
         <CardContent>
           {enforcementLoading ? (
-            <div className="flex items-center gap-2 text-gray-500 py-4">
+            <div className="flex items-center gap-2 text-muted-foreground py-4">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">Loading enforcement data...</span>
             </div>
           ) : enforcementError ? (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center gap-2">
+            <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               {enforcementError}
             </div>
           ) : totalEnforcement === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">
+            <p className="text-sm text-muted-foreground/70 text-center py-6">
               No enforcement events recorded
             </p>
           ) : (
             <div className="grid grid-cols-3 gap-4">
-              <div className="flex flex-col items-center rounded-xl border border-green-200 bg-green-50 py-6 px-4">
+              <div className="flex flex-col items-center rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 py-6 px-4">
                 <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
-                <p className="text-4xl font-bold text-green-700">
+                <p className="text-4xl font-bold text-green-700 dark:text-green-300">
                   {allowedCount}
                 </p>
-                <p className="text-sm font-semibold text-green-600 mt-1">
+                <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
                   Allowed
                 </p>
-                <p className="text-xs text-green-500 mt-0.5">
+                <p className="text-xs text-green-500 dark:text-green-500 mt-0.5">
                   {totalEnforcement > 0
                     ? `${((allowedCount / totalEnforcement) * 100).toFixed(0)}%`
                     : "0%"}{" "}
                   of decisions
                 </p>
               </div>
-              <div className="flex flex-col items-center rounded-xl border border-amber-200 bg-amber-50 py-6 px-4">
+              <div className="flex flex-col items-center rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 py-6 px-4">
                 <AlertCircle className="h-8 w-8 text-amber-500 mb-2" />
-                <p className="text-4xl font-bold text-amber-700">
+                <p className="text-4xl font-bold text-amber-700 dark:text-amber-300">
                   {hitlCount}
                 </p>
-                <p className="text-sm font-semibold text-amber-600 mt-1">
+                <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-1">
                   HITL Required
                 </p>
-                <p className="text-xs text-amber-500 mt-0.5">
+                <p className="text-xs text-amber-500 dark:text-amber-500 mt-0.5">
                   {totalEnforcement > 0
                     ? `${((hitlCount / totalEnforcement) * 100).toFixed(0)}%`
                     : "0%"}{" "}
                   of decisions
                 </p>
               </div>
-              <div className="flex flex-col items-center rounded-xl border border-red-200 bg-red-50 py-6 px-4">
+              <div className="flex flex-col items-center rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 py-6 px-4">
                 <MinusCircle className="h-8 w-8 text-red-500 mb-2" />
-                <p className="text-4xl font-bold text-red-700">
+                <p className="text-4xl font-bold text-red-700 dark:text-red-300">
                   {blockedCount}
                 </p>
-                <p className="text-sm font-semibold text-red-600 mt-1">
+                <p className="text-sm font-semibold text-red-600 dark:text-red-400 mt-1">
                   Blocked
                 </p>
-                <p className="text-xs text-red-500 mt-0.5">
+                <p className="text-xs text-red-500 dark:text-red-500 mt-0.5">
                   {totalEnforcement > 0
                     ? `${((blockedCount / totalEnforcement) * 100).toFixed(0)}%`
                     : "0%"}{" "}
@@ -904,7 +953,7 @@ export default function AICommandCenterPage() {
             <div className="flex flex-col items-center justify-center py-8 text-green-600">
               <CheckCircle className="h-10 w-10 mb-2" />
               <p className="font-semibold">0 hallucinations detected</p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-muted-foreground/70 mt-1">
                 All agents operating cleanly over the last 7 days
               </p>
             </div>
@@ -1058,7 +1107,7 @@ export default function AICommandCenterPage() {
                     {milestone.label}
                     {milestone.current && " ← Now"}
                   </p>
-                  <p className="text-xs text-gray-400">{milestone.sublabel}</p>
+                  <p className="text-xs text-muted-foreground/70">{milestone.sublabel}</p>
                 </div>
               </div>
             ))}
@@ -1099,7 +1148,7 @@ export default function AICommandCenterPage() {
                     {item.status}
                   </p>
                 </div>
-                <p className="text-xs text-gray-500">{item.desc}</p>
+                <p className="text-xs text-muted-foreground">{item.desc}</p>
               </div>
             ))}
           </div>

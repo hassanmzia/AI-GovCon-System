@@ -20,7 +20,7 @@ def _get_orchestrator_url():
 
 
 def _call_orchestrator_agent(agent_type: str, deal_id: str, extra_context: dict | None = None,
-                              max_wait: int = 180, poll_interval: int = 3) -> dict | None:
+                              max_wait: int = 600, poll_interval: int = 5) -> dict | None:
     """Call an AI Orchestrator agent and poll for completion.
 
     Returns the result dict on success, None on timeout.
@@ -31,7 +31,7 @@ def _call_orchestrator_agent(agent_type: str, deal_id: str, extra_context: dict 
     url = _get_orchestrator_url()
     payload = {"deal_id": deal_id, "context": extra_context or {}}
 
-    client = httpx.Client(timeout=30)
+    client = httpx.Client(timeout=60)
     try:
         start_resp = client.post(f"{url}/ai/agents/{agent_type}/run", json=payload)
         start_resp.raise_for_status()
@@ -172,7 +172,7 @@ def auto_run_solution_architect(self, deal_id: str):
     orchestrator_url = os.getenv("AI_ORCHESTRATOR_URL", "http://ai-orchestrator:8003")
 
     try:
-        client = httpx.Client(timeout=30)
+        client = httpx.Client(timeout=60)
 
         # Start the agent run
         start_resp = client.post(
@@ -185,8 +185,8 @@ def auto_run_solution_architect(self, deal_id: str):
         start_resp.raise_for_status()
         run_id = start_resp.json()["run_id"]
 
-        # Poll for completion (max 180s)
-        max_wait, poll_interval, elapsed = 180, 3, 0
+        # Poll for completion (local LLMs may need up to 10 min)
+        max_wait, poll_interval, elapsed = 600, 5, 0
         result = None
 
         while elapsed < max_wait:

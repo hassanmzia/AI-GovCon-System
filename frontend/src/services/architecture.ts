@@ -12,7 +12,7 @@ export async function runSolutionArchitect(dealId: string): Promise<Architecture
   const response = await api.post(
     `/deals/deals/${dealId}/run-solution-architect/`,
     {},
-    { timeout: 180_000 }
+    { timeout: 600_000 }
   );
   return response.data;
 }
