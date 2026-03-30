@@ -1,6 +1,7 @@
 """Endpoint that returns Mermaid diagrams of the LangGraph agent workflows."""
 
 import logging
+import re
 from fastapi import APIRouter
 
 logger = logging.getLogger("ai_orchestrator.routers.visualize")
@@ -8,14 +9,69 @@ logger = logging.getLogger("ai_orchestrator.routers.visualize")
 router = APIRouter()
 
 
+def _sanitize_langgraph_mermaid(code: str) -> str:
+    """Clean up LangGraph's draw_mermaid() output for client-side rendering.
+
+    LangGraph emits YAML frontmatter, HTML tags in labels, :::class suffixes,
+    and classDef directives that break mermaid.js in the browser.
+    """
+    # Strip YAML frontmatter (---\nconfig:\n...\n---)
+    code = re.sub(r"^---[\s\S]*?---\s*", "", code, count=1)
+
+    lines = []
+    for line in code.split("\n"):
+        stripped = line.strip()
+
+        # Skip classDef lines
+        if stripped.startswith("classDef "):
+            continue
+
+        # Remove :::className suffixes
+        line = re.sub(r":::[\w]+", "", line)
+
+        # Replace <p>...</p> with plain text in node labels
+        line = re.sub(r"<p>(.*?)</p>", r"\1", line)
+
+        # Clean up __start__ / __end__ to readable names
+        line = line.replace("__start__", "Start")
+        line = line.replace("__end__", "End")
+
+        # Convert ([...]) round-rect nodes to normal [...] for Start/End
+        line = re.sub(r"Start\(\[([^\]]*)\]\)", r"Start((\1))", line)
+        line = re.sub(r"End\(\[([^\]]*)\]\)", r"End((\1))", line)
+
+        # Make node IDs into readable labels: load_company_profile -> Load Company Profile
+        def _humanize_node(match: re.Match) -> str:
+            node_id = match.group(1)
+            label = node_id.replace("_", " ").title()
+            return f"{node_id}[{label}]"
+
+        # Match bare node declarations like "    node_name(node_name)" and convert
+        line = re.sub(
+            r"(\w+)\(\1\)",
+            _humanize_node,
+            line,
+        )
+
+        lines.append(line)
+
+    result = "\n".join(lines).strip()
+
+    # Ensure it starts with graph directive
+    if not re.match(r"^(graph|flowchart)\s+(TD|TB|LR|RL|BT)", result):
+        result = "graph TD\n" + result
+
+    return result
+
+
 def _get_proposal_graph_mermaid() -> str:
     """Generate Mermaid from the compiled proposal LangGraph."""
     try:
         from src.graphs.proposal_graph import proposal_graph
-        return proposal_graph.get_graph().draw_mermaid()
+        raw = proposal_graph.get_graph().draw_mermaid()
+        return _sanitize_langgraph_mermaid(raw)
     except Exception as exc:
         logger.warning("Could not generate proposal graph mermaid: %s", exc)
-        # Fallback hand-crafted diagram
         return """graph TD
     load_deal_context[Load Deal Context] --> load_proposal_inputs[Load Proposal Inputs]
     load_proposal_inputs --> match_past_performance[Match Past Performance]
@@ -34,7 +90,8 @@ def _get_daily_scan_graph_mermaid() -> str:
     try:
         from src.graphs.daily_scan_graph import build_daily_scan_graph
         graph = build_daily_scan_graph()
-        return graph.get_graph().draw_mermaid()
+        raw = graph.get_graph().draw_mermaid()
+        return _sanitize_langgraph_mermaid(raw)
     except Exception as exc:
         logger.warning("Could not generate daily scan graph mermaid: %s", exc)
         return """graph TD

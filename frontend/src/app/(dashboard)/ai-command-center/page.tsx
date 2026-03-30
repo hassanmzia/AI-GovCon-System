@@ -79,6 +79,30 @@ interface GraphMeta {
 }
 
 // --- Mermaid Renderer for Graph Visualization ---
+function sanitizeMermaidForBrowser(code: string): string {
+  // Strip YAML frontmatter
+  let cleaned = code.replace(/^---[\s\S]*?---\s*/m, "");
+  // Remove :::class suffixes
+  cleaned = cleaned.replace(/:::\w+/g, "");
+  // Remove classDef lines
+  cleaned = cleaned.split("\n").filter((l) => !l.trim().startsWith("classDef ")).join("\n");
+  // Remove <p>...</p> HTML in labels
+  cleaned = cleaned.replace(/<p>(.*?)<\/p>/g, "$1");
+  // Rename __start__/__end__ to readable names
+  cleaned = cleaned.replace(/__start__/g, "Start").replace(/__end__/g, "End");
+  // Fix ([...]) round-rect to ((...)) for start/end
+  cleaned = cleaned.replace(/Start\(\[([^\]]*)\]\)/g, "Start(($1))");
+  cleaned = cleaned.replace(/End\(\[([^\]]*)\]\)/g, "End(($1))");
+  // Humanize bare node labels: node_name(node_name) -> node_name[Node Name]
+  cleaned = cleaned.replace(/(\w+)\(\1\)/g, (_, id) => {
+    const label = id.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+    return `${id}[${label}]`;
+  });
+  // Remove trailing semicolons (mermaid.js sometimes chokes on them)
+  cleaned = cleaned.replace(/;\s*$/gm, "");
+  return cleaned.trim();
+}
+
 function InlineMermaidRenderer({ code, id }: { code: string; id: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
@@ -99,12 +123,37 @@ function InlineMermaidRenderer({ code, id }: { code: string; id: string }) {
           fontFamily: "ui-sans-serif, system-ui, sans-serif",
           flowchart: { curve: "basis", padding: 15 },
         });
-        const stale = document.getElementById(`gmermaid-${id}`);
-        if (stale) stale.remove();
-        const result = await mermaid.render(`gmermaid-${id}`, code);
+
+        // Try original first, then sanitized version
+        const candidates = [code, sanitizeMermaidForBrowser(code)];
+        const seen = new Set<string>();
+        let rendered: string | null = null;
+
+        for (let i = 0; i < candidates.length; i++) {
+          const candidate = candidates[i];
+          if (seen.has(candidate)) continue;
+          seen.add(candidate);
+
+          try {
+            const elId = `gmermaid-${id}-${i}`;
+            const stale = document.getElementById(elId);
+            if (stale) stale.remove();
+            const result = await mermaid.render(elId, candidate);
+            rendered = result.svg;
+            break;
+          } catch {
+            const failedEl = document.getElementById(`gmermaid-${id}-${i}`);
+            if (failedEl) failedEl.remove();
+          }
+        }
+
         if (!cancelled) {
-          setSvg(result.svg);
-          setError(false);
+          if (rendered) {
+            setSvg(rendered);
+            setError(false);
+          } else {
+            setError(true);
+          }
         }
       } catch {
         if (!cancelled) setError(true);
