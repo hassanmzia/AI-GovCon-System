@@ -381,15 +381,23 @@ class AIAgentRunViewSet(viewsets.ModelViewSet):
             except (ValueError, TypeError):
                 pass
 
-        limit = self.request.query_params.get("limit")
-        if limit:
-            try:
-                # Honour ?limit as a hard cap independent of pagination.
-                qs = qs[: int(limit)]
-            except (ValueError, TypeError):
-                pass
+        # NOTE: Do NOT slice the queryset here with [:limit].
+        # DjangoFilterBackend applies AFTER get_queryset(), and Django
+        # raises AssertionError if you filter a sliced queryset.
+        # Use DRF pagination (?page_size=N) or override list() instead.
 
         return qs
+
+    def list(self, request, *args, **kwargs):
+        """Override list to support ?limit as a hard result cap."""
+        response = super().list(request, *args, **kwargs)
+        limit = request.query_params.get("limit")
+        if limit and response.data and "results" in response.data:
+            try:
+                response.data["results"] = response.data["results"][: int(limit)]
+            except (ValueError, TypeError):
+                pass
+        return response
 
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):

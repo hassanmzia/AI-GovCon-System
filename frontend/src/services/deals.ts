@@ -127,7 +127,7 @@ export interface DealActivity {
   description: string;
   is_ai_action: boolean;
   metadata: Record<string, unknown>;
-  actor_name?: string;
+  actor_detail?: { id: string; full_name: string; email: string } | null;
   created_at: string;
 }
 
