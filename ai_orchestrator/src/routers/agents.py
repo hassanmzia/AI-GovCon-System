@@ -1,11 +1,14 @@
 """FastAPI router for agent endpoints."""
 import asyncio
 import logging
+import time
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+
+from src.run_recorder import record_run_completed, record_run_failed, record_run_started
 
 logger = logging.getLogger("ai_orchestrator.routers.agents")
 
@@ -67,23 +70,29 @@ def _create_run(run_id: str) -> None:
     run_event_queues[run_id] = asyncio.Queue()
 
 
-async def _finalize_run(run_id: str, result: dict[str, Any]) -> None:
+async def _finalize_run(run_id: str, result: dict[str, Any], started_at: float | None = None) -> None:
     _runs[run_id] = {"status": "completed", "result": result}
     q = run_event_queues.get(run_id)
     if q:
         await q.put({"event": "done", "data": result})
+    latency = int((time.time() - started_at) * 1000) if started_at else None
+    await record_run_completed(run_id, latency_ms=latency, success=True)
 
 
-async def _fail_run(run_id: str, error: str) -> None:
+async def _fail_run(run_id: str, error: str, started_at: float | None = None) -> None:
     _runs[run_id] = {"status": "failed", "result": {"error": error}}
     q = run_event_queues.get(run_id)
     if q:
         await q.put({"event": "error", "data": {"error": error}})
+    latency = int((time.time() - started_at) * 1000) if started_at else None
+    await record_run_failed(run_id, error, latency_ms=latency)
 
 
 # ── Background task helpers ───────────────────────────────────────────────────
 
 async def _run_strategy_agent(run_id: str, input_data: dict) -> None:
+    t0 = time.time()
+    await record_run_started(run_id, "strategy_agent", input_data.get("deal_id", ""))
     try:
         from src.agents.strategy_agent import StrategyAgent
 
@@ -95,15 +104,17 @@ async def _run_strategy_agent(run_id: str, input_data: dict) -> None:
         result = await agent.run(input_data)
 
         if result.get("error"):
-            await _fail_run(run_id, result["error"])
+            await _fail_run(run_id, result["error"], started_at=t0)
         else:
-            await _finalize_run(run_id, result)
+            await _finalize_run(run_id, result, started_at=t0)
     except Exception as exc:
         logger.exception("Strategy agent run %s failed", run_id)
-        await _fail_run(run_id, str(exc))
+        await _fail_run(run_id, str(exc), started_at=t0)
 
 
 async def _run_research_agent(run_id: str, input_data: dict) -> None:
+    t0 = time.time()
+    await record_run_started(run_id, "research_agent", input_data.get("deal_id", ""))
     try:
         from src.agents.research_agent import ResearchAgent
 
@@ -115,15 +126,17 @@ async def _run_research_agent(run_id: str, input_data: dict) -> None:
         result = await agent.run(input_data)
 
         if result.get("error"):
-            await _fail_run(run_id, result["error"])
+            await _fail_run(run_id, result["error"], started_at=t0)
         else:
-            await _finalize_run(run_id, result)
+            await _finalize_run(run_id, result, started_at=t0)
     except Exception as exc:
         logger.exception("Research agent run %s failed", run_id)
-        await _fail_run(run_id, str(exc))
+        await _fail_run(run_id, str(exc), started_at=t0)
 
 
 async def _run_legal_agent(run_id: str, input_data: dict) -> None:
+    t0 = time.time()
+    await record_run_started(run_id, "legal_agent", input_data.get("deal_id", ""))
     try:
         from src.agents.legal_agent import LegalAgent
 
@@ -135,15 +148,17 @@ async def _run_legal_agent(run_id: str, input_data: dict) -> None:
         result = await agent.run(input_data)
 
         if result.get("error"):
-            await _fail_run(run_id, result["error"])
+            await _fail_run(run_id, result["error"], started_at=t0)
         else:
-            await _finalize_run(run_id, result)
+            await _finalize_run(run_id, result, started_at=t0)
     except Exception as exc:
         logger.exception("Legal agent run %s failed", run_id)
-        await _fail_run(run_id, str(exc))
+        await _fail_run(run_id, str(exc), started_at=t0)
 
 
 async def _run_marketing_agent(run_id: str, input_data: dict) -> None:
+    t0 = time.time()
+    await record_run_started(run_id, "marketing_agent", input_data.get("deal_id", ""))
     try:
         from src.agents.marketing_agent import MarketingAgent
 
@@ -155,15 +170,17 @@ async def _run_marketing_agent(run_id: str, input_data: dict) -> None:
         result = await agent.run(input_data)
 
         if result.get("error"):
-            await _fail_run(run_id, result["error"])
+            await _fail_run(run_id, result["error"], started_at=t0)
         else:
-            await _finalize_run(run_id, result)
+            await _finalize_run(run_id, result, started_at=t0)
     except Exception as exc:
         logger.exception("Marketing agent run %s failed", run_id)
-        await _fail_run(run_id, str(exc))
+        await _fail_run(run_id, str(exc), started_at=t0)
 
 
 async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
+    t0 = time.time()
+    await record_run_started(run_id, "solution_architect_agent", input_data.get("deal_id", ""))
     try:
         from src.agents.solution_architect_agent import SolutionArchitectAgent
 
@@ -175,12 +192,12 @@ async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
         result = await agent.run(input_data)
 
         if result.get("error"):
-            await _fail_run(run_id, result["error"])
+            await _fail_run(run_id, result["error"], started_at=t0)
         else:
-            await _finalize_run(run_id, result)
+            await _finalize_run(run_id, result, started_at=t0)
     except Exception as exc:
         logger.exception("Solution architect agent run %s failed", run_id)
-        await _fail_run(run_id, str(exc))
+        await _fail_run(run_id, str(exc), started_at=t0)
 
 
 # ── Generic agent runner for deal-scoped agents ──────────────────────────────
@@ -218,9 +235,14 @@ _AGENT_REGISTRY: dict[str, tuple[str, str, str]] = {
 
 async def _run_generic_agent(run_id: str, agent_slug: str, input_data: dict) -> None:
     """Generic runner that loads any agent from the registry."""
+    t0 = time.time()
+    # Normalize slug to agent_name format (e.g. "solution-architect" -> "solution_architect_agent")
+    agent_name = agent_slug.replace("-", "_") + "_agent"
+    await record_run_started(run_id, agent_name, input_data.get("deal_id", ""), action=input_data.get("action", "run"))
+
     reg = _AGENT_REGISTRY.get(agent_slug)
     if not reg:
-        await _fail_run(run_id, f"Unknown agent type: {agent_slug}")
+        await _fail_run(run_id, f"Unknown agent type: {agent_slug}", started_at=t0)
         return
 
     module_path, class_name, thinking_msg = reg
@@ -238,12 +260,12 @@ async def _run_generic_agent(run_id: str, agent_slug: str, input_data: dict) -> 
         result = await agent.run(input_data)
 
         if result.get("error"):
-            await _fail_run(run_id, result["error"])
+            await _fail_run(run_id, result["error"], started_at=t0)
         else:
-            await _finalize_run(run_id, result)
+            await _finalize_run(run_id, result, started_at=t0)
     except Exception as exc:
         logger.exception("%s agent run %s failed", agent_slug, run_id)
-        await _fail_run(run_id, str(exc))
+        await _fail_run(run_id, str(exc), started_at=t0)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
