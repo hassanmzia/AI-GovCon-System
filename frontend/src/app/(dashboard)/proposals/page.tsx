@@ -8,6 +8,7 @@ import { getProposals, getProposalSections, createProposal } from "@/services/pr
 import { Proposal, ProposalSection, ProposalStatus } from "@/types/proposal";
 import { fetchAllDeals } from "@/services/analytics";
 import { Deal } from "@/types/deal";
+import Link from "next/link";
 import {
   Search,
   Loader2,
@@ -16,6 +17,7 @@ import {
   ChevronRight,
   FileText,
   X,
+  ExternalLink,
 } from "lucide-react";
 
 const STATUS_LABELS: Record<ProposalStatus, string> = {
@@ -155,6 +157,18 @@ function ProposalDetailPanel({ proposal, onClose }: ProposalDetailPanelProps) {
           >
             <X className="h-4 w-4" />
           </button>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Link href={`/proposals/${proposal.id}/studio`}>
+            <Button size="sm" className="gap-1">
+              <ExternalLink className="h-3.5 w-3.5" /> Open Studio
+            </Button>
+          </Link>
+          <Link href={`/proposals/${proposal.id}/submit`}>
+            <Button size="sm" variant="outline" className="gap-1">
+              Submission Readiness
+            </Button>
+          </Link>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -586,9 +600,13 @@ export default function ProposalsPage() {
                               ) : (
                                 <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                               )}
-                              <span className="font-medium">
+                              <Link
+                                href={`/proposals/${proposal.id}/studio`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-medium text-primary hover:underline"
+                              >
                                 {truncate(proposal.title, 45)}
-                              </span>
+                              </Link>
                             </div>
                           </td>
                           <td className="py-3 pr-4">
