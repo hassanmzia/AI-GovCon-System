@@ -26,10 +26,12 @@ STAGE_AGENT_CHAINS = {
     "bid_no_bid": [
         {"agent": "strategy_agent", "action": "strategic_alignment"},
         {"agent": "research_agent", "action": "agency_due_diligence"},
+        {"agent": "marketing_agent", "action": "develop_win_themes"},
     ],
     "capture_plan": [
         {"agent": "capture_agent", "action": "generate_capture_plan"},
         {"agent": "research_agent", "action": "competitor_intelligence"},
+        {"agent": "competitor_sim_agent", "action": "simulate_competitors"},
         {"agent": "teaming_agent", "action": "identify_partners"},
     ],
     "proposal_dev": [
@@ -38,11 +40,13 @@ STAGE_AGENT_CHAINS = {
         {"agent": "solution_architect_agent", "action": "design_solution"},
         {"agent": "proposal_writer_agent", "action": "draft_sections"},
         {"agent": "pricing_agent", "action": "build_scenarios"},
+        {"agent": "security_compliance_agent", "action": "map_controls"},
     ],
     "red_team": [
         {"agent": "red_team_agent", "action": "evaluate_proposal"},
         {"agent": "compliance_agent", "action": "verify_compliance"},
         {"agent": "qa_agent", "action": "quality_check"},
+        {"agent": "synthetic_evaluator_agent", "action": "simulate_evaluation"},
     ],
     "final_review": [
         {"agent": "marketing_agent", "action": "finalize_win_themes"},
@@ -57,7 +61,6 @@ STAGE_AGENT_CHAINS = {
     "award_pending": [],
     "contract_setup": [
         {"agent": "contract_agent", "action": "generate_contract"},
-        {"agent": "security_compliance_agent", "action": "map_controls"},
     ],
     "delivery": [
         {"agent": "contract_agent", "action": "monitor_deliverables"},

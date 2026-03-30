@@ -120,14 +120,18 @@ STAGE_PIPELINE_MERMAID = """graph TD
     subgraph bid_no_bid[Stage: Bid/No-Bid]
         strategy_b[Strategy Agent<br/>Strategic Alignment]
         research_b[Research Agent<br/>Agency Due Diligence]
-        strategy_b --> research_b
+        marketing_b[Marketing Agent<br/>Develop Win Themes]
+        strategy_b --> research_b --> marketing_b
+        hitl_bnb{HITL Gate<br/>Bid/No-Bid Approval}
+        marketing_b --> hitl_bnb
     end
 
     subgraph capture_plan[Stage: Capture Plan]
         capture[Capture Agent<br/>Generate Plan]
         research_c[Research Agent<br/>Competitor Intel]
+        comp_sim[Competitor Sim Agent<br/>Simulate Competitors]
         teaming[Teaming Agent<br/>Identify Partners]
-        capture --> research_c --> teaming
+        capture --> research_c --> comp_sim --> teaming
     end
 
     subgraph proposal_dev[Stage: Proposal Development]
@@ -136,30 +140,34 @@ STAGE_PIPELINE_MERMAID = """graph TD
         sol_arch[Solution Architect<br/>Design Solution]
         prop_writer[Proposal Writer<br/>Draft Sections]
         pricing[Pricing Agent<br/>Build Scenarios]
-        rfp --> past_perf --> sol_arch --> prop_writer --> pricing
+        sec_comp_p[Security Compliance<br/>Map Controls]
+        rfp --> past_perf --> sol_arch --> prop_writer --> pricing --> sec_comp_p
     end
 
     subgraph red_team[Stage: Red Team]
         red[Red Team Agent<br/>Evaluate Proposal]
         compliance[Compliance Agent<br/>Verify FAR/DFARS]
         qa[QA Agent<br/>Quality Check]
-        red --> compliance --> qa
+        synth_eval[Synthetic Evaluator<br/>Simulate Evaluation]
+        red --> compliance --> qa --> synth_eval
     end
 
     subgraph final_review[Stage: Final Review]
-        marketing[Marketing Agent<br/>Finalize Win Themes]
+        marketing_f[Marketing Agent<br/>Finalize Win Themes]
         legal[Legal Agent<br/>Final Compliance]
-        marketing --> legal
+        marketing_f --> legal
+        hitl_fr{HITL Gate<br/>Final Review Approval}
+        legal --> hitl_fr
     end
 
     subgraph submit[Stage: Submit]
+        hitl_sub{HITL Gate<br/>Submission Approval}
         submission[Submission Agent<br/>Package & Submit]
+        hitl_sub --> submission
     end
 
     subgraph contract_setup[Stage: Contract Setup]
         contract[Contract Agent<br/>Generate Contract]
-        sec_compliance[Security Compliance<br/>Map Controls]
-        contract --> sec_compliance
     end
 
     subgraph post_award[Stage: Post Award]

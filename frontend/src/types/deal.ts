@@ -70,12 +70,17 @@ export interface DealTask {
 export interface DealApproval {
   id: string;
   deal: string;
-  stage: DealStage;
+  approval_type: string;
+  stage?: DealStage;
   status: "pending" | "approved" | "rejected";
-  requested_by_name: string;
-  decided_by_name: string | null;
+  ai_recommendation?: string;
+  ai_confidence?: number;
+  requested_by_name?: string;
+  requested_by_detail?: { id: string; full_name: string; email: string };
+  decided_by_name?: string | null;
   decision_rationale: string;
-  requested_at: string;
+  requested_at?: string;
+  created_at?: string;
   decided_at: string | null;
 }
 

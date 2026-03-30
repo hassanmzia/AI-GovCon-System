@@ -20,6 +20,16 @@ logger = logging.getLogger("ai_orchestrator.graphs.stage_trigger")
 DJANGO_API_URL = os.getenv("DJANGO_API_URL", "http://django-api:8001")
 DJANGO_SERVICE_TOKEN = os.getenv("DJANGO_SERVICE_TOKEN", "")
 
+# Stages that require HITL (Human-in-the-Loop) approval before submission.
+# When the agent chain for these stages completes, we create an Approval record
+# in Django so a human must approve before the deal can advance further.
+HITL_GATE_STAGES: dict[str, str] = {
+    "bid_no_bid": "bid_no_bid",
+    "final_review": "proposal_final",
+    "submit": "submission",
+    "contract_setup": "contract_terms",
+}
+
 
 def _auth_headers() -> dict[str, str]:
     t = DJANGO_SERVICE_TOKEN
@@ -118,6 +128,63 @@ def get_registry():
     return _agent_registry
 
 
+async def _create_hitl_approval(
+    deal_id: str,
+    approval_type: str,
+    agent_results: list[dict],
+) -> dict | None:
+    """Create a HITL approval request in Django after an agent chain completes.
+
+    This ensures a human must review and approve before the deal can
+    transition past critical gate stages (bid/no-bid, final review, submit).
+    """
+    import httpx
+
+    # Summarise agent chain results for the human reviewer
+    successes = [r for r in agent_results if r.get("status") == "completed"]
+    failures = [r for r in agent_results if r.get("status") == "failed"]
+    summary_parts = [f"{len(successes)}/{len(agent_results)} agents succeeded."]
+    if failures:
+        summary_parts.append(
+            f"Failed: {', '.join(r['agent'] for r in failures)}."
+        )
+
+    # Compute an AI confidence score based on agent success rate
+    confidence = len(successes) / max(len(agent_results), 1)
+    recommendation = "approve" if confidence >= 0.8 and not failures else "review_needed"
+
+    body = {
+        "approval_type": approval_type,
+        "ai_recommendation": recommendation,
+        "ai_confidence": round(confidence, 2),
+        "ai_rationale": " ".join(summary_parts),
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{DJANGO_API_URL}/api/deals/deals/{deal_id}/request-approval/",
+                json=body,
+                headers=_auth_headers(),
+            )
+            if resp.status_code < 300:
+                data = resp.json()
+                logger.info(
+                    "HITL approval request created for deal %s (type=%s, id=%s)",
+                    deal_id, approval_type, data.get("id"),
+                )
+                return data
+            else:
+                logger.warning(
+                    "HITL approval request failed (%s): %s",
+                    resp.status_code, resp.text[:300],
+                )
+    except Exception as exc:
+        logger.warning("Could not create HITL approval for deal %s: %s", deal_id, exc)
+
+    return None
+
+
 async def execute_agent_chain(event: dict) -> list[dict]:
     """
     Execute the agent chain specified in a stage-change event.
@@ -197,6 +264,19 @@ async def execute_agent_chain(event: dict) -> list[dict]:
                 "action": action,
                 "status": "failed",
                 "error": str(exc),
+            })
+
+    # After the agent chain completes, create HITL approval request if this
+    # is a gate stage. This ensures a human reviews before advancing further.
+    hitl_approval_type = HITL_GATE_STAGES.get(to_stage)
+    if hitl_approval_type:
+        approval = await _create_hitl_approval(deal_id, hitl_approval_type, results)
+        if approval:
+            results.append({
+                "agent": "_hitl_gate",
+                "action": hitl_approval_type,
+                "status": "pending_approval",
+                "approval_id": approval.get("id"),
             })
 
     return results
