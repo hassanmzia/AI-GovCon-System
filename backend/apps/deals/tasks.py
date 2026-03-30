@@ -80,11 +80,6 @@ def auto_score_opportunity(self, deal_id: str):
 
     opportunity = deal.opportunity
 
-    # Skip if already scored
-    if hasattr(opportunity, "score"):
-        logger.info("Opportunity %s already scored, skipping", opportunity.id)
-        return {"status": "already_scored", "score": opportunity.score.total_score}
-
     try:
         from apps.opportunities.services.scorer import OpportunityScorer
         from apps.opportunities.models import CompanyProfile
@@ -112,9 +107,17 @@ def auto_score_opportunity(self, deal_id: str):
             },
         )
 
-        # Update deal's fit_score for quick reference
+        # Update deal's fit_score, win_probability, and estimated_value
         deal.fit_score = result["total_score"]
-        deal.save(update_fields=["fit_score", "updated_at"])
+        deal.win_probability = min(result["total_score"], 100) / 100.0  # Normalize score to 0-1 probability
+        update_fields = ["fit_score", "win_probability", "updated_at"]
+
+        # Pull estimated_value from the opportunity if deal doesn't have one
+        if not deal.estimated_value and opportunity.estimated_value:
+            deal.estimated_value = opportunity.estimated_value
+            update_fields.append("estimated_value")
+
+        deal.save(update_fields=update_fields)
 
         Activity.objects.create(
             deal=deal,

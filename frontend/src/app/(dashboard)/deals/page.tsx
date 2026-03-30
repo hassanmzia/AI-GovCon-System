@@ -11,6 +11,7 @@ import {
   getDealStageHistory,
   getDealArtifacts,
   DealArtifacts,
+  rescoreDeal,
 } from "@/services/deals";
 import { Deal, DealStage, DealStageHistory, CreateDealPayload } from "@/types/deal";
 import { Search, Plus, Loader2, X, ChevronRight, AlertCircle, ExternalLink } from "lucide-react";
@@ -304,6 +305,7 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
   const [stageHistory, setStageHistory] = useState<DealStageHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [artifacts, setArtifacts] = useState<DealArtifacts | null>(null);
+  const [rescoring, setRescoring] = useState(false);
 
   const nextStages = NEXT_STAGES[deal.stage] || [];
 
@@ -424,7 +426,32 @@ function DealModal({ deal, onClose, onTransition }: DealModalProps) {
           {/* Pipeline Artifacts */}
           {artifacts && (
             <div className="border-t border-border pt-4 space-y-2">
-              <h3 className="text-sm font-semibold">Pipeline Artifacts</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Pipeline Artifacts</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={rescoring}
+                  onClick={async () => {
+                    setRescoring(true);
+                    try {
+                      await rescoreDeal(deal.id);
+                      // Poll for updated artifacts after a short delay
+                      setTimeout(async () => {
+                        const updated = await getDealArtifacts(deal.id);
+                        setArtifacts(updated);
+                        setRescoring(false);
+                      }, 3000);
+                    } catch {
+                      setRescoring(false);
+                    }
+                  }}
+                  className="text-xs h-7 px-2"
+                >
+                  {rescoring ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  {rescoring ? "Scoring..." : "Re-score"}
+                </Button>
+              </div>
               <div className="grid grid-cols-1 gap-1.5">
                 {/* Opportunity Score */}
                 <button
