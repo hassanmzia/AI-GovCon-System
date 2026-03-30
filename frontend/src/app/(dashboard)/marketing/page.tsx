@@ -15,12 +15,14 @@ import {
 } from "@/types/marketing";
 import {
   Loader2,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Target,
   Building2,
   BarChart3,
+  Globe,
+  Users,
+  ExternalLink,
+  Shield,
+  Calendar,
 } from "lucide-react";
 
 type TabId = "campaigns" | "competitors" | "agencies";
@@ -42,6 +44,14 @@ const CHANNEL_LABELS: Record<string, string> = {
   advertising: "Advertising",
   partnership: "Partnership",
   other: "Other",
+};
+
+const CATEGORY_STYLES: Record<string, string> = {
+  budget_trends: "bg-green-100 text-green-700",
+  policy_changes: "bg-purple-100 text-purple-700",
+  technology_shifts: "bg-blue-100 text-blue-700",
+  procurement_patterns: "bg-orange-100 text-orange-700",
+  workforce_trends: "bg-rose-100 text-rose-700",
 };
 
 function formatDate(dateStr: string | null): string {
@@ -69,21 +79,27 @@ function truncate(str: string, maxLen: number): string {
   return str.length > maxLen ? str.slice(0, maxLen) + "..." : str;
 }
 
-function GrowthTrendIcon({ trend }: { trend: string }) {
-  if (trend === "up" || trend === "growing" || trend === "increasing") {
-    return <TrendingUp className="h-4 w-4 text-green-600" />;
-  }
-  if (trend === "down" || trend === "declining" || trend === "decreasing") {
-    return <TrendingDown className="h-4 w-4 text-red-600" />;
-  }
-  return <Minus className="h-4 w-4 text-gray-400" />;
+function WinRateBar({ rate }: { rate: number | null }) {
+  if (rate == null) return <span className="text-xs text-muted-foreground">N/A</span>;
+  const pct = Math.round(rate * 100);
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-2 w-20 rounded-full bg-gray-100">
+        <div
+          className={`h-2 rounded-full ${pct >= 40 ? "bg-green-500" : pct >= 30 ? "bg-yellow-500" : "bg-red-400"}`}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+      <span className="text-xs font-medium">{pct}%</span>
+    </div>
+  );
 }
 
 export default function MarketingPage() {
   const [activeTab, setActiveTab] = useState<TabId>("campaigns");
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>([]);
   const [competitors, setCompetitors] = useState<CompetitorProfile[]>([]);
-  const [agencies, setAgencies] = useState<MarketIntelligence[]>([]);
+  const [intelligence, setIntelligence] = useState<MarketIntelligence[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,14 +107,14 @@ export default function MarketingPage() {
     setLoading(true);
     setError(null);
     try {
-      const [campaignsData, competitorsData, agenciesData] = await Promise.all([
+      const [campaignsData, competitorsData, intelData] = await Promise.all([
         getCampaigns().catch(() => ({ results: [], count: 0 })),
         getCompetitorProfiles().catch(() => ({ results: [], count: 0 })),
         getMarketIntelligence().catch(() => ({ results: [], count: 0 })),
       ]);
       setCampaigns(campaignsData.results || []);
       setCompetitors(competitorsData.results || []);
-      setAgencies(agenciesData.results || []);
+      setIntelligence(intelData.results || []);
     } catch (err) {
       setError("Failed to load marketing data. Please try again.");
       console.error("Error fetching marketing data:", err);
@@ -113,10 +129,10 @@ export default function MarketingPage() {
 
   const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "campaigns", label: "Campaigns" },
-    { id: "competitors", label: "Competitor Intelligence" },
-    { id: "agencies", label: "Agency Intelligence" },
+  const tabs: { id: TabId; label: string; count: number }[] = [
+    { id: "campaigns", label: "Campaigns", count: campaigns.length },
+    { id: "competitors", label: "Competitor Intelligence", count: competitors.length },
+    { id: "agencies", label: "Market Intelligence", count: intelligence.length },
   ];
 
   return (
@@ -128,7 +144,7 @@ export default function MarketingPage() {
             Marketing & Sales Intelligence
           </h1>
           <p className="text-muted-foreground">
-            Manage campaigns, track competitors, and analyze agency intelligence
+            Manage campaigns, track competitors, and analyze market intelligence
           </p>
         </div>
       </div>
@@ -152,8 +168,8 @@ export default function MarketingPage() {
               <Building2 className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Agencies Profiled</p>
-              <p className="text-2xl font-bold">{agencies.length}</p>
+              <p className="text-sm text-muted-foreground">Market Intel Reports</p>
+              <p className="text-2xl font-bold">{intelligence.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -184,6 +200,7 @@ export default function MarketingPage() {
               }`}
             >
               {tab.label}
+              <span className="ml-1.5 text-xs text-muted-foreground">({tab.count})</span>
             </button>
           ))}
         </div>
@@ -210,9 +227,7 @@ export default function MarketingPage() {
               {campaigns.length === 0 ? (
                 <Card>
                   <CardContent className="flex items-center justify-center py-12">
-                    <p className="text-muted-foreground">
-                      No campaigns found.
-                    </p>
+                    <p className="text-muted-foreground">No campaigns found.</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -235,8 +250,7 @@ export default function MarketingPage() {
                                 campaign.status.slice(1)}
                             </span>
                             <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-medium">
-                              {CHANNEL_LABELS[campaign.channel] ||
-                                campaign.channel}
+                              {CHANNEL_LABELS[campaign.channel] || campaign.channel}
                             </span>
                           </div>
                           {campaign.description && (
@@ -255,9 +269,31 @@ export default function MarketingPage() {
                               <p className="text-xs font-medium text-muted-foreground mb-1">
                                 Goals
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                {truncate(campaign.goals.join(", "), 120)}
-                              </p>
+                              <ul className="space-y-0.5">
+                                {campaign.goals.map((goal, i) => (
+                                  <li key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                                    <span className="mt-0.5">&#8226;</span>
+                                    <span>{goal}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {/* Campaign Metrics */}
+                          {campaign.metrics && Object.keys(campaign.metrics).length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-3">
+                              {Object.entries(campaign.metrics).map(([key, value]) => (
+                                <div key={key} className="text-xs">
+                                  <span className="text-muted-foreground">
+                                    {key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}:
+                                  </span>{" "}
+                                  <span className="font-medium">
+                                    {typeof value === "number" && value > 100000
+                                      ? `$${(value as number / 1000000).toFixed(1)}M`
+                                      : String(value)}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -284,9 +320,7 @@ export default function MarketingPage() {
               {competitors.length === 0 ? (
                 <Card className="col-span-full">
                   <CardContent className="flex items-center justify-center py-12">
-                    <p className="text-muted-foreground">
-                      No competitor profiles found.
-                    </p>
+                    <p className="text-muted-foreground">No competitor profiles found.</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -294,122 +328,128 @@ export default function MarketingPage() {
                   <Card key={competitor.id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">
-                          {competitor.name}
-                        </CardTitle>
-                        <div className="flex items-center gap-1">
-                          <GrowthTrendIcon
-                            trend={competitor.growth_trend || ""}
-                          />
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {competitor.growth_trend || "Unknown"}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-base">{competitor.name}</CardTitle>
+                          {competitor.website && (
+                            <a
+                              href={competitor.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
                         </div>
+                        {competitor.is_active && (
+                          <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 px-2 py-0.5 text-xs font-medium">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
+                        {competitor.revenue_range && (
+                          <span>Revenue: {competitor.revenue_range}</span>
+                        )}
+                        {competitor.employee_count && (
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {competitor.employee_count.toLocaleString()}
+                          </span>
+                        )}
+                        {competitor.cage_code && (
+                          <span>CAGE: {competitor.cage_code}</span>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {/* Core Competencies */}
-                      {competitor.core_competencies &&
-                        competitor.core_competencies.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">
-                              Core Competencies
-                            </p>
-                            <div className="flex flex-wrap gap-1">
-                              {competitor.core_competencies
-                                .slice(0, 5)
-                                .map((comp, i) => (
-                                  <span
-                                    key={i}
-                                    className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs"
-                                  >
-                                    {comp}
-                                  </span>
-                                ))}
-                            </div>
+                      {/* Win Rate */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Win Rate</span>
+                        <WinRateBar rate={competitor.win_rate} />
+                      </div>
+
+                      {/* Contract Vehicles */}
+                      {competitor.contract_vehicles && competitor.contract_vehicles.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            Contract Vehicles
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {competitor.contract_vehicles.slice(0, 5).map((v, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs"
+                              >
+                                {v}
+                              </span>
+                            ))}
                           </div>
-                        )}
+                        </div>
+                      )}
+
+                      {/* NAICS Codes */}
+                      {competitor.naics_codes && competitor.naics_codes.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            NAICS Codes
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {competitor.naics_codes.join(", ")}
+                          </p>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-2 gap-3">
                         {/* Strengths */}
-                        {competitor.strengths &&
-                          competitor.strengths.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">
-                                Strengths
-                              </p>
-                              <ul className="space-y-0.5">
-                                {competitor.strengths
-                                  .slice(0, 3)
-                                  .map((s, i) => (
-                                    <li
-                                      key={i}
-                                      className="text-xs text-green-700 flex items-start gap-1"
-                                    >
-                                      <span className="mt-0.5">&#8226;</span>
-                                      <span>{s}</span>
-                                    </li>
-                                  ))}
-                              </ul>
-                            </div>
-                          )}
+                        {competitor.strengths && competitor.strengths.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">
+                              Strengths
+                            </p>
+                            <ul className="space-y-0.5">
+                              {competitor.strengths.slice(0, 3).map((s, i) => (
+                                <li
+                                  key={i}
+                                  className="text-xs text-green-700 flex items-start gap-1"
+                                >
+                                  <span className="mt-0.5">&#8226;</span>
+                                  <span>{s}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
 
                         {/* Weaknesses */}
-                        {competitor.weaknesses &&
-                          competitor.weaknesses.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">
-                                Weaknesses
-                              </p>
-                              <ul className="space-y-0.5">
-                                {competitor.weaknesses
-                                  .slice(0, 3)
-                                  .map((w, i) => (
-                                    <li
-                                      key={i}
-                                      className="text-xs text-red-700 flex items-start gap-1"
-                                    >
-                                      <span className="mt-0.5">&#8226;</span>
-                                      <span>{w}</span>
-                                    </li>
-                                  ))}
-                              </ul>
-                            </div>
-                          )}
+                        {competitor.weaknesses && competitor.weaknesses.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">
+                              Weaknesses
+                            </p>
+                            <ul className="space-y-0.5">
+                              {competitor.weaknesses.slice(0, 3).map((w, i) => (
+                                <li
+                                  key={i}
+                                  className="text-xs text-red-700 flex items-start gap-1"
+                                >
+                                  <span className="mt-0.5">&#8226;</span>
+                                  <span>{w}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 border-t">
-                        {competitor.pricing_tendency && (
-                          <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-xs font-medium capitalize">
-                            {competitor.pricing_tendency}
-                          </span>
-                        )}
-                        {competitor.head_to_head_record && (
-                          <span className="text-xs text-muted-foreground">
-                            H2H:{" "}
-                            <span className="font-medium">
-                              {typeof competitor.head_to_head_record ===
-                              "string"
-                                ? competitor.head_to_head_record
-                                : `W:${
-                                    (
-                                      competitor.head_to_head_record as Record<
-                                        string,
-                                        unknown
-                                      >
-                                    ).wins ?? 0
-                                  } / L:${
-                                    (
-                                      competitor.head_to_head_record as Record<
-                                        string,
-                                        unknown
-                                      >
-                                    ).losses ?? 0
-                                  }`}
-                            </span>
-                          </span>
-                        )}
-                      </div>
+                      {/* Past Performance */}
+                      {competitor.past_performance_summary && (
+                        <div className="pt-1 border-t">
+                          <p className="text-xs text-muted-foreground">
+                            {truncate(competitor.past_performance_summary, 150)}
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))
@@ -417,116 +457,101 @@ export default function MarketingPage() {
             </div>
           )}
 
-          {/* Agency Intelligence Tab */}
+          {/* Market Intelligence Tab */}
           {activeTab === "agencies" && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {agencies.length === 0 ? (
+              {intelligence.length === 0 ? (
                 <Card className="col-span-full">
                   <CardContent className="flex items-center justify-center py-12">
-                    <p className="text-muted-foreground">
-                      No agency intelligence found.
-                    </p>
+                    <p className="text-muted-foreground">No market intelligence found.</p>
                   </CardContent>
                 </Card>
               ) : (
-                agencies.map((agency) => (
-                  <Card key={agency.id}>
+                intelligence.map((item) => (
+                  <Card key={item.id}>
                     <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">
-                          {agency.agency}
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base leading-tight">
+                          {item.title}
                         </CardTitle>
-                        <span className="text-xs text-muted-foreground">
-                          Last contact:{" "}
-                          {agency.last_interaction
-                            ? formatDate(agency.last_interaction)
-                            : "Never"}
+                        <span
+                          className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            CATEGORY_STYLES[item.category] || "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {item.category_display || item.category.replace(/_/g, " ")}
                         </span>
                       </div>
+                      {item.published_date && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(item.published_date)}
+                        </div>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {/* Relationship Score */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Relationship Score
-                          </p>
-                          <span className="text-xs font-semibold">
-                            {agency.relationship_score ?? 0}/100
-                          </span>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-gray-100">
-                          <div
-                            className={`h-2 rounded-full transition-all ${
-                              (agency.relationship_score ?? 0) >= 70
-                                ? "bg-green-500"
-                                : (agency.relationship_score ?? 0) >= 40
-                                ? "bg-yellow-500"
-                                : "bg-red-400"
-                            }`}
-                            style={{
-                              width: `${Math.min(
-                                100,
-                                Math.max(0, agency.relationship_score ?? 0)
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
+                      {/* Summary */}
+                      <p className="text-sm text-muted-foreground">
+                        {truncate(item.summary, 200)}
+                      </p>
 
-                      {/* Mission */}
-                      {agency.mission && (
-                        <p className="text-xs text-muted-foreground">
-                          {truncate(agency.mission, 120)}
-                        </p>
+                      {/* Impact Assessment */}
+                      {item.impact_assessment && (
+                        <div className="rounded-md bg-amber-50 border border-amber-200 p-2.5">
+                          <p className="text-xs font-medium text-amber-800 mb-0.5">
+                            Impact Assessment
+                          </p>
+                          <p className="text-xs text-amber-700">
+                            {truncate(item.impact_assessment, 180)}
+                          </p>
+                        </div>
                       )}
 
-                      {/* Strategic Priorities */}
-                      {agency.strategic_priorities &&
-                        agency.strategic_priorities.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">
-                              Strategic Priorities
-                            </p>
-                            <ul className="space-y-0.5">
-                              {agency.strategic_priorities
-                                .slice(0, 3)
-                                .map((priority, i) => (
-                                  <li
-                                    key={i}
-                                    className="text-xs text-foreground flex items-start gap-1"
-                                  >
-                                    <span className="mt-0.5 text-muted-foreground">
-                                      &#8226;
-                                    </span>
-                                    <span>{priority}</span>
-                                  </li>
-                                ))}
-                            </ul>
+                      {/* Affected Agencies */}
+                      {item.affected_agencies && item.affected_agencies.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            Affected Agencies
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {item.affected_agencies.slice(0, 5).map((agency, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs"
+                              >
+                                {agency}
+                              </span>
+                            ))}
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                      {/* Technology Initiatives */}
-                      {agency.technology_initiatives &&
-                        agency.technology_initiatives.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">
-                              Tech Initiatives
-                            </p>
-                            <div className="flex flex-wrap gap-1">
-                              {agency.technology_initiatives
-                                .slice(0, 5)
-                                .map((initiative, i) => (
-                                  <span
-                                    key={i}
-                                    className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs"
-                                  >
-                                    {initiative}
-                                  </span>
-                                ))}
-                            </div>
-                          </div>
-                        )}
+                      {/* Affected NAICS */}
+                      {item.affected_naics && item.affected_naics.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            NAICS Codes
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.affected_naics.join(", ")}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Source Link */}
+                      {item.source_url && (
+                        <div className="pt-1 border-t">
+                          <a
+                            href={item.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            <Globe className="h-3 w-3" />
+                            View Source
+                          </a>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))
