@@ -187,6 +187,7 @@ async def _run_solution_architect_agent(run_id: str, input_data: dict) -> None:
 
 _AGENT_REGISTRY: dict[str, tuple[str, str, str]] = {
     # slug -> (module_path, class_name, description)
+    "solution-architect": ("src.agents.solution_architect_agent", "SolutionArchitectAgent", "Starting solution architecture design..."),
     "capture": ("src.agents.capture_agent", "CaptureAgent", "Generating capture plan..."),
     "red-team": ("src.agents.red_team_agent", "RedTeamAgent", "Running adversarial red team review..."),
     "compliance": ("src.agents.compliance_agent", "ComplianceAgent", "Verifying compliance matrix..."),
@@ -199,6 +200,10 @@ _AGENT_REGISTRY: dict[str, tuple[str, str, str]] = {
     "contract": ("src.agents.contract_agent", "ContractAgent", "Generating contract..."),
     "teaming": ("src.agents.teaming_agent", "TeamingAgent", "Identifying teaming partners..."),
     "submission": ("src.agents.submission_agent", "SubmissionAgent", "Packaging submission..."),
+    "strategy": ("src.agents.strategy_agent", "StrategyAgent", "Running strategy analysis..."),
+    "research": ("src.agents.research_agent", "ResearchAgent", "Running research..."),
+    "legal": ("src.agents.legal_agent", "LegalAgent", "Running legal review..."),
+    "marketing": ("src.agents.marketing_agent", "MarketingAgent", "Running marketing analysis..."),
 }
 
 
@@ -233,23 +238,9 @@ async def _run_generic_agent(run_id: str, agent_slug: str, input_data: dict) -> 
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+# NOTE: Specific agent routes MUST come before the generic {agent_type} route
+# because FastAPI matches top-down. The generic catch-all goes last.
 
-
-# Generic deal-scoped agent endpoint (covers all agents in the registry)
-@router.post("/ai/agents/{agent_type}/run", response_model=AgentRunResponse, tags=["agents"])
-async def run_deal_agent(
-    agent_type: str,
-    request: DealAgentRunRequest,
-    background_tasks: BackgroundTasks,
-) -> AgentRunResponse:
-    """Run any deal-scoped agent by type slug (capture, red-team, compliance, etc.)."""
-    if agent_type not in _AGENT_REGISTRY:
-        raise HTTPException(status_code=404, detail=f"Agent type '{agent_type}' not found")
-    run_id = str(uuid.uuid4())
-    _create_run(run_id)
-    input_data = {"deal_id": request.deal_id, **request.context}
-    background_tasks.add_task(_run_generic_agent, run_id, agent_type, input_data)
-    return AgentRunResponse(run_id=run_id, status="running")
 
 @router.post("/ai/agents/strategy/run", response_model=AgentRunResponse, tags=["agents"])
 async def run_strategy_agent(
@@ -325,6 +316,23 @@ async def run_solution_architect_agent(
         "opportunity_id": request.opportunity_id,
     }
     background_tasks.add_task(_run_solution_architect_agent, run_id, input_data)
+    return AgentRunResponse(run_id=run_id, status="running")
+
+
+# Generic deal-scoped agent endpoint (catch-all — must be LAST)
+@router.post("/ai/agents/{agent_type}/run", response_model=AgentRunResponse, tags=["agents"])
+async def run_deal_agent(
+    agent_type: str,
+    request: DealAgentRunRequest,
+    background_tasks: BackgroundTasks,
+) -> AgentRunResponse:
+    """Run any deal-scoped agent by type slug (capture, red-team, compliance, etc.)."""
+    if agent_type not in _AGENT_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"Agent type '{agent_type}' not found")
+    run_id = str(uuid.uuid4())
+    _create_run(run_id)
+    input_data = {"deal_id": request.deal_id, **request.context}
+    background_tasks.add_task(_run_generic_agent, run_id, agent_type, input_data)
     return AgentRunResponse(run_id=run_id, status="running")
 
 
