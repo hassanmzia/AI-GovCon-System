@@ -720,15 +720,32 @@ def auto_run_red_team(self, deal_id: str):
             cycle.save()
 
             # Create findings
+            from apps.proposals.models import ProposalSection
             findings = result.get("findings", [])
-            for finding in findings:
+            for i, finding in enumerate(findings):
+                # Try to match section by title
+                section_name = finding.get("section", "")
+                section_obj = None
+                if section_name:
+                    section_obj = ProposalSection.objects.filter(
+                        proposal=proposal, title__icontains=section_name
+                    ).first()
+
+                severity = finding.get("severity", "medium")
+                if severity not in ("high", "medium", "low"):
+                    severity = "medium"
+                status = finding.get("status", "not_addressed")
+                if status not in ("fully_addressed", "partially_addressed", "not_addressed"):
+                    status = "not_addressed"
+
                 RedTeamFinding.objects.create(
                     proposal=proposal,
-                    section=finding.get("section", ""),
+                    section=section_obj,
+                    requirement_id=finding.get("requirement_id", f"RT-{i+1:03d}"),
                     gap_description=finding.get("gap_description", finding.get("description", "")),
-                    severity=finding.get("severity", "medium"),
+                    severity=severity,
                     recommendation=finding.get("recommendation", ""),
-                    status=finding.get("status", "not_addressed"),
+                    status=status,
                 )
 
             Activity.objects.create(
@@ -1109,8 +1126,8 @@ def auto_run_management_approach(self, deal_id: str):
                 defaults={
                     "volume": "II",
                     "section_number": "2.0",
-                    "content": management_text,
-                    "status": "draft",
+                    "ai_draft": management_text,
+                    "status": "ai_drafted",
                     "word_count": len(management_text.split()),
                 },
             )
@@ -1125,8 +1142,8 @@ def auto_run_management_approach(self, deal_id: str):
                 defaults={
                     "volume": "II",
                     "section_number": "2.1",
-                    "content": org_chart,
-                    "status": "draft",
+                    "ai_draft": org_chart,
+                    "status": "ai_drafted",
                     "word_count": len(org_chart.split()),
                 },
             )
