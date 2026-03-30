@@ -76,11 +76,11 @@ function formatDate(dateStr: string | null | undefined): string {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
-  pink_team: "bg-pink-100 text-pink-700",
-  red_team: "bg-red-100 text-red-700",
-  gold_team: "bg-yellow-100 text-yellow-700",
-  final: "bg-green-100 text-green-700",
-  submitted: "bg-blue-100 text-blue-700",
+  pink_team: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
+  red_team: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  gold_team: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
+  final: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  submitted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -94,10 +94,10 @@ const STATUS_LABELS: Record<string, string> = {
 
 const SECTION_STATUS_COLORS: Record<string, string> = {
   not_started: "bg-muted text-muted-foreground",
-  ai_drafted: "bg-blue-100 text-blue-700",
-  in_review: "bg-yellow-100 text-yellow-700",
-  revised: "bg-orange-100 text-orange-700",
-  approved: "bg-green-100 text-green-700",
+  ai_drafted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  in_review: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
+  revised: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+  approved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
 };
 
 const SECTION_STATUS_LABELS: Record<string, string> = {
@@ -109,15 +109,15 @@ const SECTION_STATUS_LABELS: Record<string, string> = {
 };
 
 const REVIEW_TYPE_COLORS: Record<string, string> = {
-  pink: "bg-pink-100 text-pink-700",
-  red: "bg-red-100 text-red-700",
-  gold: "bg-yellow-100 text-yellow-700",
+  pink: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
+  red: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  gold: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
 };
 
 const REVIEW_STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-muted text-muted-foreground",
-  in_progress: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
+  in_progress: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
 };
 
 const ALL_PROPOSAL_STATUSES: ProposalStatus[] = [
@@ -244,21 +244,21 @@ function SectionRow({
   return (
     <div className="border rounded-lg overflow-hidden">
       <div
-        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50"
+        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50"
         onClick={() => setExpanded(!expanded)}
       >
         <button className="text-muted-foreground flex-shrink-0">
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
         <span className="font-mono text-xs text-muted-foreground w-12">{section.section_number}</span>
-        <span className="flex-1 text-sm font-medium">{section.title}</span>
+        <span className="flex-1 text-sm font-medium text-foreground">{section.title}</span>
 
         {/* Progress indicator dots */}
         <div className="flex items-center gap-1">
           {contentTabs.map((t) => (
             <div
               key={t.key}
-              className={`h-2 w-2 rounded-full ${t.hasContent ? "bg-green-500" : "bg-gray-200"}`}
+              className={`h-2 w-2 rounded-full ${t.hasContent ? "bg-green-500" : "bg-muted-foreground/30"}`}
               title={`${t.label}: ${t.hasContent ? "Has content" : "Empty"}`}
             />
           ))}
@@ -785,7 +785,7 @@ export default function ProposalStudioPage() {
           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" /> Approved ({approvedCount})</span>
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-400" /> In Progress ({draftedCount - approvedCount})</span>
-            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-gray-200" /> Not Started ({sections.length - draftedCount})</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/30" /> Not Started ({sections.length - draftedCount})</span>
           </div>
         </CardContent>
       </Card>

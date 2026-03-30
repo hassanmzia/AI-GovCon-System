@@ -84,10 +84,10 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
   // Status color based on success rate
   const statusColor =
     successRate >= 90
-      ? { border: "border-green-400", header: "bg-green-50", dot: "bg-green-500", text: "text-green-700" }
+      ? { border: "border-green-400", header: "bg-green-50 dark:bg-green-950/30", dot: "bg-green-500", text: "text-green-700 dark:text-green-400" }
       : successRate >= 70
-      ? { border: "border-amber-400", header: "bg-amber-50", dot: "bg-amber-500", text: "text-amber-700" }
-      : { border: "border-red-400", header: "bg-red-50", dot: "bg-red-500", text: "text-red-700" };
+      ? { border: "border-amber-400", header: "bg-amber-50 dark:bg-amber-950/30", dot: "bg-amber-500", text: "text-amber-700 dark:text-amber-400" }
+      : { border: "border-red-400", header: "bg-red-50 dark:bg-red-950/30", dot: "bg-red-500", text: "text-red-700 dark:text-red-400" };
 
   // Trend line: compute success rate in chunks of 6 runs
   const chunkSize = 6;
@@ -119,8 +119,8 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
   return (
     <Card className={`border-2 ${statusColor.border}`}>
       <CardHeader className={`pb-2 ${statusColor.header} rounded-t-lg`}>
-        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-gray-900">
-          <Bot className="h-4 w-4 text-gray-700" />
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
+          <Bot className="h-4 w-4 text-muted-foreground" />
           <span>{agentDisplayName(agentName)}</span>
           <div className={`ml-auto w-2.5 h-2.5 rounded-full ${statusColor.dot}`} />
         </CardTitle>
@@ -128,23 +128,23 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
 
       <CardContent className="pt-3 space-y-3">
         {totalRuns === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-2">No runs recorded</p>
+          <p className="text-sm text-muted-foreground text-center py-2">No runs recorded</p>
         ) : (
           <>
             {/* Success Rate + Trend */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500">Success Rate</p>
+                <p className="text-xs text-muted-foreground">Success Rate</p>
                 <p className={`text-2xl font-bold ${statusColor.text}`}>
                   {successRate}%
                 </p>
-                <p className="text-xs text-gray-400">{totalRuns} runs</p>
+                <p className="text-xs text-muted-foreground/70">{totalRuns} runs</p>
               </div>
 
               {/* SVG Trend Line */}
               {trendPath && (
                 <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground/70">
                     <TrendingUp className="h-3 w-3" />
                     <span>trend</span>
                   </div>
@@ -173,13 +173,13 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
                           }
                           stopOpacity="0.2"
                         />
-                        <stop offset="100%" stopColor="white" stopOpacity="0" />
+                        <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                       </linearGradient>
                     </defs>
                     {/* Grid lines */}
-                    <line x1="0" y1="0" x2={svgW} y2="0" stroke="#f3f4f6" strokeWidth="1" />
-                    <line x1="0" y1={svgH / 2} x2={svgW} y2={svgH / 2} stroke="#f3f4f6" strokeWidth="1" />
-                    <line x1="0" y1={svgH} x2={svgW} y2={svgH} stroke="#e5e7eb" strokeWidth="1" />
+                    <line x1="0" y1="0" x2={svgW} y2="0" className="stroke-border" strokeWidth="1" />
+                    <line x1="0" y1={svgH / 2} x2={svgW} y2={svgH / 2} className="stroke-border" strokeWidth="1" />
+                    <line x1="0" y1={svgH} x2={svgW} y2={svgH} className="stroke-border" strokeWidth="1" />
                     {/* Area fill */}
                     <path
                       d={`${trendPath} L ${svgW} ${svgH} L 0 ${svgH} Z`}
@@ -207,29 +207,29 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded bg-gray-50 px-2 py-1.5">
-                <p className="text-gray-400">Avg Latency</p>
-                <p className="font-semibold text-gray-700">
+              <div className="rounded bg-muted px-2 py-1.5">
+                <p className="text-muted-foreground/70">Avg Latency</p>
+                <p className="font-semibold text-foreground">
                   {avgLatency !== null ? formatLatency(avgLatency) : "—"}
                 </p>
               </div>
-              <div className="rounded bg-gray-50 px-2 py-1.5">
-                <p className="text-gray-400">Avg Cost</p>
-                <p className="font-semibold text-gray-700">
+              <div className="rounded bg-muted px-2 py-1.5">
+                <p className="text-muted-foreground/70">Avg Cost</p>
+                <p className="font-semibold text-foreground">
                   {avgCost !== null ? formatCost(avgCost) : "—"}
                 </p>
               </div>
-              <div className="rounded bg-gray-50 px-2 py-1.5">
-                <p className="text-gray-400">Avg Confidence</p>
-                <p className="font-semibold text-gray-700">
+              <div className="rounded bg-muted px-2 py-1.5">
+                <p className="text-muted-foreground/70">Avg Confidence</p>
+                <p className="font-semibold text-foreground">
                   {avgConfidence !== null
                     ? `${Math.round(avgConfidence * 100)}%`
                     : "—"}
                 </p>
               </div>
-              <div className="rounded bg-gray-50 px-2 py-1.5">
-                <p className="text-gray-400">Override Rate</p>
-                <p className="font-semibold text-gray-700">{overrideRate}%</p>
+              <div className="rounded bg-muted px-2 py-1.5">
+                <p className="text-muted-foreground/70">Override Rate</p>
+                <p className="font-semibold text-foreground">{overrideRate}%</p>
               </div>
             </div>
 
@@ -237,13 +237,13 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
             <div
               className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs ${
                 totalHallucinations > 0
-                  ? "bg-red-50 text-red-700 border border-red-200"
-                  : "bg-gray-50 text-gray-500"
+                  ? "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+                  : "bg-muted text-muted-foreground"
               }`}
             >
               <AlertTriangle
                 className={`h-3.5 w-3.5 ${
-                  totalHallucinations > 0 ? "text-red-600" : "text-gray-400"
+                  totalHallucinations > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground/70"
                 }`}
               />
               <span className="font-medium">
@@ -256,7 +256,7 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
             {/* Last 5 Runs Dots */}
             {last5.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">Last 5 runs:</span>
+                <span className="text-xs text-muted-foreground/70">Last 5 runs:</span>
                 <div className="flex items-center gap-1">
                   {last5.map((run, i) => {
                     const dotColor = run.override
@@ -278,7 +278,7 @@ export function AgentScorecard({ agentName, runs }: AgentScorecardProps) {
                     );
                   })}
                 </div>
-                <div className="ml-auto flex items-center gap-2 text-xs text-gray-400">
+                <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground/70">
                   <span className="flex items-center gap-0.5">
                     <div className="w-2 h-2 rounded-full bg-green-500" /> ok
                   </span>
