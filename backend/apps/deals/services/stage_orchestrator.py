@@ -125,6 +125,14 @@ def _on_enter_proposal_dev(deal, from_stage, user):
             deal.id, exc_info=True,
         )
 
+    # Fire the Management Approach Agent to draft Vol II
+    try:
+        from apps.deals.tasks import auto_run_management_approach
+        auto_run_management_approach.delay(str(deal.id))
+        logger.info("Queued auto_run_management_approach for deal %s", deal.id)
+    except Exception:
+        logger.warning("Could not queue auto_run_management_approach for deal %s", deal.id, exc_info=True)
+
 
 def _on_enter_red_team(deal, from_stage, user):
     """Fire Red Team review and Compliance check agents."""
@@ -141,6 +149,16 @@ def _on_enter_red_team(deal, from_stage, user):
         logger.info("Queued auto_run_compliance for deal %s", deal.id)
     except Exception:
         logger.warning("Could not queue auto_run_compliance for deal %s", deal.id, exc_info=True)
+
+
+def _on_enter_final_review(deal, from_stage, user):
+    """Fire CUI Handler and Section 508 checks during final review."""
+    try:
+        from apps.deals.tasks import auto_run_cui_handler
+        auto_run_cui_handler.delay(str(deal.id))
+        logger.info("Queued auto_run_cui_handler for deal %s", deal.id)
+    except Exception:
+        logger.warning("Could not queue auto_run_cui_handler for deal %s", deal.id, exc_info=True)
 
 
 def _on_enter_contract_setup(deal, from_stage, user):
@@ -222,6 +240,7 @@ STAGE_HANDLERS = {
     "capture_plan": _on_enter_capture_plan,
     "proposal_dev": _on_enter_proposal_dev,
     "red_team": _on_enter_red_team,
+    "final_review": _on_enter_final_review,
     "contract_setup": _on_enter_contract_setup,
     "closed_won": _on_enter_closed_won,
     "closed_lost": _on_enter_closed_lost,

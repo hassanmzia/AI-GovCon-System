@@ -17,6 +17,8 @@ from src.agents.submission_agent import SubmissionAgent
 from src.agents.contract_agent import ContractAgent
 from src.agents.communication_agent import CommunicationAgent
 from src.agents.learning_agent import LearningAgent
+from src.agents.management_approach_agent import ManagementApproachAgent
+from src.agents.cui_handler_agent import CUIHandlerAgent
 
 __all__ = [
     "StrategyAgent",
@@ -38,4 +40,6 @@ __all__ = [
     "ContractAgent",
     "CommunicationAgent",
     "LearningAgent",
+    "ManagementApproachAgent",
+    "CUIHandlerAgent",
 ]
