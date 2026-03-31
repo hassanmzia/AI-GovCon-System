@@ -37,6 +37,7 @@ import {
   FileBadge,
   MailCheck,
   ListChecks,
+  FolderOpen,
 } from "lucide-react";
 
 const navigation = [
@@ -59,6 +60,7 @@ const navigation = [
   { name: "Legal", href: "/legal", icon: Scale },
   { name: "Teaming", href: "/teaming", icon: Users },
   { name: "Security", href: "/security", icon: ShieldCheck },
+  { name: "Template Library", href: "/template-library", icon: FolderOpen },
   { name: "Knowledge Vault", href: "/knowledge-vault", icon: Database },
   { name: "Communications", href: "/communications", icon: MessageSquare },
   { name: "Past Performance", href: "/past-performance", icon: Award },

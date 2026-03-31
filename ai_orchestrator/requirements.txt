@@ -16,3 +16,5 @@ mcp>=1.0.0
 langfuse>=2.50.0
 langsmith>=0.1.0
 python-dotenv>=1.0.0
+python-docx>=1.1.0
+docxtpl>=0.18.0
