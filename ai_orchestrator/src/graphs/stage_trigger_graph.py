@@ -20,6 +20,9 @@ logger = logging.getLogger("ai_orchestrator.graphs.stage_trigger")
 DJANGO_API_URL = os.getenv("DJANGO_API_URL", "http://django-api:8001")
 DJANGO_SERVICE_TOKEN = os.getenv("DJANGO_SERVICE_TOKEN", "")
 
+# Maximum time (seconds) a single agent is allowed to run before being cancelled.
+AGENT_TIMEOUT_SECONDS = int(os.getenv("AGENT_TIMEOUT_SECONDS", "300"))
+
 # Stages that require HITL (Human-in-the-Loop) approval before submission.
 # When the agent chain for these stages completes, we create an Approval record
 # in Django so a human must approve before the deal can advance further.
@@ -301,7 +304,10 @@ async def execute_agent_chain(event: dict) -> list[dict]:
 
         try:
             logger.info("Running agent '%s' (action=%s) for deal %s", agent_name, action, deal_id)
-            result = await agent.run(input_data)
+            result = await asyncio.wait_for(
+                agent.run(input_data),
+                timeout=AGENT_TIMEOUT_SECONDS,
+            )
             latency = int((time.time() - t0) * 1000)
             has_error = result.get("error") if isinstance(result, dict) else False
             if has_error:
@@ -314,7 +320,22 @@ async def execute_agent_chain(event: dict) -> list[dict]:
                 "status": "completed",
                 "result": result,
             })
-            logger.info("Agent '%s' completed for deal %s", agent_name, deal_id)
+            logger.info("Agent '%s' completed for deal %s in %ds", agent_name, deal_id, latency // 1000)
+
+        except asyncio.TimeoutError:
+            latency = int((time.time() - t0) * 1000)
+            error_msg = f"Agent timed out after {AGENT_TIMEOUT_SECONDS}s"
+            await record_run_failed(run_id, error_msg, latency_ms=latency)
+            logger.warning(
+                "Agent '%s' timed out for deal %s after %ds",
+                agent_name, deal_id, AGENT_TIMEOUT_SECONDS,
+            )
+            results.append({
+                "agent": agent_name,
+                "action": action,
+                "status": "failed",
+                "error": error_msg,
+            })
 
         except Exception as exc:
             latency = int((time.time() - t0) * 1000)

@@ -264,6 +264,7 @@ def _build_ollama(model: str, max_tokens: int, callbacks: list | None, **kwargs)
         model=model,
         base_url=base_url,
         num_predict=max_tokens,
+        timeout=240,  # 4 min per LLM call — prevents infinite hangs
         callbacks=callbacks if callbacks else None,
         **kwargs,
     )
