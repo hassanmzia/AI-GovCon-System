@@ -59,6 +59,7 @@ const navigation = [
   { name: "Research", href: "/research", icon: BookOpen },
   { name: "Legal", href: "/legal", icon: Scale },
   { name: "Teaming", href: "/teaming", icon: Users },
+  { name: "Partner Directory", href: "/partner-directory", icon: Building2 },
   { name: "Security", href: "/security", icon: ShieldCheck },
   { name: "Template Library", href: "/template-library", icon: FolderOpen },
   { name: "Knowledge Vault", href: "/knowledge-vault", icon: Database },
