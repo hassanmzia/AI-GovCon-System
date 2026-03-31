@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("teaming", "0001_initial"),
+        ("teaming", "0002_teamingpartnership_disclosure_sections_and_more"),
     ]
 
     operations = [
