@@ -184,6 +184,83 @@ class KnowledgeChunk(BaseModel):
         return f"Chunk {self.chunk_index} of {source}"
 
 
+class DocumentTemplate(BaseModel):
+    """
+    Unified template library for GovCon documents: proposals, capability
+    statements, past-performance write-ups, email templates, contracts, etc.
+    Templates can be DOCX/PPTX files stored in MinIO with {{placeholder}}
+    variables that the rendering engine fills at generation time.
+    """
+
+    CATEGORY_CHOICES = [
+        ("proposal", "Proposal Template"),
+        ("capability_statement", "Capability Statement"),
+        ("past_performance", "Past Performance"),
+        ("email", "Email Template"),
+        ("contract", "Contract Template"),
+        ("checklist", "Checklist"),
+        ("pitch_deck", "Pitch Deck"),
+        ("guide", "Guide / Reference"),
+        ("other", "Other"),
+    ]
+
+    FORMAT_CHOICES = [
+        ("docx", "Word Document (.docx)"),
+        ("pdf", "PDF (.pdf)"),
+        ("pptx", "PowerPoint (.pptx)"),
+        ("xlsx", "Excel (.xlsx)"),
+        ("txt", "Plain Text"),
+    ]
+
+    name = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    file_format = models.CharField(max_length=10, choices=FORMAT_CHOICES, default="docx")
+
+    # File stored in MinIO / S3
+    file = models.FileField(upload_to="templates/", blank=True)
+    file_size = models.IntegerField(default=0, help_text="File size in bytes")
+
+    # Template variables for rendering (Jinja2 / docxtpl placeholders)
+    variables = models.JSONField(
+        default=list, blank=True,
+        help_text='List of variable dicts: [{"name": "company_name", "label": "Company Name", "default": ""}]',
+    )
+
+    # Metadata
+    version = models.CharField(max_length=50, default="1.0")
+    source = models.CharField(
+        max_length=100, blank=True,
+        help_text="Origin e.g. 'Bidvantage', 'Custom', 'FAR Library'",
+    )
+    tags = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(
+        default=False,
+        help_text="Default template for its category",
+    )
+
+    # Usage stats
+    usage_count = models.IntegerField(default=0)
+
+    # Who uploaded
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_templates",
+    )
+
+    class Meta:
+        ordering = ["category", "name"]
+        verbose_name = "Document Template"
+        verbose_name_plural = "Document Templates"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
+
+
 class SolutioningFramework(BaseModel):
     """
     Architecture and solutioning frameworks (TOGAF, C4, arc42, agentic patterns, etc.)
