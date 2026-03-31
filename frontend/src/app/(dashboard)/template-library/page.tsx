@@ -32,7 +32,7 @@ import {
   updateTemplate,
   setDefaultTemplate,
   duplicateTemplate,
-  trackDownload,
+  downloadTemplate,
   renderTemplate,
 } from "@/services/templates";
 import {
@@ -203,8 +203,11 @@ export default function TemplateLibraryPage() {
 
   const handleDownload = async (tmpl: DocumentTemplate) => {
     if (!tmpl.file_url) return;
-    await trackDownload(tmpl.id);
-    window.open(tmpl.file_url, "_blank");
+    try {
+      await downloadTemplate(tmpl.id);
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
   };
 
   const openRenderModal = (tmpl: DocumentTemplate) => {

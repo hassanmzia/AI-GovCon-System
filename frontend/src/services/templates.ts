@@ -54,6 +54,25 @@ export async function trackDownload(id: string): Promise<{ usage_count: number }
   return response.data;
 }
 
+export async function downloadTemplate(id: string): Promise<void> {
+  const response = await api.get(`/knowledge-vault/templates/${id}/download/`, {
+    responseType: "blob",
+  });
+  // Extract filename from Content-Disposition header or fall back
+  const disposition = response.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?(.+?)"?$/);
+  const filename = match ? match[1] : `template-${id}`;
+
+  const url = window.URL.createObjectURL(response.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export async function renderTemplate(
   id: string,
   variables: Record<string, string>
