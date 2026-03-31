@@ -72,11 +72,19 @@ class DocumentTemplateListSerializer(serializers.ModelSerializer):
         ]
 
     def get_file_url(self, obj):
+        """Return a URL to the Django-served download endpoint.
+
+        Instead of linking directly to MinIO/S3 (which may 404 for seeded
+        templates), we route through the /templates/{id}/download/ action
+        which has a local-file fallback.
+        """
         if obj.file:
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url if obj.file else None
+                return request.build_absolute_uri(
+                    f"/api/knowledge-vault/templates/{obj.id}/download/"
+                )
+            return f"/api/knowledge-vault/templates/{obj.id}/download/"
         return None
 
 

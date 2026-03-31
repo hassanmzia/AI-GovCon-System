@@ -107,6 +107,7 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://172.168.1.95:12434}
     volumes:
       - ./backend:/app
+      - ./GovCon-Policies:/app/GovCon-Policies:ro
     depends_on:
       postgres:
         condition: service_healthy

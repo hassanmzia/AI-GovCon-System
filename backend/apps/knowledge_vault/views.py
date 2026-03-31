@@ -1,4 +1,9 @@
+import logging
+import os
+from pathlib import Path
+
 from django.db.models import Q
+from django.http import FileResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -11,6 +16,18 @@ from apps.knowledge_vault.serializers import (
     DocumentTemplateDetailSerializer,
     DocumentTemplateListSerializer,
     KnowledgeDocumentSerializer,
+)
+
+logger = logging.getLogger(__name__)
+
+# Path to the GovCon-Policies directory.
+# In Docker: mounted at /app/GovCon-Policies
+# In dev: relative to the backend/ directory (one level up)
+_app_root = Path(__file__).resolve().parents[3]  # backend/
+GOVCON_POLICIES_DIR = (
+    Path("/app/GovCon-Policies")
+    if Path("/app/GovCon-Policies").exists()
+    else _app_root / "GovCon-Policies"
 )
 
 
@@ -108,6 +125,53 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
         template.usage_count += 1
         template.save(update_fields=["usage_count", "updated_at"])
         return Response({"usage_count": template.usage_count})
+
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        """Download the template file.
+
+        Tries Django storage first (MinIO/S3), then falls back to the
+        local GovCon-Policies/ directory for seeded Bidvantage templates.
+        """
+        template = self.get_object()
+
+        if not template.file:
+            return Response(
+                {"error": "No file associated with this template."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Derive a human-friendly filename
+        file_name = os.path.basename(template.file.name)
+
+        # 1. Try serving from Django storage (MinIO/S3)
+        try:
+            f = template.file.open("rb")
+            # Track usage
+            template.usage_count += 1
+            template.save(update_fields=["usage_count", "updated_at"])
+            return FileResponse(f, as_attachment=True, filename=file_name)
+        except Exception:
+            logger.debug(
+                "File not in storage for template %s, trying local fallback.",
+                template.id,
+            )
+
+        # 2. Fallback: serve from local GovCon-Policies/ directory
+        local_path = GOVCON_POLICIES_DIR / file_name
+        if local_path.exists():
+            template.usage_count += 1
+            template.save(update_fields=["usage_count", "updated_at"])
+            return FileResponse(
+                open(local_path, "rb"),  # noqa: SIM115
+                as_attachment=True,
+                filename=file_name,
+            )
+
+        return Response(
+            {"error": f"File '{file_name}' not found in storage or local directory."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     @action(detail=True, methods=["post"])
     def render(self, request, pk=None):
