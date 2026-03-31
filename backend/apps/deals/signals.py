@@ -22,6 +22,7 @@ STAGE_AGENT_CHAINS = {
     "qualify": [
         {"agent": "fit_agent", "action": "score_fit"},
         {"agent": "strategy_agent", "action": "bid_no_bid_assessment"},
+        {"agent": "regulatory_classifier_agent", "action": "classify_regulations"},
     ],
     "bid_no_bid": [
         {"agent": "strategy_agent", "action": "strategic_alignment"},
@@ -40,6 +41,7 @@ STAGE_AGENT_CHAINS = {
         {"agent": "solution_architect_agent", "action": "design_solution"},
         {"agent": "proposal_writer_agent", "action": "draft_sections"},
         {"agent": "pricing_agent", "action": "build_scenarios"},
+        {"agent": "price_intelligence_agent", "action": "benchmark_pricing"},
         {"agent": "security_compliance_agent", "action": "map_controls"},
     ],
     "red_team": [
@@ -67,12 +69,15 @@ STAGE_AGENT_CHAINS = {
     ],
     "closed_won": [
         {"agent": "learning_agent", "action": "record_win"},
+        {"agent": "adaptive_learning_agent", "action": "adapt_from_win"},
     ],
     "closed_lost": [
         {"agent": "learning_agent", "action": "record_loss"},
+        {"agent": "adaptive_learning_agent", "action": "adapt_from_loss"},
     ],
     "no_bid": [
         {"agent": "learning_agent", "action": "record_no_bid"},
+        {"agent": "adaptive_learning_agent", "action": "adapt_from_no_bid"},
     ],
 }
 
