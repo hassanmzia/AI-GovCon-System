@@ -87,6 +87,11 @@ def _get_agent_registry() -> dict:
         logger.warning("Governance agents not yet available; skipping registration.")
         _governance_agents = {}
 
+    # Gap-closing agents — Price Intelligence, Regulatory Classifier, Adaptive Learning
+    from src.agents.price_intelligence_agent import PriceIntelligenceAgent
+    from src.agents.regulatory_classifier_agent import RegulatoryClassifierAgent
+    from src.agents.adaptive_learning_agent import AdaptiveLearningAgent
+
     registry = {
         "scout_agent": ScoutAgent(),
         "fit_agent": FitAgent(),
@@ -116,6 +121,10 @@ def _get_agent_registry() -> dict:
         "ato_agent": ATOAgent(),
         "forecasting_agent": ForecastingAgent(),
         "competitor_sim_agent": CompetitorSimAgent(),
+        # Gap-closing agents
+        "price_intelligence_agent": PriceIntelligenceAgent(),
+        "regulatory_classifier_agent": RegulatoryClassifierAgent(),
+        "adaptive_learning_agent": AdaptiveLearningAgent(),
     }
     registry.update(_governance_agents)
     return registry
@@ -246,6 +255,14 @@ def _build_agent_input(
         base["research_type"] = action
     elif agent_name in ("fit_agent", "scout_agent", "opportunity_agent"):
         base["opportunity_id"] = opportunity_id
+    elif agent_name == "adaptive_learning_agent":
+        # Map the action to the outcome field the agent expects
+        outcome_map = {
+            "adapt_from_win": "win",
+            "adapt_from_loss": "loss",
+            "adapt_from_no_bid": "no_bid",
+        }
+        base["outcome"] = outcome_map.get(action, "loss")
 
     return base
 

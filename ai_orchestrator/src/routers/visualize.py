@@ -114,7 +114,8 @@ STAGE_PIPELINE_MERMAID = """graph TD
     subgraph qualify[Stage: Qualify]
         fit[Fit Agent<br/>Score PWin]
         strategy_q[Strategy Agent<br/>Bid/No-Bid Assessment]
-        fit --> strategy_q
+        reg_class[Regulatory Classifier<br/>FAR/DFARS Classification]
+        fit --> strategy_q --> reg_class
     end
 
     subgraph bid_no_bid[Stage: Bid/No-Bid]
@@ -140,8 +141,9 @@ STAGE_PIPELINE_MERMAID = """graph TD
         sol_arch[Solution Architect<br/>Design Solution]
         prop_writer[Proposal Writer<br/>Draft Sections]
         pricing[Pricing Agent<br/>Build Scenarios]
+        price_intel[Price Intelligence<br/>FPDS Benchmarking]
         sec_comp_p[Security Compliance<br/>Map Controls]
-        rfp --> past_perf --> sol_arch --> prop_writer --> pricing --> sec_comp_p
+        rfp --> past_perf --> sol_arch --> prop_writer --> pricing --> price_intel --> sec_comp_p
     end
 
     subgraph red_team[Stage: Red Team]
@@ -173,6 +175,9 @@ STAGE_PIPELINE_MERMAID = """graph TD
     subgraph post_award[Stage: Post Award]
         learning_w[Learning Agent<br/>Record Win]
         learning_l[Learning Agent<br/>Record Loss]
+        adaptive[Adaptive Learning<br/>Thompson Sampling Feedback]
+        learning_w --> adaptive
+        learning_l --> adaptive
     end
 
     intake --> qualify --> bid_no_bid --> capture_plan --> proposal_dev
