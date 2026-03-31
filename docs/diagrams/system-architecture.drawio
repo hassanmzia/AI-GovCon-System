@@ -1,0 +1,334 @@
+<mxfile host="app.diagrams.net" modified="2026-03-31T00:00:00.000Z" agent="Claude" version="24.0.0" type="device">
+  <diagram id="system-arch" name="System Architecture">
+    <mxGraphModel dx="2200" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="3300" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="AI-GovCon System — System Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="600" y="20" width="800" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ============ USER ZONE ============ -->
+        <mxCell id="user_zone" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;dashPattern=5 5;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="user_zone_label" value="Users" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="140" y="85" width="100" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user_co" value="Contracting&#xa;Officer" style="shape=mxgraph.basic.person;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="120" width="60" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="user_bd" value="BD / Capture&#xa;Manager" style="shape=mxgraph.basic.person;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="120" width="60" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="user_pm" value="Proposal&#xa;Manager" style="shape=mxgraph.basic.person;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="120" width="60" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="user_exec" value="Executive /&#xa;Reviewer" style="shape=mxgraph.basic.person;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="240" width="60" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="user_admin" value="System&#xa;Admin" style="shape=mxgraph.basic.person;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="240" width="60" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Browser -->
+        <mxCell id="browser" value="Browser (HTTPS)&#xa;Port 3028" style="shape=mxgraph.aws4.client;fillColor=#E6E6E6;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="140" y="350" width="60" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow: Users -> Browser -->
+        <mxCell id="e_users_browser" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#666666;" edge="1" parent="1" source="user_exec" target="browser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============ NGINX / GATEWAY ============ -->
+        <mxCell id="nginx_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a1a2e;strokeColor=#16213e;opacity=90;" vertex="1" parent="1">
+          <mxGeometry x="420" y="160" width="160" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="nginx" value="Nginx&#xa;Reverse Proxy&#xa;(Alpine)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="430" y="170" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="nginx_routes" value="/api → Django&#xa;/ai → Orchestrator&#xa;/ws → Node Realtime&#xa;/ → Frontend" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#cccccc;" vertex="1" parent="1">
+          <mxGeometry x="435" y="220" width="130" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow: Browser -> Nginx -->
+        <mxCell id="e_browser_nginx" value="HTTPS :3028" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#0066cc;strokeWidth=2;fontColor=#0066cc;fontSize=9;" edge="1" parent="1" source="browser" target="nginx_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============ FRONTEND ============ -->
+        <mxCell id="frontend_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;" vertex="1" parent="1">
+          <mxGeometry x="420" y="340" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="frontend_label" value="Frontend" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1;fontColor=#1565c0;" vertex="1" parent="1">
+          <mxGeometry x="450" y="345" width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="frontend_stack" value="Next.js 14 / React 18&#xa;TypeScript 5.3&#xa;Tailwind CSS 3.4&#xa;Zustand State&#xa;Socket.IO Client&#xa;Recharts / Mermaid" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="435" y="370" width="130" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- ============ DJANGO BACKEND ============ -->
+        <mxCell id="django_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="660" y="80" width="280" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="django_label" value="Django REST API (Python 3.12)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1;fontColor=#2e7d32;" vertex="1" parent="1">
+          <mxGeometry x="680" y="85" width="240" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="django_details" value="Django 5.1 + DRF 3.15&#xa;Gunicorn (4 workers, :8001)&#xa;JWT Auth (SimpleJWT)&#xa;15+ Domain Apps" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="680" y="110" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Django Apps Grid -->
+        <mxCell id="app_deals" value="Deals" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="675" y="175" width="60" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_opps" value="Opportunities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="745" y="175" width="80" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_proposals" value="Proposals" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="835" y="175" width="60" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_contracts" value="Contracts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="675" y="210" width="60" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_pricing" value="Pricing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="745" y="210" width="55" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_legal" value="Legal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="810" y="210" width="45" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_security" value="Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="865" y="210" width="55" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_marketing" value="Marketing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="675" y="245" width="65" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_research" value="Research" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="750" y="245" width="55" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_kv" value="Knowledge Vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="815" y="245" width="95" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_analytics" value="Analytics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="675" y="280" width="60" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_workforce" value="Workforce" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="745" y="280" width="65" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_teaming" value="Teaming" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#4caf50;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="280" width="55" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="app_more" value="+ 5 more" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#a5d6a7;fontSize=8;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="675" y="315" width="55" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow: Nginx -> Django -->
+        <mxCell id="e_nginx_django" value="/api/*" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2e7d32;strokeWidth=2;fontSize=9;fontColor=#2e7d32;" edge="1" parent="1" source="nginx_box" target="django_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Arrow: Nginx -> Frontend -->
+        <mxCell id="e_nginx_frontend" value="/*" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#1565c0;strokeWidth=2;fontSize=9;fontColor=#1565c0;" edge="1" parent="1" source="nginx_box" target="frontend_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============ AI ORCHESTRATOR ============ -->
+        <mxCell id="orch_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8eaf6;strokeColor=#5c6bc0;" vertex="1" parent="1">
+          <mxGeometry x="660" y="400" width="280" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="orch_label" value="AI Orchestrator (Python 3.12)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1;fontColor=#283593;" vertex="1" parent="1">
+          <mxGeometry x="680" y="405" width="240" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="orch_details" value="FastAPI 0.115 + Uvicorn :8003&#xa;LangGraph 0.2 + LangChain 0.3&#xa;MCP Tool Servers" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="680" y="425" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Agent Groups -->
+        <mxCell id="agents_intake" value="Discovery&#xa;scout, fit, alert&#xa;ranking, opportunity" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#42a5f5;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="675" y="475" width="85" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="agents_capture" value="Capture &amp; Strategy&#xa;strategy, capture&#xa;research, competitor_sim&#xa;regulatory_classifier" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c5cae9;strokeColor=#7986cb;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="770" y="475" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="agents_proposal" value="Proposal &amp; Pricing&#xa;rfp_analyst, sol_arch&#xa;proposal_writer, pricing&#xa;price_intelligence" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d1c4e9;strokeColor=#9575cd;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="675" y="535" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="agents_review" value="Review &amp; Compliance&#xa;red_team, compliance&#xa;qa, synth_evaluator&#xa;legal, security, CUI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#ef5350;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="785" y="535" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="agents_delivery" value="Delivery &amp; Learning&#xa;submission, contract&#xa;communication, learning&#xa;adaptive_learning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#66bb6a;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="675" y="595" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="agents_support" value="Support Agents&#xa;workforce, forecasting&#xa;marketing, teaming&#xa;management_approach" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff9c4;strokeColor=#fdd835;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="785" y="595" width="100" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="agent_count" value="30 AI Agents" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontStyle=1;fontColor=#283593;" vertex="1" parent="1">
+          <mxGeometry x="880" y="405" width="60" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow: Nginx -> Orchestrator -->
+        <mxCell id="e_nginx_orch" value="/ai/*" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#283593;strokeWidth=2;fontSize=9;fontColor=#283593;" edge="1" parent="1" source="nginx_box" target="orch_box">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="220" />
+              <mxPoint x="610" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Arrow: Django <-> Orchestrator -->
+        <mxCell id="e_django_orch" value="REST API&#xa;(service token)" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#666666;strokeWidth=1;dashed=1;fontSize=8;fontColor=#666666;" edge="1" parent="1" source="django_box" target="orch_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============ NODE REALTIME ============ -->
+        <mxCell id="node_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;" vertex="1" parent="1">
+          <mxGeometry x="420" y="520" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="node_label" value="Node Realtime :8002&#xa;Socket.IO + Redis Adapter&#xa;WebSocket Server" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=1;fontColor=#e65100;" vertex="1" parent="1">
+          <mxGeometry x="430" y="530" width="140" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow: Nginx -> Node -->
+        <mxCell id="e_nginx_node" value="/ws/*" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#e65100;strokeWidth=2;fontSize=9;fontColor=#e65100;" edge="1" parent="1" source="nginx_box" target="node_box">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="310" />
+              <mxPoint x="500" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============ CELERY WORKERS ============ -->
+        <mxCell id="celery_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#e91e63;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="80" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="celery_label" value="Celery Task Workers" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=13;fontStyle=1;fontColor=#c2185b;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="85" width="160" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="celery_worker" value="Worker (4 concurrent)&#xa;SAM.gov scanning&#xa;FPDS data fetch&#xa;Opportunity enrichment&#xa;Email notifications" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="110" width="130" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="celery_beat" value="Beat&#xa;Scheduler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8bbd0;strokeColor=#e91e63;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="115" width="40" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow: Django -> Celery -->
+        <mxCell id="e_django_celery" value="Tasks" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#c2185b;strokeWidth=1;fontSize=9;fontColor=#c2185b;" edge="1" parent="1" source="django_box" target="celery_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============ DATA STORES ============ -->
+        <!-- PostgreSQL -->
+        <mxCell id="pg_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#43a047;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="280" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_label" value="PostgreSQL 16 + pgvector" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontStyle=1;fontColor=#2e7d32;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="285" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_details" value="Database: dealmanager&#xa;Vector embeddings (1536-dim)&#xa;15+ domain tables&#xa;Audit logs, AI traces&#xa;Celery beat schedules" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="310" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_icon" value="" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#a5d6a7;strokeColor=#43a047;size=8;" vertex="1" parent="1">
+          <mxGeometry x="1185" y="290" width="25" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Redis -->
+        <mxCell id="redis_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#e53935;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="440" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="redis_label" value="Redis 7 (Alpine)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontStyle=1;fontColor=#c62828;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="445" width="160" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="redis_details" value="Celery broker &amp; results&#xa;Agent pub/sub events&#xa;Socket.IO adapter&#xa;Adaptive learning weights&#xa;Distributed locks" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="470" width="170" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- MinIO -->
+        <mxCell id="minio_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#f9a825;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="580" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="minio_label" value="MinIO (S3-Compatible)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontStyle=1;fontColor=#f57f17;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="585" width="160" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="minio_details" value="Bucket: dealmanager&#xa;Proposals, RFPs, templates&#xa;Rendered DOCX/PDF" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="610" width="170" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows: Services -> Data Stores -->
+        <mxCell id="e_django_pg" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#43a047;strokeWidth=1;" edge="1" parent="1" source="django_box" target="pg_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_orch_redis" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#e53935;strokeWidth=1;" edge="1" parent="1" source="orch_box" target="redis_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_celery_redis" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#e53935;strokeWidth=1;dashed=1;" edge="1" parent="1" source="celery_box" target="redis_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_django_minio" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#f9a825;strokeWidth=1;dashed=1;" edge="1" parent="1" source="django_box" target="minio_box">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="960" y="340" />
+              <mxPoint x="960" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_node_redis" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#e53935;strokeWidth=1;dashed=1;" edge="1" parent="1" source="node_box" target="redis_box">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="640" />
+              <mxPoint x="990" y="640" />
+              <mxPoint x="990" y="490" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ============ EXTERNAL SERVICES ============ -->
+        <mxCell id="ext_zone" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#efebe9;strokeColor=#8d6e63;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="300" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_label" value="External Services" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1;fontColor=#5d4037;" vertex="1" parent="1">
+          <mxGeometry x="120" y="525" width="140" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ext_sam" value="SAM.gov API&#xa;(Opportunities)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="555" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_fpds" value="FPDS.gov&#xa;(Award History)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="175" y="555" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_usa" value="USASpending&#xa;(Budget Data)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="610" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_anthropic" value="Anthropic API&#xa;(Claude)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#7b1fa2;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="175" y="610" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_openai" value="OpenAI API&#xa;(GPT-4)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#7b1fa2;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="665" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_ollama" value="Ollama&#xa;(Local LLM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#7b1fa2;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="175" y="665" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_langfuse" value="Langfuse :8004&#xa;(LLM Observability)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede7f6;strokeColor=#673ab7;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="720" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows: Orchestrator -> External -->
+        <mxCell id="e_orch_ext" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#5d4037;strokeWidth=1;dashed=1;" edge="1" parent="1" source="orch_box" target="ext_zone">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="650" y="530" />
+              <mxPoint x="400" y="530" />
+              <mxPoint x="400" y="650" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

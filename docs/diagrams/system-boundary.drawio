@@ -1,0 +1,213 @@
+<mxfile host="app.diagrams.net" modified="2026-03-31" agent="Claude" version="24.0">
+  <diagram id="boundary-diagram" name="System Boundary Diagram">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ═══ EXTERNAL ACTORS: Users ═══ -->
+        <mxCell id="users" value="&lt;b&gt;GovCon Users&lt;/b&gt;&lt;br&gt;BD Teams / Proposal Managers&lt;br&gt;Capture Managers / Executives" style="shape=mxgraph.basic.rectCallout;dx=30;dy=15;boundedLbl=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="10" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══ TRUST ZONE 1: Browser ═══ -->
+        <mxCell id="tz-browser" value="&lt;b&gt;Browser Trust Zone&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#999999;fillColor=#fafafa;verticalAlign=top;fontSize=10;fontColor=#999999;opacity=60;" vertex="1" parent="1">
+          <mxGeometry x="530" y="110" width="340" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="browser" value="&lt;b&gt;Web Browser&lt;/b&gt;&lt;br&gt;Next.js SPA (React + TypeScript)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="590" y="135" width="220" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══ TRUST ZONE 2: DMZ / Reverse Proxy ═══ -->
+        <mxCell id="tz-dmz" value="&lt;b&gt;DMZ — Reverse Proxy&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#ef6c00;fillColor=#fff8e1;verticalAlign=top;fontSize=10;fontColor=#ef6c00;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="490" y="220" width="420" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="nginx" value="&lt;b&gt;Nginx&lt;/b&gt;&lt;br&gt;SSL Termination · Static Files · Reverse Proxy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ef6c00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="565" y="245" width="270" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══ TRUST ZONE 3: Application Zone ═══ -->
+        <mxCell id="tz-app" value="&lt;b&gt;Application Trust Zone (Internal Network)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#1565c0;fillColor=#e8eaf6;verticalAlign=top;fontSize=11;fontColor=#1565c0;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="340" width="1020" height="310" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="nextjs" value="&lt;b&gt;Next.js Frontend&lt;/b&gt;&lt;br&gt;SSR + Static Assets&lt;br&gt;TypeScript · Tailwind · shadcn/ui" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1565c0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="90" y="395" width="200" height="65" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="django" value="&lt;b&gt;Django REST API&lt;/b&gt;&lt;br&gt;Python 3.11 · DRF&lt;br&gt;15+ Apps · JWT Auth&lt;br&gt;RBAC · Audit Logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c5cae9;strokeColor=#283593;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="330" y="385" width="200" height="85" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ai-orch" value="&lt;b&gt;AI Orchestrator&lt;/b&gt;&lt;br&gt;FastAPI · LangGraph&lt;br&gt;30+ Agents · RAG&lt;br&gt;Thompson Sampling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d1c4e9;strokeColor=#4a148c;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="570" y="385" width="200" height="85" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="realtime" value="&lt;b&gt;Node.js Realtime&lt;/b&gt;&lt;br&gt;Express · Socket.IO&lt;br&gt;WebSocket Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b2dfdb;strokeColor=#00695c;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="810" y="395" width="200" height="65" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="celery-worker" value="&lt;b&gt;Celery Workers&lt;/b&gt;&lt;br&gt;Async Task Processing (×4)&lt;br&gt;SAM Scan · Emails · Analytics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcedc8;strokeColor=#558b2f;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="330" y="515" width="220" height="65" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="celery-beat" value="&lt;b&gt;Celery Beat&lt;/b&gt;&lt;br&gt;Periodic Scheduler&lt;br&gt;django-celery-beat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcedc8;strokeColor=#558b2f;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="515" width="200" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══ TRUST ZONE 4: Data Zone ═══ -->
+        <mxCell id="tz-data" value="&lt;b&gt;Data Trust Zone (Persistent Storage)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#2e7d32;fillColor=#e8f5e9;verticalAlign=top;fontSize=11;fontColor=#2e7d32;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="140" y="700" width="860" height="140" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="postgres" value="&lt;b&gt;PostgreSQL 16&lt;/b&gt;&lt;br&gt;+ pgvector&lt;br&gt;Relational · Vectors (1536d)&lt;br&gt;Full-Text Search" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontSize=10;size=12;" vertex="1" parent="1">
+          <mxGeometry x="180" y="730" width="200" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="redis" value="&lt;b&gt;Redis 7&lt;/b&gt;&lt;br&gt;Cache · Celery Broker&lt;br&gt;Pub/Sub · Sessions&lt;br&gt;Thompson Weights" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontSize=10;size=12;" vertex="1" parent="1">
+          <mxGeometry x="470" y="730" width="200" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="minio" value="&lt;b&gt;MinIO&lt;/b&gt;&lt;br&gt;S3-Compatible Storage&lt;br&gt;Templates · Proposals&lt;br&gt;Uploaded Documents" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontSize=10;size=12;" vertex="1" parent="1">
+          <mxGeometry x="750" y="730" width="200" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══ TRUST ZONE 5: External APIs ═══ -->
+        <mxCell id="tz-external" value="&lt;b&gt;External API Zone&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#c62828;fillColor=#fce4ec;verticalAlign=top;fontSize=11;fontColor=#c62828;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="110" width="230" height="570" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="samgov" value="&lt;b&gt;SAM.gov API&lt;/b&gt;&lt;br&gt;Opportunity Discovery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1175" y="150" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="fpds" value="&lt;b&gt;FPDS.gov API&lt;/b&gt;&lt;br&gt;Award History / Pricing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1175" y="215" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="anthropic" value="&lt;b&gt;Anthropic Claude API&lt;/b&gt;&lt;br&gt;Primary LLM Provider" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1175" y="285" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="openai" value="&lt;b&gt;OpenAI API&lt;/b&gt;&lt;br&gt;Fallback LLM Provider" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1175" y="355" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ollama" value="&lt;b&gt;Ollama&lt;/b&gt;&lt;br&gt;Self-Hosted LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1175" y="425" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="langfuse" value="&lt;b&gt;Langfuse&lt;/b&gt;&lt;br&gt;LLM Observability" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1175" y="495" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="smtp" value="&lt;b&gt;SMTP Service&lt;/b&gt;&lt;br&gt;Email Delivery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1175" y="565" width="180" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- ═══ DATA FLOW ARROWS ═══ -->
+
+        <!-- Users → Browser -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#666666;fontSize=9;" edge="1" source="users" target="browser" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Browser → Nginx (HTTPS) -->
+        <mxCell id="e2" value="HTTPS / TLS" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#ef6c00;fontSize=9;fontColor=#ef6c00;" edge="1" source="browser" target="nginx" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Nginx → Next.js -->
+        <mxCell id="e3" value="/* → SSR" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#1565c0;fontSize=8;fontColor=#1565c0;" edge="1" source="nginx" target="nextjs" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Nginx → Django -->
+        <mxCell id="e4" value="/api/*" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#283593;fontSize=8;fontColor=#283593;" edge="1" source="nginx" target="django" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Nginx → AI Orchestrator -->
+        <mxCell id="e5" value="/ai/*" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4a148c;fontSize=8;fontColor=#4a148c;" edge="1" source="nginx" target="ai-orch" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Nginx → Realtime -->
+        <mxCell id="e6" value="/ws/*" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#00695c;fontSize=8;fontColor=#00695c;" edge="1" source="nginx" target="realtime" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Django → PostgreSQL -->
+        <mxCell id="e7" value="SQL / ORM" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2e7d32;fontSize=8;fontColor=#2e7d32;" edge="1" source="django" target="postgres" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Django → Redis -->
+        <mxCell id="e8" value="Cache + Events" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2e7d32;fontSize=8;fontColor=#2e7d32;" edge="1" source="django" target="redis" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Django → MinIO -->
+        <mxCell id="e9" value="S3 API" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#2e7d32;fontSize=8;fontColor=#2e7d32;" edge="1" source="django" target="minio" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AI Orchestrator → Redis -->
+        <mxCell id="e10" value="Pub/Sub" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4a148c;fontSize=8;fontColor=#4a148c;dashed=1;" edge="1" source="ai-orch" target="redis" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AI Orchestrator → Django (internal HTTP) -->
+        <mxCell id="e11" value="Internal REST" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#7b1fa2;fontSize=8;fontColor=#7b1fa2;dashed=1;" edge="1" source="ai-orch" target="django" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AI Orchestrator → PostgreSQL (pgvector) -->
+        <mxCell id="e20" value="pgvector RAG" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#4a148c;fontSize=8;fontColor=#4a148c;" edge="1" source="ai-orch" target="postgres" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AI Orchestrator → External LLMs -->
+        <mxCell id="e12" value="LLM API Calls" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#c62828;fontSize=8;fontColor=#c62828;" edge="1" source="ai-orch" target="anthropic" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AI Orchestrator → SAM.gov -->
+        <mxCell id="e13" value="Opportunity API" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#c62828;fontSize=8;fontColor=#c62828;" edge="1" source="ai-orch" target="samgov" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AI Orchestrator → Langfuse -->
+        <mxCell id="e18" value="Traces" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#c62828;fontSize=8;fontColor=#c62828;dashed=1;" edge="1" source="ai-orch" target="langfuse" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Celery → Redis (broker) -->
+        <mxCell id="e14" value="Task Broker" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#558b2f;fontSize=8;fontColor=#558b2f;" edge="1" source="celery-worker" target="redis" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Celery → PostgreSQL -->
+        <mxCell id="e15" value="DB Access" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#558b2f;fontSize=8;fontColor=#558b2f;" edge="1" source="celery-worker" target="postgres" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Celery Beat → Redis -->
+        <mxCell id="e17" value="Schedule" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#558b2f;fontSize=8;fontColor=#558b2f;dashed=1;" edge="1" source="celery-beat" target="redis" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Realtime → Redis (pub/sub) -->
+        <mxCell id="e16" value="Pub/Sub" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#00695c;fontSize=8;fontColor=#00695c;" edge="1" source="realtime" target="redis" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Django → SMTP -->
+        <mxCell id="e19" value="Email" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#c62828;fontSize=8;fontColor=#c62828;dashed=1;" edge="1" source="django" target="smtp" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
