@@ -15,7 +15,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 8_500_000,
         "employee_count": 45,
         "primary_agencies": ["DoD", "DHS", "VA"],
-        "vehicles": ["GSA MAS IT 70", "SEWP V"],
+        "contract_vehicles": ["GSA MAS IT 70", "SEWP V"],
         "headquarters": "Herndon, VA",
         "website": "https://techdefensesolutions.example.com",
     },
@@ -31,7 +31,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 15_200_000,
         "employee_count": 89,
         "primary_agencies": ["DoD", "Intelligence Community", "DHS CISA"],
-        "vehicles": ["CIO-SP3", "OASIS SB"],
+        "contract_vehicles": ["CIO-SP3", "OASIS SB"],
         "headquarters": "Reston, VA",
         "website": "https://cybershieldfed.example.com",
     },
@@ -47,7 +47,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 6_300_000,
         "employee_count": 28,
         "primary_agencies": ["HHS", "NIH", "CDC", "VA"],
-        "vehicles": ["GSA MAS IT 70"],
+        "contract_vehicles": ["GSA MAS IT 70"],
         "headquarters": "Baltimore, MD",
         "website": "https://databridgeanalytics.example.com",
     },
@@ -63,7 +63,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 22_100_000,
         "employee_count": 130,
         "primary_agencies": ["Army Corps", "GSA", "NAVFAC", "USAF"],
-        "vehicles": ["MATOC", "RWA"],
+        "contract_vehicles": ["MATOC", "RWA"],
         "headquarters": "Atlanta, GA",
         "website": "https://meridianinfrastructure.example.com",
     },
@@ -79,7 +79,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 11_700_000,
         "employee_count": 67,
         "primary_agencies": ["VA", "HHS", "DoD Health", "CMS"],
-        "vehicles": ["GSA MAS IT 70", "ITES-3H"],
+        "contract_vehicles": ["GSA MAS IT 70", "ITES-3H"],
         "headquarters": "Rockville, MD",
         "website": "https://healthitnexus.example.com",
     },
@@ -95,7 +95,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 45_000_000,
         "employee_count": 210,
         "primary_agencies": ["CIA", "DoD", "Treasury", "IRS"],
-        "vehicles": ["GSA MAS IT 70", "SEWP V", "CIO-SP3"],
+        "contract_vehicles": ["GSA MAS IT 70", "SEWP V", "CIO-SP3"],
         "headquarters": "McLean, VA",
         "website": "https://cloudnovafederal.example.com",
     },
@@ -111,7 +111,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 3_800_000,
         "employee_count": 15,
         "primary_agencies": ["DLA", "Army", "AFMC"],
-        "vehicles": ["BOSS II"],
+        "contract_vehicles": ["BOSS II"],
         "headquarters": "San Antonio, TX",
         "website": "https://agilelogistics.example.com",
     },
@@ -127,7 +127,7 @@ SAMPLE_PARTNERS = [
         "past_revenue": 18_500_000,
         "employee_count": 95,
         "primary_agencies": ["Army", "Navy", "SOCOM", "NRO"],
-        "vehicles": ["ITES-3S", "SAIC BPA"],
+        "contract_vehicles": ["ITES-3S", "SAIC BPA"],
         "headquarters": "Fayetteville, NC",
         "website": "https://securecommstech.example.com",
     },
@@ -166,7 +166,7 @@ class Command(BaseCommand):
 
     def _clear_existing(self):
         try:
-            from backend.apps.teaming.models import TeamingPartner
+            from apps.teaming.models import TeamingPartner
             deleted, _ = TeamingPartner.objects.all().delete()
             self.stdout.write(f"Cleared {deleted} existing partners")
         except Exception as e:
@@ -174,7 +174,7 @@ class Command(BaseCommand):
 
     def _insert_partner(self, data: dict) -> bool:
         try:
-            from backend.apps.teaming.models import TeamingPartner
+            from apps.teaming.models import TeamingPartner
 
             obj, created = TeamingPartner.objects.update_or_create(
                 uei=data["uei"],
@@ -189,7 +189,7 @@ class Command(BaseCommand):
                     "past_revenue": data.get("past_revenue", 0),
                     "employee_count": data.get("employee_count", 0),
                     "primary_agencies": data.get("primary_agencies", []),
-                    "vehicles": data.get("vehicles", []),
+                    "contract_vehicles": data.get("contract_vehicles", []),
                     "headquarters": data.get("headquarters", ""),
                     "website": data.get("website", ""),
                 },
